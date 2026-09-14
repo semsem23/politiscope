@@ -223,6 +223,12 @@ filtré en amont. Décompte inchangé après tentative.
 Un invariant est posé en base plutôt qu'en Python : `verifie_exige_source`
 interdit qu'une candidate marquée vérifiée existe sans URL.
 
+## Déploiement du site
+
+Le dépôt est lié au projet Vercel : un push sur `main` reconstruit et met en
+ligne le site. Voir `web/README.md` pour les deux réglages non versionnés
+(Root Directory `web`, framework Vite).
+
 ## Tests
 
 ### Le raccourci

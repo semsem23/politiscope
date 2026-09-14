@@ -23,6 +23,25 @@ npm run preview     # sert dist/ pour vérifier avant déploiement
 npm run typecheck   # types seuls, sans bundle
 ```
 
+## Déploiement
+
+Le projet Vercel `politiscope` est lié à `semsem23/politiscope`. **Tout push sur
+`main` déclenche un build et une mise en production.** Il n'y a plus d'envoi
+manuel de fichiers.
+
+Deux réglages à connaître, car ils ne sont pas dans le dépôt :
+
+| Réglage Vercel | Valeur | Pourquoi |
+|---|---|---|
+| Root Directory | `web` | il n'y a pas de `package.json` à la racine du dépôt |
+| Framework | Vite | détecté automatiquement |
+
+Les variables `VITE_*` viennent de `.env.production`, **commité volontairement** :
+Vite les inline dans le bundle, donc la clé publishable est déjà servie à chaque
+visiteur. La commiter n'ajoute aucune exposition et rend le build autonome —
+sans elle, un build depuis Git produirait un bundle sans configuration Supabase,
+donc une page blanche.
+
 ## Données
 
 Le site lit deux tables, toutes deux en lecture seule via RLS :
