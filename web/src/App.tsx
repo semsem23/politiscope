@@ -99,7 +99,12 @@ export default function App() {
             : `${filtered.length} résultat${filtered.length > 1 ? "s" : ""}` +
               (filters.theme !== "all" ? ` · ${filters.theme}` : "")}
         </span>
-        <span>{entries.length} personnalités suivies</span>
+        {/* Une personne peut porter plusieurs citations : compter les bulles
+            comme des « personnalités » deviendrait faux dès la 2e publication. */}
+        <span>
+          {entries.length} citation{entries.length > 1 ? "s" : ""} ·{" "}
+          {new Set(entries.map((e) => e.nom)).size} personnalités
+        </span>
       </div>
 
       {loading ? (

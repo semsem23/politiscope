@@ -442,3 +442,98 @@ def test_les_fonctions_de_db_sont_toutes_utilisees():
         f.read_text(encoding="utf-8") for f in root.glob("*.py") if f.name != "db.py")
     mortes = [n for n in publiques if f"{n}(" not in appelants]
     assert not mortes, f"fonctions de db.py jamais appelées : {mortes}"
+
+
+# --- publication ---------------------------------------------------------
+def test_date_francaise():
+    from politiscope.publish import date_fr
+    assert date_fr("2026-09-14T18:30:00+00:00") == ("14 septembre 2026", "2026-09-14")
+    assert date_fr("2026-01-03T00:00:00Z")[0] == "3 janvier 2026"
+    assert date_fr(None) == ("", None)
+
+
+def test_champs_de_jugement_declares_obligatoires():
+    """Le pipeline ne doit jamais inventer sentiment, justif ou sujet."""
+    from politiscope.publish import CHAMPS_A_REMPLIR
+    for champ in ("sentiment", "justif", "sujet"):
+        assert champ in CHAMPS_A_REMPLIR
+
+
+def _draft_entry(**over):
+    e = {"candidate_id": 1, "nom": "Test", "parti": "P", "famille": "majorite",
+         "theme": "Budget & finances publiques", "sujet": "Un sujet",
+         "citation": "Le budget est injuste pour les Français.",
+         "sentiment": "negatif", "justif": "Ton critique.",
+         "date_texte": "14 septembre 2026", "date_tri": "2026-09-14",
+         "source": "https://x.com/t/status/1", "hashtags": []}
+    e.update(over)
+    return e
+
+
+class _FakeCursor:
+    """Rejoue les deux requêtes de validate() sans base."""
+    def __init__(self, officiel, deja):
+        self.officiel, self.deja, self._rows = officiel, deja, []
+    def execute(self, q, *a):
+        self._rows = list(self.officiel) if "from candidates" in q else [(k,) for k in self.deja]
+    def fetchall(self): return self._rows
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+
+
+class _FakeConn:
+    def __init__(self, officiel, deja, themes):
+        self.officiel, self.deja, self.themes = officiel, deja, themes
+    def cursor(self): return _FakeCursor(self.officiel, self.deja)
+
+
+def _validate(entries, *, officiel=None, deja=(), themes=("Budget & finances publiques",)):
+    from politiscope import publish
+    officiel = officiel if officiel is not None else [
+        (1, "Le budget est injuste pour les Français.", "https://x.com/t/status/1", "clef1")]
+    import unittest.mock as m
+    with m.patch.object(publish, "_reference_maps", lambda c: ({}, set(themes))):
+        return publish.validate(_FakeConn(officiel, deja, themes), entries)
+
+
+def test_brouillon_complet_est_valide():
+    assert _validate([_draft_entry()]) == []
+
+
+@pytest.mark.parametrize("champ", ["sujet", "sentiment", "justif", "theme"])
+def test_champ_vide_est_refuse(champ):
+    p = _validate([_draft_entry(**{champ: ""})])
+    assert any(champ in x for x in p)
+
+
+def test_sentiment_hors_enum_est_refuse():
+    assert any("invalide" in x for x in _validate([_draft_entry(sentiment="mitige")]))
+
+
+def test_theme_inconnu_est_refuse():
+    assert any("topics" in x for x in _validate([_draft_entry(theme="Inventé")]))
+
+
+def test_citation_modifiee_est_refusee():
+    """Garde-fou central : le brouillon ne doit pas pouvoir réécrire les faits."""
+    p = _validate([_draft_entry(citation="Le budget est PARFAIT.")])
+    assert any("citation a été modifiée" in x for x in p)
+
+
+def test_source_modifiee_est_refusee():
+    p = _validate([_draft_entry(source="https://exemple.fr/faux")])
+    assert any("source a été modifiée" in x for x in p)
+
+
+def test_source_non_https_est_refusee():
+    p = _validate([_draft_entry(source="http://x.com/t/status/1")])
+    assert any("non-https" in x for x in p)
+
+
+def test_citation_deja_publiee_est_refusee():
+    assert any("déjà publiée" in x for x in _validate([_draft_entry()], deja=("clef1",)))
+
+
+def test_doublon_dans_le_brouillon_est_refuse():
+    p = _validate([_draft_entry(), _draft_entry()])
+    assert any("double dans le brouillon" in x for x in p)

@@ -142,6 +142,49 @@ sur les données du 14 septembre 2026 :
 Le champ `verifie` distingue ce qui est publiable en l'état (tweets) de ce qui
 demande une vérification humaine (presse).
 
+## Publier une citation sur le site
+
+La seule étape du pipeline qui exige un jugement humain. Une candidate porte des
+faits — qui a dit quoi, quand, avec quelle URL. Une entrée porte en plus une
+lecture : le `sentiment`, la `justif` de ce choix, le `sujet`. Rien de cela ne se
+déduit du texte, et l'inventer reviendrait à fabriquer l'analyse que le baromètre
+prétend offrir.
+
+```bash
+python -m politiscope.cli publish --limit 5 --since-hours 48   # écrit publish_draft.json
+#   … remplir sujet / sentiment / justif dans le fichier …
+python -m politiscope.cli publish --apply --dry-run            # valide sans insérer
+python -m politiscope.cli publish --apply                      # insère
+```
+
+Le brouillon pré-remplit ce qui est déductible (nom, parti, famille, citation,
+date, source, thème détecté) et laisse vides les champs de jugement. Supprimez
+une entrée du tableau pour ne pas la publier.
+
+### Ce que la validation refuse
+
+| Refus | Pourquoi |
+|---|---|
+| `sujet`, `sentiment`, `justif` ou `theme` vide | une entrée sans lecture n'est pas une entrée |
+| `sentiment` hors de positif/neutre/negatif | contrainte de la base |
+| `theme` absent de `topics` | clé étrangère |
+| **citation modifiée** | le brouillon ne peut pas réécrire les faits |
+| **source modifiée** ou non-https | idem |
+| citation déjà publiée, ou en double | évite les doublons sur le site |
+
+Les deux refus en gras sont l'essentiel : le brouillon est un fichier éditable,
+et rien ne doit permettre d'y retoucher une citation avant insertion. La citation
+et la source sont recomparées à la candidate d'origine à chaque application.
+
+Publier inscrit la citation dans `publications` : elle ne sera plus jamais
+reproposée, même si elle est ensuite retirée du site.
+
+### Une personne, plusieurs citations
+
+Rien n'empêche de publier plusieurs citations d'une même personne — c'est même
+l'intérêt d'un baromètre suivi dans le temps. Le site affiche alors plusieurs
+bulles pour elle, et compte « N citations · M personnalités ».
+
 ## Base de données (Supabase)
 
 Le projet `politiscope` (région eu-west-2) stocke durablement comptes, tweets,
@@ -264,6 +307,7 @@ politiscope/
   xapi.py      client X : retries, rate-limit, facturation
   rss.py       Google Actualités, une requête par personnalité
   quotes.py    extraction, attribution, notation
+  publish.py   brouillon, validation, insertion des entrées
   db.py        Postgres/Supabase : migrations, upserts, lectures
   cli.py       commandes
 migrations/       schéma SQL versionné
