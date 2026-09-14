@@ -58,6 +58,13 @@ jobs:
       - name: Installer les dépendances
         run: pip install -r requirements.txt
 
+      # Avant toute opération payante : une suite qui casse signale un
+      # environnement dans lequel il ne faut pas engager de dépense. Elle
+      # vérifie aussi que chaque import tiers est déclaré — l'oubli de
+      # psycopg2 avait fait échouer le tout premier passage.
+      - name: Tests
+        run: python -m pytest tests/ -q
+
       - name: Vérifier la configuration
         run: |
           test -n "$SUPABASE_DB_URL" || { echo "::error::secret SUPABASE_POOLER_URL manquant"; exit 1; }

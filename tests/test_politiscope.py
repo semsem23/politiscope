@@ -563,3 +563,35 @@ def test_plafond_mensuel_survit_a_un_runner_neuf(tmp_path, monkeypatch):
     assert st.spend_this_month == 24.0
     with pytest.raises(BudgetExceeded):
         st.check_budget(25.0 - 2)              # plafond dépassé, ingestion refusée
+
+
+def test_toutes_les_dependances_sont_declarees():
+    """Garde-fou : un import tiers absent de requirements.txt casse la CI.
+
+    C'est ainsi que psycopg2 est resté non déclaré — il était déjà installé
+    sur la machine de développement, donc l'oubli est resté invisible
+    jusqu'au premier passage sur un runner vierge.
+    """
+    import ast
+    import sys as _sys
+
+    racine = Path(__file__).parent.parent
+    alias = {"dotenv": "python-dotenv", "psycopg2": "psycopg2"}
+    stdlib = set(_sys.stdlib_module_names)
+
+    modules = set()
+    for dossier in ("politiscope", "scripts", "tests"):
+        for f in (racine / dossier).glob("*.py"):
+            for n in ast.walk(ast.parse(f.read_text(encoding="utf-8"))):
+                if isinstance(n, ast.Import):
+                    modules.update(a.name.split(".")[0] for a in n.names)
+                elif isinstance(n, ast.ImportFrom) and n.level == 0 and n.module:
+                    modules.add(n.module.split(".")[0])
+
+    declarees = (racine / "requirements.txt").read_text(encoding="utf-8").lower()
+    manquants = [
+        m for m in modules
+        if m not in stdlib and m != "politiscope"
+        and alias.get(m, m).lower() not in declarees
+    ]
+    assert not manquants, f"imports non déclarés dans requirements.txt : {manquants}"

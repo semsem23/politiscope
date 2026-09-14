@@ -1,4 +1,7 @@
 requests>=2.32
 python-dotenv>=1.0
 feedparser>=6.0
+# Roue précompilée : évite d'exiger libpq-dev et un compilateur sur les
+# runners CI. Fournit le même module `psycopg2` que le paquet source.
+psycopg2-binary>=2.9
 pytest>=8.0
