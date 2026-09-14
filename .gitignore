@@ -22,3 +22,8 @@ artifact_data.json
 candidates_24h.json
 rss_cache/
 *.log
+
+# retirés du dépôt à la demande (conservés en local)
+# Ancrés à la racine : web/.env.example reste suivi.
+/.env.example
+/politiscope-prompt-mise-a-jour.md
