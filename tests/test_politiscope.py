@@ -375,3 +375,70 @@ def test_migration_active_rls_sur_toutes_les_tables():
     for t in ("accounts", "tweets", "rss_items", "candidates",
               "publications", "ingest_state", "ingest_runs"):
         assert f"alter table {t}" in sql and "enable row level security" in sql
+
+
+# --- bugs corrigés : état durable et journalisation ----------------------
+def test_hydratation_ne_recouvre_pas_letat_local(tmp_path, monkeypatch):
+    """La base complète le local, elle ne l'écrase pas : le local est plus frais."""
+    from politiscope import cli, db as dbmod
+
+    st = State(tmp_path / "s.json")
+    st.user_ids["alice"] = "LOCAL"
+    st.last_id["alice"] = "999"
+
+    monkeypatch.setattr(dbmod, "fetch_user_ids", lambda _c: {"alice": "BASE", "bob": "42"})
+    monkeypatch.setattr(dbmod, "fetch_last_tweet_ids", lambda _c: {"alice": "1", "bob": "7"})
+
+    class _Conn:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+    monkeypatch.setattr(dbmod, "connect", lambda: _Conn())
+
+    assert cli._hydrate_state_from_db(st) is None
+    assert st.user_ids["alice"] == "LOCAL"   # le local gagne
+    assert st.user_ids["bob"] == "42"        # le manquant est récupéré
+    assert st.last_id["alice"] == "999"
+    assert st.last_id["bob"] == "7"
+
+
+def test_hydratation_survit_a_une_base_injoignable(tmp_path, monkeypatch):
+    from politiscope import cli, db as dbmod
+
+    def boom():
+        raise dbmod.DatabaseUnavailable("pas de réseau")
+    monkeypatch.setattr(dbmod, "connect", boom)
+
+    st = State(tmp_path / "s.json")
+    msg = cli._hydrate_state_from_db(st)
+    assert msg and "réseau" in msg          # l'anomalie est remontée
+    assert st.user_ids == {}                # et rien n'explose
+
+
+def test_persistance_ne_fait_pas_echouer_lingestion(tmp_path, monkeypatch):
+    """Une base indisponible ne doit jamais faire perdre une ingestion payée."""
+    from politiscope import cli, db as dbmod
+
+    def boom():
+        raise dbmod.DatabaseUnavailable("injoignable")
+    monkeypatch.setattr(dbmod, "connect", boom)
+
+    cli._persist_state_to_db(State(tmp_path / "s.json"), "x", 3, 10, 0.05)  # ne lève pas
+
+
+def test_les_fonctions_de_db_sont_toutes_utilisees():
+    """Garde-fou : une fonction de db.py jamais appelée est un bug, pas du style.
+
+    C'est ainsi que `log_run`, `fetch_user_ids`, `fetch_last_tweet_ids` et
+    `fetch_published_keys` sont restées mortes — le compteur de dépense en
+    base affichait 0 pendant que le pipeline dépensait réellement.
+    """
+    import ast
+    root = Path(__file__).parent.parent / "politiscope"
+    src = ast.parse((root / "db.py").read_text(encoding="utf-8"))
+    publiques = [n.name for n in src.body
+                 if isinstance(n, ast.FunctionDef) and not n.name.startswith("_")]
+
+    appelants = "".join(
+        f.read_text(encoding="utf-8") for f in root.glob("*.py") if f.name != "db.py")
+    mortes = [n for n in publiques if f"{n}(" not in appelants]
+    assert not mortes, f"fonctions de db.py jamais appelées : {mortes}"

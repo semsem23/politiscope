@@ -92,11 +92,59 @@ def cmd_verify(args) -> int:
     return 0
 
 
+def _hydrate_state_from_db(state: State) -> str | None:
+    """Complète l'état local avec ce que la base connaît déjà.
+
+    `x_state.json` est pratique mais fragile : s'il est perdu ou si le
+    pipeline tourne depuis une autre machine, les handles sont re-résolus
+    (0,010 $ chacun) et `backfill_days` de tweets re-téléchargés pour chaque
+    compte — de l'argent déjà dépensé une fois. La base garde la copie
+    durable ; on s'en sert pour ne jamais repayer la même lecture.
+
+    Renvoie un message d'anomalie si la base est injoignable, sinon None.
+    """
+    try:
+        from . import db
+        with db.connect() as conn:
+            ids = db.fetch_user_ids(conn)
+            last = db.fetch_last_tweet_ids(conn)
+    except Exception as e:
+        return str(e).splitlines()[0][:70]
+
+    recovered_ids = {h: v for h, v in ids.items() if h not in state.user_ids}
+    recovered_last = {h: v for h, v in last.items() if h not in state.last_id}
+    state.user_ids.update(recovered_ids)
+    state.last_id.update(recovered_last)
+    if recovered_ids or recovered_last:
+        print(f"  état récupéré depuis la base : {len(recovered_ids)} identifiant(s), "
+              f"{len(recovered_last)} position(s) de timeline")
+    return None
+
+
+def _persist_state_to_db(state: State, kind: str, items: int,
+                         reads: int, cost_usd: float) -> None:
+    """Repousse l'état en base et journalise le passage."""
+    try:
+        from . import db
+        with db.connect() as conn:
+            if state.user_ids:
+                db.set_user_ids(conn, state.user_ids)
+            if state.last_id:
+                db.set_last_tweet_ids(conn, state.last_id)
+            db.log_run(conn, kind, items, reads, cost_usd)
+    except Exception as e:
+        logging.getLogger("politiscope").warning(
+            "état non sauvegardé en base (%s) — x_state.json reste la seule copie",
+            str(e).splitlines()[0][:70])
+
+
 def cmd_fetch_x(args) -> int:
     from .xapi import XClient, ingest
 
     accounts = load_accounts()
     state = State(settings.state_file)
+    if not args.dry_run:
+        _hydrate_state_from_db(state)
 
     if args.dry_run:
         primed = sum(1 for a in accounts if a["handle"] in state.last_id)
@@ -109,10 +157,14 @@ def cmd_fetch_x(args) -> int:
         return 0
 
     client = XClient(settings.require_token(), state, settings)
+    cost = 0.0
     try:
         rows = ingest(client, accounts, settings)
     except BudgetExceeded as e:
         state.save()
+        # Même interrompu, le passage a coûté : il doit être journalisé.
+        _persist_state_to_db(state, "x", 0, client.reads_this_run,
+                             client.reads_this_run * PRICE_POST_READ)
         print(f"\n⛔ {e}")
         return 2
 
@@ -122,8 +174,11 @@ def cmd_fetch_x(args) -> int:
     append_jsonl(settings.tweets_file, fresh)
     state.save()
 
+    cost = client.reads_this_run * PRICE_POST_READ
+    _persist_state_to_db(state, "x", len(fresh), client.reads_this_run, cost)
+
     print(f"\n{len(fresh)} tweet(s) ajouté(s) ({len(rows) - len(fresh)} doublon(s) ignoré(s))")
-    print(f"coût de ce passage : {client.reads_this_run * PRICE_POST_READ:.2f} USD "
+    print(f"coût de ce passage : {cost:.2f} USD "
           f"| mois : {state.spend_this_month:.2f} / {settings.budget_usd_month:.2f} USD")
     return 0
 
@@ -143,6 +198,11 @@ def cmd_fetch_rss(args) -> int:
     seen = {r["id"] for r in read_jsonl(settings.rss_file)}
     fresh = [r for r in rows if r["id"] not in seen]
     append_jsonl(settings.rss_file, fresh)
+
+    # Gratuit, mais le passage est journalisé : sans lui, impossible de savoir
+    # depuis la base quand le baromètre a été rafraîchi pour la dernière fois.
+    _persist_state_to_db(State(settings.state_file), "rss", len(fresh), 0, 0.0)
+
     print(f"\n{len(fresh)} item(s) ajouté(s) ({len(rows) - len(fresh)} déjà connu(s)) — 0.00 USD")
     return 0
 
@@ -169,6 +229,10 @@ def cmd_candidates(args) -> int:
             with conn.cursor() as cur:
                 cur.execute("select citation_key from entries")
                 existing = {r[0] for r in cur.fetchall()}
+            # `publications` retient aussi ce qui a été publié puis retiré du
+            # site : sans cette union, une citation dépubliée reviendrait dans
+            # les candidates au passage suivant.
+            existing |= db.fetch_published_keys(conn)
     except Exception as e:
         logging.getLogger("politiscope").warning(
             "base injoignable (%s) — repli sur l'artifact archivé", str(e).splitlines()[0][:60])

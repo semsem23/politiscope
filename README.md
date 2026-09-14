@@ -97,8 +97,20 @@ Trois mécanismes, au-delà du tarif lui-même :
 - **Plafond mensuel** (`BUDGET_USD_MONTH`, défaut 25 $) — l'ingestion s'arrête net
   quand il est atteint. `MAX_READS_PER_RUN` limite en plus chaque passage.
 
-La dépense est comptée à la ressource et persistée par mois dans `x_state.json` ;
-`status` et `budget` l'affichent.
+La dépense est comptée à la ressource, persistée par mois dans `x_state.json`
+**et** journalisée en base dans `ingest_runs` à chaque passage — y compris
+lorsqu'un passage est interrompu par le plafond, car il a quand même coûté.
+
+### L'état survit à la perte du fichier local
+
+`x_state.json` est pratique mais fragile. Avant chaque ingestion, `fetch-x`
+complète l'état local avec ce que la base connaît déjà : identifiants X résolus
+(`accounts.user_id`) et dernière position de timeline (`ingest_state`). Seules
+les clés manquantes sont récupérées — le local, plus frais, l'emporte.
+
+Sans ce mécanisme, perdre `x_state.json` coûtait une re-résolution des 26
+handles plus un re-téléchargement de `backfill_days` de tweets : **~1,58 $
+mesurés** pour de la donnée déjà payée.
 
 Mesure réelle : **298 tweets pour 1,62 $** sur 3 jours d'historique et 26 comptes,
 soit environ **13 €/mois** en rythme quotidien.
