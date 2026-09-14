@@ -388,6 +388,7 @@ def test_hydratation_ne_recouvre_pas_letat_local(tmp_path, monkeypatch):
 
     monkeypatch.setattr(dbmod, "fetch_user_ids", lambda _c: {"alice": "BASE", "bob": "42"})
     monkeypatch.setattr(dbmod, "fetch_last_tweet_ids", lambda _c: {"alice": "1", "bob": "7"})
+    monkeypatch.setattr(dbmod, "fetch_month_spend", lambda _c, _m: (3.5, 700))
 
     class _Conn:
         def __enter__(self): return self
@@ -399,6 +400,9 @@ def test_hydratation_ne_recouvre_pas_letat_local(tmp_path, monkeypatch):
     assert st.user_ids["bob"] == "42"        # le manquant est récupéré
     assert st.last_id["alice"] == "999"
     assert st.last_id["bob"] == "7"
+    # la dépense, elle, vient toujours de la base : c'est la seule qui survit
+    # à un runner neuf, où le fichier local repart de zéro
+    assert st.spend_this_month == 3.5
 
 
 def test_hydratation_survit_a_une_base_injoignable(tmp_path, monkeypatch):
@@ -537,3 +541,25 @@ def test_citation_deja_publiee_est_refusee():
 def test_doublon_dans_le_brouillon_est_refuse():
     p = _validate([_draft_entry(), _draft_entry()])
     assert any("double dans le brouillon" in x for x in p)
+
+
+def test_plafond_mensuel_survit_a_un_runner_neuf(tmp_path, monkeypatch):
+    """En exécution planifiée, x_state.json est vide : sans reprise depuis la
+    base, le garde-fou budgétaire ne se déclencherait jamais."""
+    from politiscope import cli, db as dbmod
+
+    monkeypatch.setattr(dbmod, "fetch_user_ids", lambda _c: {})
+    monkeypatch.setattr(dbmod, "fetch_last_tweet_ids", lambda _c: {})
+    monkeypatch.setattr(dbmod, "fetch_month_spend", lambda _c, _m: (24.0, 4800))
+
+    class _Conn:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+    monkeypatch.setattr(dbmod, "connect", lambda: _Conn())
+
+    st = State(tmp_path / "neuf.json")
+    assert st.spend_this_month == 0.0          # runner vierge
+    cli._hydrate_state_from_db(st)
+    assert st.spend_this_month == 24.0
+    with pytest.raises(BudgetExceeded):
+        st.check_budget(25.0 - 2)              # plafond dépassé, ingestion refusée

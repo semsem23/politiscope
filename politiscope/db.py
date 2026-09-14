@@ -199,6 +199,23 @@ def fetch_user_ids(conn) -> dict[str, str]:
         return dict(cur.fetchall())
 
 
+def fetch_month_spend(conn, month: str) -> tuple[float, int]:
+    """Dépense et lectures déjà engagées ce mois-ci, d'après `ingest_runs`.
+
+    Indispensable en exécution planifiée : le runner est neuf à chaque nuit,
+    `x_state.json` y repart de zéro, et le plafond mensuel ne se déclencherait
+    jamais s'il ne s'appuyait que sur le fichier local.
+    """
+    with conn.cursor() as cur:
+        cur.execute("""
+            select coalesce(sum(cost_usd), 0), coalesce(sum(reads), 0)
+              from ingest_runs
+             where to_char(started_at at time zone 'UTC', 'YYYY-MM') = %s
+        """, (month,))
+        cost, reads = cur.fetchone()
+    return (float(cost), int(reads))
+
+
 def fetch_published_keys(conn) -> set[str]:
     with conn.cursor() as cur:
         cur.execute("select citation_key from publications")

@@ -1,0 +1,108 @@
+name: Ingestion nocturne
+
+# Alimente Politiscope sans intervention : Google Actualités (gratuit), puis
+# les timelines X (payantes, incrémentales), puis versement en base.
+#
+# Rien n'est publié automatiquement. L'ingestion remplit `candidates` ; le
+# passage en `entries` reste manuel, parce qu'il exige un jugement — voir la
+# commande `publish`.
+
+on:
+  schedule:
+    # 03:15 UTC — creux de trafic, et après la clôture des éditions du soir.
+    # Heure française : 05:15 l'été, 04:15 l'hiver.
+    - cron: "15 3 * * *"
+  workflow_dispatch:
+    inputs:
+      rss_days:
+        description: "Fenêtre Google Actualités (jours)"
+        default: "2"
+      skip_x:
+        description: "Sauter l'ingestion X (payante)"
+        type: boolean
+        default: false
+
+# Deux ingestions simultanées re-liraient les mêmes tweets et paieraient deux
+# fois : on sérialise, sans annuler un passage déjà engagé.
+concurrency:
+  group: ingestion
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    env:
+      # Le pooler, pas l'hôte direct : `db.<ref>.supabase.co` ne résout qu'en
+      # IPv6 et les runners GitHub sont IPv4. Sans ça, chaque connexion perdrait
+      # 15 s en tentative vouée à l'échec avant le repli.
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_POOLER_URL }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_REGION: eu-west-2
+      X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+      BUDGET_USD_MONTH: ${{ vars.BUDGET_USD_MONTH || '25' }}
+      MAX_READS_PER_RUN: ${{ vars.MAX_READS_PER_RUN || '600' }}
+      BACKFILL_DAYS: "2"
+      PYTHONIOENCODING: utf-8
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      - name: Vérifier la configuration
+        run: |
+          test -n "$SUPABASE_DB_URL" || { echo "::error::secret SUPABASE_POOLER_URL manquant"; exit 1; }
+          test -n "$X_BEARER_TOKEN"  || { echo "::error::secret X_BEARER_TOKEN manquant"; exit 1; }
+          python -m politiscope.cli db-migrate
+
+      - name: État avant ingestion
+        run: python -m politiscope.cli db-stats
+
+      # Gratuit : on le fait d'abord, pour qu'une panne côté X ne prive pas
+      # le baromètre de la matière de presse.
+      - name: Google Actualités
+        run: |
+          python -m politiscope.cli fetch-rss \
+            --days "${{ github.event.inputs.rss_days || '2' }}"
+
+      - name: Timelines X
+        if: github.event.inputs.skip_x != 'true'
+        run: python -m politiscope.cli fetch-x
+
+      - name: Verser en base
+        # `always()` : si l'ingestion X échoue à mi-parcours, ce qui a déjà été
+        # lu est payé — il serait absurde de le jeter.
+        if: always()
+        run: python -m politiscope.cli db-sync
+
+      - name: État après ingestion
+        if: always()
+        run: |
+          python -m politiscope.cli db-stats
+          echo "### Ingestion du $(date -u '+%d/%m/%Y %H:%M UTC')" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          python -m politiscope.cli db-stats >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      # Utile pour comprendre un passage douteux ; 7 jours suffisent, la base
+      # garde l'historique durable.
+      - name: Conserver les journaux
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ingestion-${{ github.run_number }}
+          path: |
+            x_tweets.jsonl
+            rss_items.jsonl
+            x_state.json
+          retention-days: 7
+          if-no-files-found: ignore

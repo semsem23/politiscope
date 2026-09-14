@@ -105,9 +105,11 @@ def _hydrate_state_from_db(state: State) -> str | None:
     """
     try:
         from . import db
+        month = State._month()
         with db.connect() as conn:
             ids = db.fetch_user_ids(conn)
             last = db.fetch_last_tweet_ids(conn)
+            spend, reads = db.fetch_month_spend(conn, month)
     except Exception as e:
         return str(e).splitlines()[0][:70]
 
@@ -118,6 +120,14 @@ def _hydrate_state_from_db(state: State) -> str | None:
     if recovered_ids or recovered_last:
         print(f"  état récupéré depuis la base : {len(recovered_ids)} identifiant(s), "
               f"{len(recovered_last)} position(s) de timeline")
+
+    # Le plafond mensuel doit se fonder sur ce qui a réellement été dépensé,
+    # pas sur ce que le fichier local a mémorisé : en exécution planifiée le
+    # runner est neuf chaque nuit, et le garde-fou serait sinon inopérant.
+    if spend > state.spend.get(month, 0.0):
+        state.spend[month] = spend
+        state.reads[month] = max(state.reads.get(month, 0), reads)
+        print(f"  dépense du mois reprise depuis la base : {spend:.2f} USD")
     return None
 
 

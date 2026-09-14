@@ -142,6 +142,46 @@ sur les données du 14 septembre 2026 :
 Le champ `verifie` distingue ce qui est publiable en l'état (tweets) de ce qui
 demande une vérification humaine (presse).
 
+## Ingestion automatique
+
+`.github/workflows/ingestion.yml` lance chaque nuit à 03h15 UTC : Google
+Actualités, puis les timelines X, puis le versement en base. Déclenchable à la
+main via *Actions -> Ingestion nocturne -> Run workflow*, avec une case pour
+sauter l'ingestion X (la seule payante).
+
+**Rien n'est publié automatiquement.** Le workflow remplit `candidates` ; le
+passage en `entries` reste manuel, parce qu'il exige un jugement.
+
+### Secrets à créer dans le dépôt
+
+*Settings -> Secrets and variables -> Actions*
+
+| Secret | Valeur |
+|---|---|
+| `SUPABASE_POOLER_URL` | `postgresql://postgres.<ref>:<mdp>@aws-0-eu-west-2.pooler.supabase.com:5432/postgres` |
+| `SUPABASE_PROJECT_REF` | la référence du projet Supabase |
+| `SUPABASE_DB_PASSWORD` | le mot de passe Postgres |
+| `X_BEARER_TOKEN` | le jeton X |
+
+Deux *variables* facultatives ajustent les garde-fous sans toucher au code :
+`BUDGET_USD_MONTH` (défaut 25) et `MAX_READS_PER_RUN` (défaut 600).
+
+### Pourquoi le pooler et pas l'URL directe
+
+`db.<ref>.supabase.co` ne résout qu'en **IPv6**, et les runners GitHub sont
+IPv4. L'URL directe y échouerait à chaque connexion, perdant 15 s en tentative
+vouée à l'échec avant de se rabattre sur le pooler. Autant viser juste.
+
+### Le plafond budgétaire tient sur un runner neuf
+
+Chaque exécution part d'un disque vierge : `x_state.json` y serait vide, et un
+garde-fou fondé sur ce seul fichier ne se déclencherait jamais. Avant toute
+ingestion, l'état est donc repris depuis la base — identifiants X déjà résolus,
+positions de timeline, **et dépense du mois** lue dans `ingest_runs`.
+
+C'est aussi ce qui évite de repayer : sans reprise, un runner neuf re-résoudrait
+les 26 handles et re-téléchargerait `BACKFILL_DAYS` de tweets à chaque nuit.
+
 ## Publier une citation sur le site
 
 La seule étape du pipeline qui exige un jugement humain. Une candidate porte des
