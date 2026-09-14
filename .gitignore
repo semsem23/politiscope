@@ -3,6 +3,8 @@
 .env.*
 !.env.example
 web/.env.local
+# Exception : clé publishable, déjà présente dans le bundle servi.
+!web/.env.production
 
 # ---- dépendances ----------------------------------------------------------
 node_modules/
