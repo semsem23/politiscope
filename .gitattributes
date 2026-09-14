@@ -1,0 +1,4 @@
+# Normalise les fins de ligne : évite un diff entier au premier commit Windows.
+* text=auto eol=lf
+*.png binary
+*.svg text eol=lf

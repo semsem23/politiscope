@@ -1,0 +1,32 @@
+{
+  "_comment": "Liste des comptes X suivis par Politiscope. Remplacez les handles par les vôtres.",
+  "_schema": "handle = @ sans l'arobase | famille = un des 5 ids de FAMILIES | parti = libellé affiché dans DATA",
+  "accounts": [
+    { "handle": "EmmanuelMacron",  "nom": "Emmanuel Macron",       "famille": "majorite",        "parti": "Renaissance — Président de la République" },
+    { "handle": "SebLecornu",      "nom": "Sébastien Lecornu",     "famille": "majorite",        "parti": "Renaissance — Premier ministre" },
+    { "handle": "GabrielAttal",    "nom": "Gabriel Attal",         "famille": "majorite",        "parti": "Renaissance" },
+    { "handle": "EPhilippe_LH",    "nom": "Édouard Philippe",      "famille": "majorite",        "parti": "Horizons" },
+    { "handle": "GDarmanin",       "nom": "Gérald Darmanin",       "famille": "majorite",        "parti": "Renaissance — Ministre de la Justice" },
+    { "handle": "Elisabeth_Borne", "nom": "Élisabeth Borne",       "famille": "majorite",        "parti": "Renaissance — ancienne Première ministre" },
+    { "handle": "BrunoRetailleau", "nom": "Bruno Retailleau",      "famille": "droite-rep",      "parti": "Les Républicains" },
+    { "handle": "laurentwauquiez", "nom": "Laurent Wauquiez",      "famille": "droite-rep",      "parti": "Les Républicains" },
+    { "handle": "davidlisnard",    "nom": "David Lisnard",         "famille": "droite-rep",      "parti": "Les Républicains (DVD) — président de l'AMF" },
+    { "handle": "xavierbertrand",  "nom": "Xavier Bertrand",       "famille": "droite-rep",      "parti": "Les Républicains — président des Hauts-de-France" },
+    { "handle": "J_Bardella",      "nom": "Jordan Bardella",       "famille": "extreme-droite",  "parti": "Rassemblement National" },
+    { "handle": "MLP_officiel",    "nom": "Marine Le Pen",         "famille": "extreme-droite",  "parti": "Rassemblement National" },
+    { "handle": "ECiotti",         "nom": "Éric Ciotti",           "famille": "extreme-droite",  "parti": "UDR" },
+    { "handle": "ZemmourEric",     "nom": "Éric Zemmour",          "famille": "extreme-droite",  "parti": "Reconquête" },
+    { "handle": "knafo_sarah",     "nom": "Sarah Knafo",           "famille": "extreme-droite",  "parti": "Reconquête — députée européenne" },
+    { "handle": "dupontaignan",    "nom": "Nicolas Dupont-Aignan", "famille": "extreme-droite",  "parti": "Debout la France" },
+    { "handle": "JLMelenchon",     "nom": "Jean-Luc Mélenchon",    "famille": "gauche-radicale", "parti": "La France Insoumise" },
+    { "handle": "mbompard",        "nom": "Manuel Bompard",        "famille": "gauche-radicale", "parti": "La France Insoumise" },
+    { "handle": "MathildePanot",   "nom": "Mathilde Panot",        "famille": "gauche-radicale", "parti": "La France Insoumise — présidente du groupe à l'Assemblée nationale" },
+    { "handle": "Francois_Ruffin", "nom": "François Ruffin",       "famille": "gauche-radicale", "parti": "Debout!" },
+    { "handle": "Fabien_Roussel",  "nom": "Fabien Roussel",        "famille": "gauche-radicale", "parti": "Parti Communiste Français" },
+    { "handle": "faureolivier",    "nom": "Olivier Faure",         "famille": "gauche-social",   "parti": "Parti Socialiste" },
+    { "handle": "rglucks1",        "nom": "Raphaël Glucksmann",    "famille": "gauche-social",   "parti": "Place Publique" },
+    { "handle": "marinetondelier", "nom": "Marine Tondelier",      "famille": "gauche-social",   "parti": "Les Écologistes" },
+    { "handle": "sandrousseau",    "nom": "Sandrine Rousseau",     "famille": "gauche-social",   "parti": "Les Écologistes" },
+    { "handle": "fhollande",       "nom": "François Hollande",     "famille": "gauche-social",   "parti": "Parti Socialiste — ancien président de la République" }
+  ]
+}

@@ -1,0 +1,24 @@
+# ---- secrets : ne jamais commiter -----------------------------------------
+.env
+.env.*
+!.env.example
+web/.env.local
+
+# ---- dépendances ----------------------------------------------------------
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+
+# ---- artefacts de build ---------------------------------------------------
+web/dist/
+*.tsbuildinfo
+
+# ---- données d'ingestion (régénérables, et déjà en base) ------------------
+x_state.json
+x_tweets.jsonl
+rss_items.jsonl
+artifact_data.json
+candidates_24h.json
+rss_cache/
+*.log

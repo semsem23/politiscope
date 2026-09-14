@@ -1,0 +1,1168 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Politiscope</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,680&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --surface-raised: #ffffff;
+    --ink: #0b0b0b;
+    --ink-soft: #52514e;
+    --muted: #898781;
+    --line: #e1e0d9;
+    --border: rgba(11,11,11,0.10);
+    --accent: #2a78d6;
+
+    --fam-majorite: #2a78d6;
+    --fam-droite-rep: #eb6834;
+    --fam-extreme-droite: #1baf7a;
+    --fam-gauche-radicale: #eda100;
+    --fam-gauche-social: #e87ba4;
+
+    --pos: #0ca30c;
+    --pos-bg: #e6f5e2;
+    --neg: #d03b3b;
+    --neg-bg: #fbe9e4;
+    --neu: #79766d;
+    --neu-bg: #eeece5;
+    --topic-color: #4a3aa7;
+
+    --shadow: 0 1px 2px rgba(11,11,11,0.04), 0 8px 24px -12px rgba(11,11,11,0.18);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #17171a;
+      --surface-raised: #1e1e22;
+      --ink: #f3f2ec;
+      --ink-soft: #c3c2b7;
+      --muted: #918f86;
+      --line: #2c2c2a;
+      --border: rgba(255,255,255,0.10);
+      --accent: #3987e5;
+
+      --fam-majorite: #3987e5;
+      --fam-droite-rep: #d95926;
+      --fam-extreme-droite: #199e70;
+      --fam-gauche-radicale: #c98500;
+      --fam-gauche-social: #d55181;
+
+      --pos: #4fbf4f;
+      --pos-bg: #16281a;
+      --neg: #e66767;
+      --neg-bg: #34201d;
+      --neu: #a6a396;
+      --neu-bg: #232320;
+      --topic-color: #9085e9;
+
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 28px -12px rgba(0,0,0,0.55);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #17171a;
+    --surface-raised: #1e1e22;
+    --ink: #f3f2ec;
+    --ink-soft: #c3c2b7;
+    --muted: #918f86;
+    --line: #2c2c2a;
+    --border: rgba(255,255,255,0.10);
+    --accent: #3987e5;
+
+    --fam-majorite: #3987e5;
+    --fam-droite-rep: #d95926;
+    --fam-extreme-droite: #199e70;
+    --fam-gauche-radicale: #c98500;
+    --fam-gauche-social: #d55181;
+
+    --pos: #4fbf4f;
+    --pos-bg: #16281a;
+    --neg: #e66767;
+    --neg-bg: #34201d;
+    --neu: #a6a396;
+    --neu-bg: #232320;
+
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 28px -12px rgba(0,0,0,0.55);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 20px 64px;
+  }
+  a { color: var(--accent); }
+
+  /* ---------- Header ---------- */
+  header.masthead {
+    padding: 40px 0 28px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 28px;
+  }
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 14px;
+  }
+  h1.title {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 680;
+    font-optical-sizing: auto;
+    font-size: clamp(2.4rem, 5.5vw, 3.6rem);
+    line-height: 1.02;
+    letter-spacing: -0.01em;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+  .dek {
+    max-width: 66ch;
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    margin: 0 0 18px;
+  }
+  .methodo {
+    max-width: 66ch;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--muted);
+    border-left: 2px solid var(--line);
+    padding-left: 14px;
+  }
+  .methodo strong { color: var(--ink-soft); font-weight: 600; }
+
+  /* ---------- Stat strip ---------- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat-tile {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .stat-tile .label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink-soft);
+  }
+  .stat-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .stat-tile .value {
+    font-family: "IBM Plex Mono", monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 28px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+  .stat-tile .sub { font-size: 12px; color: var(--muted); }
+
+  /* ---------- Filter bar ---------- */
+  .filterbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: color-mix(in srgb, var(--page) 92%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 0;
+    margin-bottom: 26px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .filter-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .filter-row + .filter-row { padding-top: 2px; }
+  .filter-group-label {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-right: 2px;
+    flex: none;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink-soft);
+    border-radius: 999px;
+    padding: 6px 12px 6px 10px;
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    transition: border-color .15s ease, color .15s ease, background .15s ease;
+  }
+  .chip:hover { border-color: var(--muted); }
+  .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .chip[data-active="false"] { opacity: 0.45; }
+  .chip[data-active="true"] { color: var(--ink); background: var(--surface-raised); box-shadow: var(--shadow); }
+
+  select.control, input.control {
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 7px 10px;
+  }
+  select.control:focus-visible, input.control:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  input.control#search { min-width: 180px; }
+  .spacer { flex: 1; }
+  .reset-btn {
+    font: inherit; font-size: 12.5px; font-weight: 600;
+    background: none; border: none; color: var(--muted);
+    cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+    padding: 6px 4px;
+  }
+  .reset-btn:hover { color: var(--ink); }
+
+  /* ---------- Bubble field ---------- */
+  .field-meta {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 12.5px; color: var(--muted); margin-bottom: 14px;
+  }
+  #bubble-field {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 22px 18px;
+    justify-content: flex-start;
+    padding: 4px 0 8px;
+    min-height: 160px;
+  }
+  .bubble {
+    width: 128px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 9px;
+    background: none;
+    border: none;
+    font: inherit;
+    cursor: pointer;
+    padding: 0;
+    text-align: center;
+  }
+  .bubble:focus-visible .orb { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .orb {
+    position: relative;
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2.5px solid var(--sent-color, var(--neu));
+    background: var(--sent-bg, var(--neu-bg));
+    transition: transform .18s ease, box-shadow .18s ease;
+  }
+  .bubble:hover .orb, .bubble:focus-visible .orb {
+    transform: translateY(-3px) scale(1.045);
+    box-shadow: var(--shadow);
+  }
+  .orb .initials {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: 22px;
+    color: var(--ink);
+  }
+  .orb .fam-dot {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: var(--fam-color, var(--muted));
+    border: 2px solid var(--surface);
+  }
+  .bubble .name {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+  .bubble .party {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+    line-height: 1.3;
+  }
+  .empty-state {
+    width: 100%;
+    padding: 48px 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  /* ---------- Detail modal ---------- */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: color-mix(in srgb, var(--ink) 45%, transparent);
+    display: flex; align-items: flex-end;
+    justify-content: center;
+    z-index: 100;
+    opacity: 0; pointer-events: none;
+    transition: opacity .18s ease;
+    padding: 0;
+  }
+  .modal-backdrop[data-open="true"] { opacity: 1; pointer-events: auto; }
+  @media (min-width: 640px) {
+    .modal-backdrop { align-items: center; padding: 24px; }
+  }
+  .modal {
+    background: var(--surface-raised);
+    width: 100%;
+    max-width: 560px;
+    max-height: min(88vh, 720px);
+    overflow-y: auto;
+    border-radius: 16px 16px 0 0;
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    padding: 28px 26px 26px;
+    transform: translateY(24px);
+    transition: transform .2s ease;
+  }
+  @media (min-width: 640px) { .modal { border-radius: 16px; transform: translateY(8px); } }
+  .modal-backdrop[data-open="true"] .modal { transform: translateY(0); }
+
+  .modal-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
+  .modal-id { display: flex; align-items: center; gap: 12px; }
+  .modal-orb {
+    width: 52px; height: 52px; border-radius: 50%; flex: none;
+    border: 2.5px solid var(--sent-color, var(--neu));
+    background: var(--sent-bg, var(--neu-bg));
+    display: flex; align-items: center; justify-content: center;
+    font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: 18px;
+  }
+  .modal-name { font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: 21px; line-height: 1.15; }
+  .modal-party { font-size: 12.5px; color: var(--muted); margin-top: 2px; display: flex; align-items: center; gap: 6px; }
+  .modal-party .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .modal-close {
+    font: inherit; background: var(--surface); border: 1px solid var(--line);
+    width: 30px; height: 30px; border-radius: 50%; cursor: pointer; color: var(--ink-soft);
+    flex: none; font-size: 15px; line-height: 1;
+  }
+  .modal-close:hover { color: var(--ink); }
+
+  .sent-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11.5px; font-weight: 600;
+    padding: 5px 10px; border-radius: 999px;
+    color: var(--sent-color, var(--neu));
+    background: var(--sent-bg, var(--neu-bg));
+    margin-bottom: 16px;
+  }
+  .sent-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+  .modal-section-label {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--muted); margin: 0 0 6px;
+  }
+  .modal-topic { font-size: 14px; font-weight: 600; margin-bottom: 18px; }
+
+  blockquote.quote {
+    margin: 0 0 18px;
+    padding: 2px 0 2px 16px;
+    border-left: 2.5px solid var(--sent-color, var(--muted));
+    font-family: "Fraunces", Georgia, serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 18px;
+    line-height: 1.5;
+    color: var(--ink);
+  }
+
+  .hashtags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+  .hashtag {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+    padding: 4px 9px;
+    border-radius: 999px;
+  }
+
+  .justif { font-size: 13px; color: var(--ink-soft); line-height: 1.55; margin-bottom: 18px; }
+
+  .modal-footer {
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 8px;
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+    font-size: 12px; color: var(--muted);
+  }
+  .modal-footer a { font-weight: 600; text-decoration: none; }
+  .modal-footer a:hover { text-decoration: underline; }
+
+  /* ---------- Topic graph ---------- */
+  .section-head { margin-bottom: 16px; }
+  .section-head-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 14px 20px;
+  }
+  .graph-toggle {
+    display: inline-flex;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 3px;
+    flex: none;
+  }
+  .toggle-btn {
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    background: none;
+    border: none;
+    border-radius: 999px;
+    padding: 6px 14px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .toggle-btn[aria-selected="true"] {
+    background: var(--surface-raised);
+    color: var(--ink);
+    box-shadow: var(--shadow);
+  }
+  .toggle-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .section-title {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 620;
+    font-size: 1.7rem;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .section-sub {
+    max-width: 68ch;
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+  .topic-graph-section { margin-bottom: 40px; }
+  #graph-container {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    width: 100%;
+    height: 460px;
+    margin-top: 16px;
+    overflow: hidden;
+  }
+  #topic-graph { width: 100%; height: 100%; display: block; cursor: grab; }
+  #topic-graph:active { cursor: grabbing; }
+  .graph-node-topic circle {
+    fill: var(--surface-raised);
+    stroke: var(--topic-color);
+    stroke-width: 2.5px;
+  }
+  .graph-node-topic text.node-label {
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 500;
+    fill: var(--ink);
+  }
+  .graph-node-pol circle {
+    stroke-width: 2.25px;
+  }
+  .graph-node-pol text.node-label {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    fill: var(--ink);
+  }
+  .graph-link { stroke-opacity: 0.55; fill: none; }
+  .graph-node.is-dim { opacity: 0.18; }
+  .graph-link.is-dim { opacity: 0.08; }
+  .graph-tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: var(--surface-raised);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--ink);
+    max-width: 220px;
+    z-index: 5;
+    transform: translate(-50%, -100%);
+    margin-top: -10px;
+  }
+  .graph-tooltip strong { display: block; font-size: 12.5px; margin-bottom: 2px; }
+  .graph-legend {
+    display: flex; flex-wrap: wrap; gap: 18px;
+    margin-top: 12px; font-size: 12px; color: var(--ink-soft);
+  }
+  .node-swatch { width: 14px; height: 14px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: -2px; border: 2px solid; }
+  .node-swatch.topic { background: var(--surface-raised); border-color: var(--topic-color); }
+  .node-swatch.pol { background: var(--neu-bg); border-color: var(--neu); }
+  @media (max-width: 560px) { #graph-container { height: 380px; } }
+
+  /* ---------- Footer / legend ---------- */
+  footer.page-footer {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .legend-row { display: flex; flex-wrap: wrap; gap: 16px; }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink-soft); }
+  .legend-item .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .footer-note { font-size: 12px; color: var(--muted); line-height: 1.6; max-width: 74ch; }
+
+  @media (max-width: 560px) {
+    .stats { grid-template-columns: 1fr; }
+    .bubble { width: 104px; }
+    .orb { width: 84px; height: 84px; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Baromètre politique · Rentrée 2026</p>
+    <h1 class="title">Politiscope</h1>
+    <p class="dek" id="dek-text"></p>
+    <p class="methodo"><strong>Méthode.</strong> Cliché de la rentrée politique, constitué le 14 septembre 2026 à partir de citations publiques réellement prononcées — discours, déclarations à la presse, publications sur X — repérées par recherche documentaire. Ce n'est pas un flux automatisé en direct : chaque bulle renvoie vers sa source d'origine. Le sentiment évalue le <em>ton</em> de la déclaration, non un jugement sur son auteur.</p>
+  </header>
+
+  <section class="stats" id="stats" aria-label="Répartition du sentiment"></section>
+
+  <div class="filterbar">
+    <div class="filter-row">
+      <span class="filter-group-label">Famille politique</span>
+      <div id="family-chips"></div>
+    </div>
+    <div class="filter-row">
+      <span class="filter-group-label">Sentiment</span>
+      <div id="sentiment-chips" style="display:contents"></div>
+      <span class="filter-group-label" style="margin-left:10px">Thème</span>
+      <select class="control" id="theme-select"></select>
+      <select class="control" id="sort-select">
+        <option value="theme">Trier — sujet le plus discuté</option>
+        <option value="date-desc">Trier — plus récent d'abord</option>
+        <option value="date-asc">Trier — plus ancien d'abord</option>
+        <option value="alpha">Trier — ordre alphabétique</option>
+        <option value="parti">Trier — par parti</option>
+        <option value="sentiment">Trier — par sentiment</option>
+      </select>
+      <input class="control" id="search" type="search" placeholder="Rechercher un nom, un mot…" aria-label="Rechercher">
+      <span class="spacer"></span>
+      <button class="reset-btn" id="reset-btn">Réinitialiser</button>
+    </div>
+  </div>
+
+  <div class="field-meta">
+    <span id="result-count"></span>
+    <span>26 personnalités suivies</span>
+  </div>
+
+  <section id="bubble-field" aria-label="Personnalités politiques"></section>
+
+  <section class="topic-graph-section" aria-label="Carte des sujets">
+    <div class="section-head">
+      <div class="section-head-top">
+        <div>
+          <h2 class="section-title">Carte des sujets</h2>
+          <p class="section-sub">Les grands sujets de la rentrée, reliés à ceux qui les portent. Glissez un nœud, survolez pour voir les liens. Indépendante des filtres ci-dessus.</p>
+        </div>
+        <div class="graph-toggle" role="tablist" aria-label="Niveau du graphe">
+          <button class="toggle-btn" type="button" data-mode="pol" role="tab" aria-selected="true">Personnalités</button>
+          <button class="toggle-btn" type="button" data-mode="parti" role="tab" aria-selected="false">Partis</button>
+        </div>
+      </div>
+    </div>
+    <div id="graph-container">
+      <svg id="topic-graph" role="img" aria-label="Graphe reliant les grands sujets de la rentrée aux personnalités ou partis politiques qui en parlent"></svg>
+      <div id="graph-tooltip" class="graph-tooltip" hidden></div>
+    </div>
+    <div class="graph-legend" id="graph-legend">
+      <span class="legend-item"><span class="node-swatch topic"></span>Sujet <span style="opacity:.65">— taille = nombre de personnalités qui en parlent</span></span>
+      <span class="legend-item"><span class="node-swatch pol"></span>Personnalité <span style="opacity:.65">— couleur du lien = ton de sa citation sur ce sujet</span></span>
+    </div>
+  </section>
+
+  <footer class="page-footer">
+    <div class="legend-row" id="legend-row" aria-label="Légende des familles politiques"></div>
+    <p class="footer-note">Les familles politiques regroupent des partis distincts à des fins de lisibilité visuelle et ne reflètent pas les couleurs officielles des partis. Sélection de personnalités non exhaustive et non partisane ; toutes les citations sont sourcées et vérifiables via le lien fourni sur chaque fiche. Dernière mise à jour : 14 septembre 2026.</p>
+  </footer>
+
+</div>
+
+<div class="modal-backdrop" id="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-name">
+  <div class="modal" id="modal-panel"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>
+(function(){
+
+  var CONTEXTE = "Les élections municipales se sont achevées en mars 2026 ; la France entre désormais en pré-campagne pour la présidentielle de 2027. Le gouvernement de Sébastien Lecornu, formé fin février après avoir fait passer le budget 2026 au 49.3, affronte une contestation sociale naissante sur le pouvoir d'achat pendant que plusieurs figures officialisent leur candidature à l'occasion des universités d'été de septembre. Le week-end de rentrée des 12 et 13 septembre — Fête de l'Humanité, meeting du RN à Hénin-Beaumont, université d'été de Reconquête — a confirmé un champ présidentiel très fragmenté, à droite comme à gauche.";
+
+  var FAMILIES = [
+    { id: "majorite", label: "Majorité présidentielle", color: "var(--fam-majorite)" },
+    { id: "droite-rep", label: "Droite républicaine", color: "var(--fam-droite-rep)" },
+    { id: "extreme-droite", label: "Droite radicale / souverainiste", color: "var(--fam-extreme-droite)" },
+    { id: "gauche-radicale", label: "Gauche radicale", color: "var(--fam-gauche-radicale)" },
+    { id: "gauche-social", label: "Gauche social-démocrate / écologiste", color: "var(--fam-gauche-social)" }
+  ];
+
+  var SENTIMENTS = [
+    { id: "positif", label: "Positif", color: "var(--pos)", bg: "var(--pos-bg)" },
+    { id: "neutre", label: "Neutre", color: "var(--neu)", bg: "var(--neu-bg)" },
+    { id: "negatif", label: "Négatif", color: "var(--neg)", bg: "var(--neg-bg)" }
+  ];
+
+  var DATA = [
+    { nom:"Emmanuel Macron", parti:"Renaissance — Président de la République", famille:"majorite", theme:"Social & inclusion", sujet:"Handicap, accessibilité et inclusion professionnelle", citation:"Le handicap ne doit contraindre aucun jeune à renoncer à ses études, à ses projets ou au libre choix de son avenir professionnel.", hashtags:["#Handicap","#Accessibilité2030"], sentiment:"positif", justif:"Ton aspirationnel et inclusif, orienté vers l'émancipation et la solidarité.", date:"4 septembre 2026", source:"https://www.elysee.fr/emmanuel-macron/2026/09/04/conference-nationale-du-handicap-2026" },
+    { nom:"Sébastien Lecornu", parti:"Renaissance — Premier ministre", famille:"majorite", theme:"Budget & finances publiques", sujet:"Budget et compromis parlementaire", citation:"Le Gouvernement ne renoncera pas aux compromis.", hashtags:["#Budget2026","#Compromis"], sentiment:"neutre", justif:"Déclaration institutionnelle mesurée, défensive mais sans charge émotionnelle marquée.", date:"16 janvier 2026", source:"https://www.info.gouv.fr/actualite/budget-2026-sebastien-lecornu-defend-un-budget-de-compromis" },
+    { nom:"Gabriel Attal", parti:"Renaissance", famille:"majorite", theme:"Institutions & calendrier électoral", sujet:"Calendrier institutionnel et rythme de l'action présidentielle", citation:"La France n'a pas une minute à perdre.", hashtags:["#Présidentielle2027","#Attal"], sentiment:"negatif", justif:"Ton offensif et critique visant directement une proposition d'un adversaire politique.", date:"11 septembre 2026", source:"https://actu.orange.fr/politique/attal-egratigne-philippe-en-estimant-que-quot-la-france-n-a-pas-une-minute-a-perdre-quot-CNT000002rQwIn.html" },
+    { nom:"Édouard Philippe", parti:"Horizons", famille:"majorite", theme:"Institutions & calendrier électoral", sujet:"Réforme du calendrier institutionnel présidentiel", citation:"Franchement, si on refaisait les choses aujourd'hui, moi j'adorerais un système dans lequel le président est élu en mai et il prend ses fonctions en septembre.", hashtags:["#RéformeInstitutionnelle","#Présidentielle2027"], sentiment:"neutre", justif:"Ton réflexif et posé, présentant une idée institutionnelle sans charge polémique dans la citation elle-même.", date:"11 septembre 2026", source:"https://fr.headtopics.com/news/la-france-n-a-pas-une-minute-a-perdre-gabriel-attal-87657519" },
+    { nom:"Gérald Darmanin", parti:"Renaissance — Ministre de la Justice", famille:"majorite", theme:"Immigration & sécurité", sujet:"Politique migratoire et intégration", citation:"Nous devons d'abord intégrer les gens que nous avons sur notre sol avant de faire venir davantage d'autres personnes.", hashtags:["#Immigration","#Justice"], sentiment:"neutre", justif:"Ton explicatif et mesuré, présentant une priorisation politique sans hostilité déclarée.", date:"26 mai 2026", source:"https://echosplus.com/2026/05/27/quotas-regularisations-expulsions-la-ligne-migratoire-de-gerald-darmanin-devoilee/" },
+    { nom:"Jordan Bardella", parti:"Rassemblement National", famille:"extreme-droite", theme:"Budget & finances publiques", sujet:"Finances publiques et rigueur budgétaire", citation:"La plus grande opération de nettoyage des finances publiques jamais conduite.", hashtags:["#FinancesPubliques","#Présidentielle2027"], sentiment:"negatif", justif:"Vocabulaire de rupture et de crise, ton combatif visant l'état actuel des comptes publics.", date:"11 septembre 2026", source:"https://elections2027.com/article/2026-09-11-jordan-bardella-promet-un-nettoyage-massif-des-finances-publiques" },
+    { nom:"Marine Le Pen", parti:"Rassemblement National", famille:"extreme-droite", theme:"Pouvoir d'achat & vie chère", sujet:"Logement et priorité nationale", citation:"La première mesure sociale sera de garantir à tous les Français d'être prioritaires chez eux.", hashtags:["#Logement","#PrioritéNationale"], sentiment:"negatif", justif:"Cadrage clivant, sous-entendant une dénonciation implicite de la situation actuelle.", date:"13 septembre 2026", source:"https://www.titrespresse.com/21231222603/henin-beaumont-pen" },
+    { nom:"Éric Ciotti", parti:"UDR", famille:"extreme-droite", theme:"Institutions & calendrier électoral", sujet:"Critique de la proposition d'Édouard Philippe sur le calendrier présidentiel", citation:"Non Édouard Philippe, le droit à la paresse n'existe pas pour un Président de la République.", hashtags:["#RéformeInstitutionnelle","#Macronisme"], sentiment:"negatif", justif:"Ton sarcastique et accusateur, usant d'une rhétorique de crise.", date:"11 septembre 2026", source:"https://x.com/eciotti/status/2098318309561119018" },
+    { nom:"Éric Zemmour", parti:"Reconquête", famille:"extreme-droite", theme:"Immigration & sécurité", sujet:"Remigration", citation:"Il faut ce que je réclame depuis des années : la remigration. Ce n'est pas un fantasme, une brutalité ni un délire, mais l'application du droit.", hashtags:["#Remigration","#Reconquête"], sentiment:"negatif", justif:"Ton défensif et martial, défendant une position radicale présentée comme une nécessité juridique.", date:"13 septembre 2026", source:"https://www.lejdd.fr/politique/ce-nest-pas-un-fantasme-eric-zemmour-plaide-pour-la-remigration-183399" },
+    { nom:"Nicolas Dupont-Aignan", parti:"Debout la France", famille:"extreme-droite", theme:"Europe & souveraineté", sujet:"Rupture avec l'Union européenne", citation:"Mon projet est clair : c'est la rupture avec l'Union européenne.", hashtags:["#Souverainisme","#UE"], sentiment:"negatif", justif:"Ton de rupture radicale, positionnement confrontationnel envers l'ordre européen actuel.", date:"25 mars 2026", source:"https://www.cnews.fr/france/2026-03-25/mon-projet-est-clair-cest-la-rupture-avec-lunion-europeenne-declare-nicolas" },
+    { nom:"Jean-Luc Mélenchon", parti:"La France Insoumise", famille:"gauche-radicale", theme:"Stratégie 2027 & recomposition", sujet:"Rentrée politique et dynamique de campagne", citation:"C'est une malédiction, tout ce que je touche se transforme en meeting.", hashtags:["#RentréePolitique","#Meetings"], sentiment:"positif", justif:"Autodérision légère et ton triomphant sur sa propre popularité, sans agressivité.", date:"août 2026", source:"https://linsoumission.fr/2026/09/08/melenchon-phenomene-insoumis/" },
+    { nom:"Manuel Bompard", parti:"La France Insoumise", famille:"gauche-radicale", theme:"Budget & finances publiques", sujet:"Budget 2026 et orientation sociale", citation:"Je ne vois plus vraiment ce qu'il y a de gauche dans ce texte.", hashtags:["#Budget2026","#LFI"], sentiment:"negatif", justif:"Ton critique et désabusé envers le contenu du budget gouvernemental.", date:"1 février 2026", source:"https://www.europe1.fr/politique/je-ne-vois-plus-vraiment-ce-quil-y-a-de-gauche-dans-le-budget-2026-pointe-manuel-bompard-888193" },
+    { nom:"François Ruffin", parti:"Debout!", famille:"gauche-radicale", theme:"Stratégie 2027 & recomposition", sujet:"Image de la gauche auprès de l'électorat populaire", citation:"On ne pourra pas gagner avec deux tiers des Français qui ont peur de nous, qui nous rejettent, qui nous haïssent.", hashtags:["#Gauche2027","#FêteDeLHuma"], sentiment:"negatif", justif:"Constat alarmé et autocritique dur sur le rejet de la gauche par une majorité de Français.", date:"13 septembre 2026", source:"https://entrevue.fr/presidentielle-2027/presidentielle-2027-francois-ruffin-reconnait-que-deux-tiers-des-francais-ont-peur-de-la-gauche-la-rejette-et-haisse/" },
+    { nom:"Fabien Roussel", parti:"Parti Communiste Français", famille:"gauche-radicale", theme:"Pouvoir d'achat & vie chère", sujet:"Pouvoir d'achat et prix des carburants", citation:"Si le gouvernement n'agit pas dans les jours qui viennent, j'appelle les Français à se mobiliser.", hashtags:["#PouvoirDAchat","#Carburants"], sentiment:"negatif", justif:"Ton d'ultimatum et de menace de mobilisation face à l'inaction gouvernementale perçue.", date:"11 septembre 2026", source:"https://fr.headtopics.com/news/presidentielle-2027-fabien-roussel-appelle-le-87636819" },
+    { nom:"Olivier Faure", parti:"Parti Socialiste", famille:"gauche-social", theme:"Pouvoir d'achat & vie chère", sujet:"Vie chère et mobilisation sociale", citation:"Le PS sera aux côtés des Français s'ils se soulèvent contre la vie chère.", hashtags:["#VieChère","#Mobilisation"], sentiment:"negatif", justif:"Ton solidaire mais implicitement critique envers la politique économique du gouvernement.", date:"13 septembre 2026", source:"https://www.boursorama.com/actualite-economique/actualites/olivier-faure-ps-sera-aux-cotes-des-francais-s-ils-se-soulevent-contre-la-vie-chere-b23395dfe854e1fe6412691d0b9429ad" },
+    { nom:"Raphaël Glucksmann", parti:"Place Publique", famille:"gauche-social", theme:"Stratégie 2027 & recomposition", sujet:"Lancement de campagne et mobilisation de la gauche", citation:"Adieu esprit de défaite !", hashtags:["#Présidentielle2027","#PlacePublique"], sentiment:"positif", justif:"Formule mobilisatrice et volontariste, tournée vers l'espoir plutôt que la critique.", date:"2026", source:"https://www.lagazettefrance.fr/article/a-aubervilliers-raphael-glucksmann-refuse-l-esprit-de-defaite" },
+    { nom:"Marine Tondelier", parti:"Les Écologistes", famille:"gauche-social", theme:"Stratégie 2027 & recomposition", sujet:"Fragmentation de la gauche avant 2027", citation:"Chacun a décidé d'être dans son couloir de natation.", hashtags:["#UnionDeLaGauche","#Présidentielle2027"], sentiment:"negatif", justif:"Ton de regret et de déploration face à la division persistante des forces de gauche.", date:"12 septembre 2026", source:"https://www.franceinfo.fr/replay-radio/l-interview-politique/chacun-a-decide-d-etre-dans-son-couloir-de-natation-deplore-marine-tondelier-candidate-ecologiste-a-l-election-presidentielle_8189441.html" },
+    { nom:"Sandrine Rousseau", parti:"Les Écologistes", famille:"gauche-social", theme:"Climat & écologie", sujet:"Crise climatique et effondrement sociétal", citation:"On est dans la fin d'un monde et il faut le comprendre, il faut l'affronter.", hashtags:["#Climat","#Canicule2026"], sentiment:"negatif", justif:"Ton alarmiste évoquant un effondrement et une crise existentielle.", date:"19 août 2026", source:"https://www.letribunaldunet.fr/politique/sandrine-rousseau-fin-du-monde-canicules-incendies.html" },
+    { nom:"Bruno Retailleau", parti:"Les Républicains", famille:"droite-rep", theme:"Immigration & sécurité", sujet:"Immigration étudiante", citation:"Il faut être beaucoup plus stricte sur l'immigration étudiante.", hashtags:["#Immigration","#Sécurité"], sentiment:"negatif", justif:"Ton ferme et restrictif, orienté vers un durcissement présenté comme nécessaire.", date:"8 septembre 2026", source:"https://www.titrespresse.com/20588362603/bruno-retailleau-immigration" },
+    { nom:"Laurent Wauquiez", parti:"Les Républicains", famille:"droite-rep", theme:"Institutions & calendrier électoral", sujet:"Crise politique et appel à l'intérêt général", citation:"Chacun d'entre nous, j'en suis sûr, aspire à ce que la politique retrouve le sens de l'intérêt général.", hashtags:["#CriseGouvernementale","#IntérêtGénéral"], sentiment:"neutre", justif:"Ton grave mais constructif, appelant au dépassement des clivages plutôt qu'à l'attaque.", date:"14 octobre 2025", source:"https://www.deputesdroiterepublicaine.fr/actualite/articles/5919-intervention-de-laurent-wauquiez-suite-a-la-declaration-de-politique-generale-de-sebastien-lecornu-premier-ministre" },
+    { nom:"David Lisnard", parti:"Les Républicains (DVD) — président de l'AMF", famille:"droite-rep", theme:"Stratégie 2027 & recomposition", sujet:"Représentation des maires et ruralité", citation:"Je veux poursuivre notre action à la tête de l'Association des maires de France pour que la voix des maires ne s'éteigne pas.", hashtags:["#AMF","#Maires"], sentiment:"positif", justif:"Ton engagé et constructif, orienté vers la continuité de l'action et la défense d'une cause.", date:"10 septembre 2026", source:"https://actu.orange.fr/politique/david-lisnard-candidat-a-la-presidentielle-brigue-un-nouveau-mandat-a-la-tete-de-l-amf-CNT000002rPPmv.html" },
+    { nom:"Élisabeth Borne", parti:"Renaissance — ancienne Première ministre", famille:"majorite", theme:"Stratégie 2027 & recomposition", sujet:"Dispersion des candidatures dans le bloc central", citation:"Toute l'énergie qu'on peut passer à être en compétition au sein de ce bloc central, c'est de l'énergie qu'on ne passe pas pour proposer des réponses aux Français.", hashtags:["#BlocCentral","#Présidentielle2027"], sentiment:"negatif", justif:"Reproche adressé à son propre camp, déplorant une compétition interne jugée stérile.", date:"26 mai 2026", source:"https://www.franceinfo.fr/elections/presidentielle/presidentielle-2027-elisabeth-borne-regrette-les-aventures-individuelles-dans-le-bloc-central-apres-les-candidatures-d-edouard-philippe-et-gabriel-attal_8028686.html" },
+    { nom:"Xavier Bertrand", parti:"Les Républicains — président des Hauts-de-France", famille:"droite-rep", theme:"Stratégie 2027 & recomposition", sujet:"Candidature indépendante à la présidentielle de 2027", citation:"Je serai un candidat à la place, pas un candidat de plus, et avec un projet.", hashtags:["#Présidentielle2027","#Droite"], sentiment:"neutre", justif:"Affirmation de positionnement, assurée et programmatique, sans registre de crise ni attaque nommée.", date:"27 août 2026", source:"https://lcp.fr/actualites/2027-figure-de-la-droite-xavier-bertrand-confirme-qu-il-sera-candidat-a-l-election" },
+    { nom:"Sarah Knafo", parti:"Reconquête — députée européenne", famille:"extreme-droite", theme:"Budget & finances publiques", sujet:"Pression fiscale et dépense publique", citation:"On vous prend votre argent et on vous demande de vous taire.", hashtags:["#Fiscalité","#Reconquête"], sentiment:"negatif", justif:"Formule accusatoire dénonçant à la fois le niveau des prélèvements et le silence imposé aux contribuables.", date:"13 septembre 2026", source:"https://touch-actu.fr/actualites/portraits-politiques-8743-zemmour-et-knafo-a-port-marly-ce-quil-faut-retenir-de-la-rentree-de-reconquete-avant-2027" },
+    { nom:"Mathilde Panot", parti:"La France Insoumise — présidente du groupe à l'Assemblée nationale", famille:"gauche-radicale", theme:"Inégalités & fiscalité", sujet:"Concentration des richesses et partage", citation:"Les riches ont décidé de faire sécession.", hashtags:["#Inégalités","#PartageDesRichesses"], sentiment:"negatif", justif:"Accusation frontale visant les plus fortunés, décrits comme rompant délibérément le pacte social.", date:"25 août 2026", source:"https://lcp.fr/actualites/pour-l-insoumise-mathilde-panot-les-riches-ont-decide-de-faire-secession-440620" },
+    { nom:"François Hollande", parti:"Parti Socialiste — ancien président de la République", famille:"gauche-social", theme:"Stratégie 2027 & recomposition", sujet:"Union de la gauche en vue de 2027", citation:"L'autre voie, c'est l'union.", hashtags:["#UnionDeLaGauche","#Présidentielle2027"], sentiment:"positif", justif:"Appel au rassemblement formulé comme une solution, sans dénonciation d'un adversaire.", date:"12 septembre 2026", source:"https://www.titrespresse.com/21043082603/francois-hollande-union" }
+  ];
+
+  function initials(name){
+    var parts = name.replace(/[ÉÈÊ]/g,'E').split(/\s+/).filter(function(p){ return p.length && p[0] === p[0].toUpperCase(); });
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
+    return name.slice(0,2).toUpperCase();
+  }
+  var MONTHS_FR = { janvier:0, février:1, mars:2, avril:3, mai:4, juin:5, juillet:6, août:7, septembre:8, octobre:9, novembre:10, décembre:11 };
+  function parseFrDate(s){
+    var parts = String(s).trim().split(/\s+/);
+    var year = parseInt(parts[parts.length - 1], 10);
+    if (isNaN(year)) return 0;
+    if (parts.length === 1) return new Date(year, 0, 1).getTime();
+    var monthWord = parts[parts.length - 2].toLowerCase();
+    var month = MONTHS_FR.hasOwnProperty(monthWord) ? MONTHS_FR[monthWord] : 0;
+    var day = 1;
+    if (parts.length >= 3) {
+      var dNum = parseInt(parts[parts.length - 3], 10);
+      if (!isNaN(dNum)) day = dNum;
+    }
+    return new Date(year, month, day).getTime();
+  }
+
+  DATA.forEach(function(d, i){ d.id = i; d.init = initials(d.nom); d.dateTs = parseFrDate(d.date); });
+
+  function famOf(id){ return FAMILIES.filter(function(f){return f.id===id;})[0]; }
+  function sentOf(id){ return SENTIMENTS.filter(function(s){return s.id===id;})[0]; }
+
+  var TOPIC_SHORT = {
+    "Social & inclusion": "Handicap",
+    "Budget & finances publiques": "Budget",
+    "Institutions & calendrier électoral": "Institutions",
+    "Immigration & sécurité": "Immigration",
+    "Pouvoir d'achat & vie chère": "Pouvoir d'achat",
+    "Europe & souveraineté": "Europe",
+    "Stratégie 2027 & recomposition": "Élection 2027",
+    "Climat & écologie": "Climat",
+    "Inégalités & fiscalité": "Inégalités"
+  };
+  var PARTY_CODE = {
+    "Emmanuel Macron": "Renaissance",
+    "Sébastien Lecornu": "Renaissance",
+    "Gabriel Attal": "Renaissance",
+    "Gérald Darmanin": "Renaissance",
+    "Édouard Philippe": "Horizons",
+    "Jordan Bardella": "RN",
+    "Marine Le Pen": "RN",
+    "Éric Ciotti": "UDR",
+    "Éric Zemmour": "Reconquête",
+    "Nicolas Dupont-Aignan": "DLF",
+    "Jean-Luc Mélenchon": "LFI",
+    "Manuel Bompard": "LFI",
+    "François Ruffin": "Debout!",
+    "Fabien Roussel": "PCF",
+    "Olivier Faure": "PS",
+    "Raphaël Glucksmann": "Place Publique",
+    "Marine Tondelier": "Écologistes",
+    "Sandrine Rousseau": "Écologistes",
+    "Bruno Retailleau": "LR",
+    "Laurent Wauquiez": "LR",
+    "David Lisnard": "LR",
+    "Élisabeth Borne": "Renaissance",
+    "Xavier Bertrand": "LR",
+    "Sarah Knafo": "Reconquête",
+    "Mathilde Panot": "LFI",
+    "François Hollande": "PS"
+  };
+  DATA.forEach(function(d){ d.partiCode = PARTY_CODE[d.nom] || d.parti; });
+  function sentVarColor(id){ return id==='positif' ? 'var(--pos)' : id==='negatif' ? 'var(--neg)' : 'var(--neu)'; }
+  function sentVarBg(id){ return id==='positif' ? 'var(--pos-bg)' : id==='negatif' ? 'var(--neg-bg)' : 'var(--neu-bg)'; }
+  function debounce(fn, ms){ var t; return function(){ var args=arguments, ctx=this; clearTimeout(t); t=setTimeout(function(){ fn.apply(ctx,args); }, ms); }; }
+
+  document.getElementById('dek-text').textContent = CONTEXTE;
+
+  // ---- state ----
+  var state = {
+    families: {}, sentiments: {}, theme: "all", sort: "theme", search: ""
+  };
+  FAMILIES.forEach(function(f){ state.families[f.id] = true; });
+  SENTIMENTS.forEach(function(s){ state.sentiments[s.id] = true; });
+
+  // ---- build stat tiles ----
+  var statsEl = document.getElementById('stats');
+  function renderStats(){
+    statsEl.innerHTML = '';
+    var total = DATA.length;
+    SENTIMENTS.forEach(function(s){
+      var n = DATA.filter(function(d){return d.sentiment===s.id;}).length;
+      var pct = Math.round(100*n/total);
+      var tile = document.createElement('div');
+      tile.className = 'stat-tile';
+      tile.innerHTML = '<div class="label"><span class="stat-dot" style="background:'+s.color+'"></span>'+s.label+'</div>' +
+        '<div class="value" style="color:'+s.color+'">'+pct+'%</div>' +
+        '<div class="sub">'+n+' déclarations sur '+total+'</div>';
+      statsEl.appendChild(tile);
+    });
+  }
+
+  // ---- build family chips ----
+  var famChipsEl = document.getElementById('family-chips');
+  function renderFamilyChips(){
+    famChipsEl.innerHTML = '';
+    FAMILIES.forEach(function(f){
+      var count = DATA.filter(function(d){return d.famille===f.id;}).length;
+      var chip = document.createElement('button');
+      chip.className = 'chip';
+      chip.type = 'button';
+      chip.setAttribute('data-active', state.families[f.id]);
+      chip.innerHTML = '<span class="dot" style="background:'+f.color+'"></span>'+f.label+' <span style="opacity:.6">'+count+'</span>';
+      chip.addEventListener('click', function(){
+        state.families[f.id] = !state.families[f.id];
+        chip.setAttribute('data-active', state.families[f.id]);
+        render();
+      });
+      famChipsEl.appendChild(chip);
+    });
+  }
+
+  // ---- sentiment chips ----
+  var sentChipsWrap = document.getElementById('sentiment-chips');
+  function renderSentimentChips(){
+    sentChipsWrap.innerHTML = '';
+    SENTIMENTS.forEach(function(s){
+      var chip = document.createElement('button');
+      chip.className = 'chip';
+      chip.type = 'button';
+      chip.setAttribute('data-active', state.sentiments[s.id]);
+      chip.innerHTML = '<span class="dot" style="background:'+s.color+'"></span>'+s.label;
+      chip.addEventListener('click', function(){
+        state.sentiments[s.id] = !state.sentiments[s.id];
+        chip.setAttribute('data-active', state.sentiments[s.id]);
+        render();
+      });
+      sentChipsWrap.appendChild(chip);
+    });
+  }
+
+  // ---- theme select ----
+  var themeSelect = document.getElementById('theme-select');
+  function renderThemeSelect(){
+    var themes = Array.from(new Set(DATA.map(function(d){return d.theme;}))).sort();
+    themeSelect.innerHTML = '<option value="all">Tous les thèmes</option>' +
+      themes.map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('');
+    themeSelect.addEventListener('change', function(){ state.theme = themeSelect.value; render(); });
+  }
+
+  document.getElementById('sort-select').addEventListener('change', function(e){ state.sort = e.target.value; render(); });
+  document.getElementById('search').addEventListener('input', function(e){ state.search = e.target.value.trim().toLowerCase(); render(); });
+  document.getElementById('reset-btn').addEventListener('click', function(){
+    FAMILIES.forEach(function(f){ state.families[f.id] = true; });
+    SENTIMENTS.forEach(function(s){ state.sentiments[s.id] = true; });
+    state.theme = 'all'; state.sort = 'theme'; state.search = '';
+    themeSelect.value = 'all';
+    document.getElementById('sort-select').value = 'theme';
+    document.getElementById('search').value = '';
+    renderFamilyChips(); renderSentimentChips(); render();
+  });
+
+  // ---- legend ----
+  var legendEl = document.getElementById('legend-row');
+  FAMILIES.forEach(function(f){
+    var item = document.createElement('span');
+    item.className = 'legend-item';
+    item.innerHTML = '<span class="dot" style="background:'+f.color+'"></span>'+f.label;
+    legendEl.appendChild(item);
+  });
+
+  // ---- theme frequency (for "sujet le plus discuté" sort) ----
+  function themeCounts(){
+    var counts = {};
+    DATA.forEach(function(d){ counts[d.theme] = (counts[d.theme]||0) + 1; });
+    return counts;
+  }
+
+  // ---- filter + sort ----
+  function getFiltered(){
+    var counts = themeCounts();
+    var list = DATA.filter(function(d){
+      if (!state.families[d.famille]) return false;
+      if (!state.sentiments[d.sentiment]) return false;
+      if (state.theme !== 'all' && d.theme !== state.theme) return false;
+      if (state.search) {
+        var hay = (d.nom + ' ' + d.parti + ' ' + d.citation + ' ' + d.sujet + ' ' + d.hashtags.join(' ')).toLowerCase();
+        if (hay.indexOf(state.search) === -1) return false;
+      }
+      return true;
+    });
+    var counts_ = counts;
+    list.sort(function(a,b){
+      if (state.sort === 'date-desc') return b.dateTs - a.dateTs || a.nom.localeCompare(b.nom, 'fr');
+      if (state.sort === 'date-asc') return a.dateTs - b.dateTs || a.nom.localeCompare(b.nom, 'fr');
+      if (state.sort === 'alpha') return a.nom.localeCompare(b.nom, 'fr');
+      if (state.sort === 'parti') return a.parti.localeCompare(b.parti, 'fr');
+      if (state.sort === 'sentiment') {
+        var order = { positif:0, neutre:1, negatif:2 };
+        return order[a.sentiment]-order[b.sentiment] || a.nom.localeCompare(b.nom,'fr');
+      }
+      // theme: most-discussed theme first, then alpha within
+      var diff = counts_[b.theme]-counts_[a.theme];
+      if (diff !== 0) return diff;
+      if (a.theme !== b.theme) return a.theme.localeCompare(b.theme, 'fr');
+      return a.nom.localeCompare(b.nom, 'fr');
+    });
+    return list;
+  }
+
+  // ---- render bubbles ----
+  var fieldEl = document.getElementById('bubble-field');
+  var resultCountEl = document.getElementById('result-count');
+
+  function render(){
+    renderStats();
+    var list = getFiltered();
+    resultCountEl.textContent = list.length + ' résultat' + (list.length>1?'s':'') + (state.theme!=='all' ? ' · ' + state.theme : '');
+    fieldEl.innerHTML = '';
+    if (list.length === 0) {
+      var empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.textContent = 'Aucune personnalité ne correspond à ces filtres.';
+      fieldEl.appendChild(empty);
+      return;
+    }
+    list.forEach(function(d){
+      var sent = sentOf(d.sentiment);
+      var fam = famOf(d.famille);
+      var btn = document.createElement('button');
+      btn.className = 'bubble';
+      btn.type = 'button';
+      btn.setAttribute('title', d.nom + ' — ' + sent.label + ' — ' + d.sujet);
+      btn.innerHTML =
+        '<span class="orb" style="--sent-color:'+sent.color+';--sent-bg:'+sent.bg+'">' +
+          '<span class="initials">'+d.init+'</span>' +
+          '<span class="fam-dot" style="--fam-color:'+fam.color+'"></span>' +
+        '</span>' +
+        '<span class="name">'+d.nom+'</span>' +
+        '<span class="party">'+fam.label+'</span>';
+      btn.addEventListener('click', function(){ openModal(d); });
+      fieldEl.appendChild(btn);
+    });
+  }
+
+  // ---- modal ----
+  var backdrop = document.getElementById('modal-backdrop');
+  var panel = document.getElementById('modal-panel');
+
+  function domain(url){
+    try { return new URL(url).hostname.replace(/^www\./,''); } catch(e){ return url; }
+  }
+
+  function openModal(d){
+    var sent = sentOf(d.sentiment);
+    var fam = famOf(d.famille);
+    panel.innerHTML =
+      '<div class="modal-top">' +
+        '<div class="modal-id">' +
+          '<span class="modal-orb" style="--sent-color:'+sent.color+';--sent-bg:'+sent.bg+'">'+d.init+'</span>' +
+          '<div><div class="modal-name" id="modal-name">'+d.nom+'</div>' +
+          '<div class="modal-party"><span class="dot" style="background:'+fam.color+'"></span>'+d.parti+'</div></div>' +
+        '</div>' +
+        '<button class="modal-close" id="modal-close" aria-label="Fermer">✕</button>' +
+      '</div>' +
+      '<span class="sent-badge" style="--sent-color:'+sent.color+';--sent-bg:'+sent.bg+'"><span class="dot"></span>Ton '+sent.label.toLowerCase()+'</span>' +
+      '<p class="modal-section-label">Sujet principal</p>' +
+      '<p class="modal-topic">'+d.sujet+'</p>' +
+      '<p class="modal-section-label">Citation</p>' +
+      '<blockquote class="quote" style="--sent-color:'+sent.color+'">« '+d.citation+' »</blockquote>' +
+      '<p class="modal-section-label">Hashtags associés</p>' +
+      '<div class="hashtags">'+d.hashtags.map(function(h){return '<span class="hashtag">'+h+'</span>';}).join('')+'</div>' +
+      '<p class="modal-section-label">Pourquoi ce sentiment</p>' +
+      '<p class="justif">'+d.justif+'</p>' +
+      '<div class="modal-footer">' +
+        '<span>'+d.date+'</span>' +
+        '<a href="'+d.source+'" target="_blank" rel="noopener noreferrer">Source : '+domain(d.source)+' ↗</a>' +
+      '</div>';
+    backdrop.setAttribute('data-open', 'true');
+    document.getElementById('modal-close').addEventListener('click', closeModal);
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal(){
+    backdrop.setAttribute('data-open', 'false');
+    document.body.style.overflow = '';
+  }
+  backdrop.addEventListener('click', function(e){ if (e.target === backdrop) closeModal(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeModal(); });
+
+  // ---- topic graph ----
+  var currentSim = null;
+  var graphResizeHandler = null;
+  var graphMode = 'pol';
+
+  var GRAPH_LEGEND = {
+    pol: '<span class="legend-item"><span class="node-swatch topic"></span>Sujet <span style="opacity:.65">— taille = nombre de personnalités qui en parlent</span></span>' +
+         '<span class="legend-item"><span class="node-swatch pol"></span>Personnalité <span style="opacity:.65">— couleur du lien = ton de sa citation sur ce sujet</span></span>',
+    parti: '<span class="legend-item"><span class="node-swatch topic"></span>Sujet <span style="opacity:.65">— taille = nombre de partis qui en parlent</span></span>' +
+           '<span class="legend-item"><span class="node-swatch pol"></span>Parti <span style="opacity:.65">— anneau = famille politique, lien = ton de la citation sur ce sujet</span></span>'
+  };
+
+  function buildGraph(mode){
+    if (typeof d3 === 'undefined') return;
+    graphMode = mode = mode || 'pol';
+    document.getElementById('graph-legend').innerHTML = GRAPH_LEGEND[mode];
+
+    var container = document.getElementById('graph-container');
+    var svgEl = d3.select('#topic-graph');
+    var tooltip = document.getElementById('graph-tooltip');
+
+    if (currentSim) { currentSim.stop(); currentSim = null; }
+    if (graphResizeHandler) { window.removeEventListener('resize', graphResizeHandler); graphResizeHandler = null; }
+    svgEl.selectAll('*').remove();
+
+    var width = container.clientWidth, height = container.clientHeight;
+    svgEl.attr('viewBox', '0 0 ' + width + ' ' + height);
+
+    // ---- build node/link sets for the chosen mode ----
+    var secondaryNodes, links, labelMaxLen;
+
+    if (mode === 'parti') {
+      var partyCounts = {}, partyFamily = {};
+      DATA.forEach(function(d){
+        partyCounts[d.partiCode] = (partyCounts[d.partiCode] || 0) + 1;
+        partyFamily[d.partiCode] = d.famille;
+      });
+      secondaryNodes = Object.keys(partyCounts).map(function(p){
+        return { id: 'sec:' + p, type: 'sec', label: p, fullName: p, r: 16 + partyCounts[p]*6, famille: partyFamily[p], members: DATA.filter(function(d){ return d.partiCode === p; }) };
+      });
+      links = DATA.map(function(d){ return { source: 'topic:' + d.theme, target: 'sec:' + d.partiCode, sentiment: d.sentiment, ref: d }; });
+      labelMaxLen = 15;
+    } else {
+      secondaryNodes = DATA.map(function(d){
+        return { id: 'sec:pol:' + d.id, type: 'sec', label: d.init, fullName: d.nom, r: 15, ref: d };
+      });
+      links = DATA.map(function(d){ return { source: 'topic:' + d.theme, target: 'sec:pol:' + d.id, sentiment: d.sentiment, ref: d }; });
+      labelMaxLen = 4;
+    }
+
+    var topicDegree = {};
+    links.forEach(function(l){
+      topicDegree[l.source] = topicDegree[l.source] || new Set();
+      topicDegree[l.source].add(l.target);
+    });
+    var topicNodes = Object.keys(topicDegree).map(function(tid){
+      var t = tid.replace('topic:', '');
+      var n = topicDegree[tid].size;
+      return { id: tid, type: 'topic', label: TOPIC_SHORT[t] || t, count: n, r: 20 + n*5 };
+    });
+
+    var nodes = topicNodes.concat(secondaryNodes);
+
+    var simulation = d3.forceSimulation(nodes)
+      .force('link', d3.forceLink(links).id(function(d){ return d.id; }).distance(function(l){ return 58 + (l.target.r || 15); }).strength(0.6))
+      .force('charge', d3.forceManyBody().strength(-170))
+      .force('center', d3.forceCenter(width/2, height/2))
+      .force('collide', d3.forceCollide().radius(function(d){ return d.r + 6; }));
+    currentSim = simulation;
+
+    var linkSel = svgEl.append('g').attr('class','links').selectAll('line')
+      .data(links).join('line')
+      .attr('class', 'graph-link')
+      .attr('stroke-width', 1.6)
+      .attr('stroke', function(d){ return sentVarColor(d.sentiment); });
+
+    var nodeSel = svgEl.append('g').attr('class','nodes').selectAll('g')
+      .data(nodes).join('g')
+      .attr('class', function(d){ return 'graph-node ' + (d.type === 'topic' ? 'graph-node-topic' : 'graph-node-pol'); })
+      .style('cursor', function(d){ return (d.type === 'sec' && mode === 'pol') ? 'pointer' : 'grab'; })
+      .call(drag(simulation));
+
+    nodeSel.append('circle')
+      .attr('r', function(d){ return d.r; })
+      .style('stroke', function(d){
+        if (d.type !== 'sec') return null;
+        return mode === 'parti' ? famOf(d.famille).color : sentVarColor(d.ref.sentiment);
+      })
+      .style('fill', function(d){
+        if (d.type !== 'sec') return null;
+        return mode === 'parti' ? 'var(--surface-raised)' : sentVarBg(d.ref.sentiment);
+      });
+
+    nodeSel.append('text')
+      .attr('class', 'node-label')
+      .attr('text-anchor', 'middle')
+      .attr('dy', '0.32em')
+      .style('font-size', function(d){ return d.type === 'topic' ? '11px' : (mode === 'parti' ? '10px' : '10.5px'); })
+      .style('pointer-events', 'none')
+      .text(function(d){ return d.label; });
+
+    nodeSel.on('mouseenter', function(event, d){ showTip(event, d); highlight(d); })
+      .on('mousemove', function(event){ positionTip(event); })
+      .on('mouseleave', function(){ hideTip(); clearHighlight(); })
+      .on('click', function(event, d){ if (d.type === 'sec' && mode === 'pol') openModal(d.ref); })
+      .on('focus', function(event, d){ highlight(d); })
+      .on('blur', function(){ clearHighlight(); });
+
+    function highlight(d){
+      var connected = new Set([d.id]);
+      links.forEach(function(l){
+        if (l.source.id === d.id) connected.add(l.target.id);
+        if (l.target.id === d.id) connected.add(l.source.id);
+      });
+      nodeSel.classed('is-dim', function(n){ return !connected.has(n.id); });
+      linkSel.classed('is-dim', function(l){ return l.source.id !== d.id && l.target.id !== d.id; });
+    }
+    function clearHighlight(){ nodeSel.classed('is-dim', false); linkSel.classed('is-dim', false); }
+
+    function showTip(event, d){
+      tooltip.hidden = false;
+      if (d.type === 'topic') {
+        var noun = mode === 'parti' ? ' parti' : ' personnalité';
+        tooltip.innerHTML = '<strong>' + d.label + '</strong>' + d.count + noun + (d.count > 1 ? 's' : '') + ' en parlent';
+      } else if (mode === 'parti') {
+        var topics = Array.from(new Set(d.members.map(function(m){ return TOPIC_SHORT[m.theme] || m.theme; })));
+        var mostRecent = d.members.reduce(function(a,b){ return b.dateTs > a.dateTs ? b : a; });
+        tooltip.innerHTML = '<strong>' + d.fullName + '</strong>' + d.members.length + ' citation' + (d.members.length > 1 ? 's' : '') + ' · ' + topics.join(', ') + '<br><span style="opacity:.65">Dernière en date : ' + mostRecent.date + '</span>';
+      } else {
+        tooltip.innerHTML = '<strong>' + d.fullName + '</strong>' + d.ref.sujet + '<br><span style="opacity:.65">' + d.ref.date + '</span>';
+      }
+      positionTip(event);
+    }
+    function positionTip(event){
+      var rect = container.getBoundingClientRect();
+      tooltip.style.left = (event.clientX - rect.left) + 'px';
+      tooltip.style.top = (event.clientY - rect.top) + 'px';
+    }
+    function hideTip(){ tooltip.hidden = true; }
+
+    function marginFor(d){
+      if (d.type === 'topic') return Math.max(d.r + 4, 72);
+      return mode === 'parti' ? Math.max(d.r + 4, labelMaxLen * 4 + 10) : d.r + 4;
+    }
+
+    simulation.on('tick', function(){
+      nodes.forEach(function(d){
+        var mx = marginFor(d);
+        d.x = Math.max(mx, Math.min(width - mx, d.x));
+        d.y = Math.max(d.r + 4, Math.min(height - d.r - 4, d.y));
+      });
+      linkSel
+        .attr('x1', function(d){ return d.source.x; })
+        .attr('y1', function(d){ return d.source.y; })
+        .attr('x2', function(d){ return d.target.x; })
+        .attr('y2', function(d){ return d.target.y; });
+      nodeSel.attr('transform', function(d){ return 'translate(' + d.x + ',' + d.y + ')'; });
+    });
+
+    function drag(sim){
+      function started(event, d){ if (!event.active) sim.alphaTarget(0.25).restart(); d.fx = d.x; d.fy = d.y; }
+      function dragged(event, d){ d.fx = event.x; d.fy = event.y; }
+      function ended(event, d){ if (!event.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }
+      return d3.drag().on('start', started).on('drag', dragged).on('end', ended);
+    }
+
+    graphResizeHandler = debounce(function(){
+      var w = container.clientWidth, h = container.clientHeight;
+      if (!w || !h) return;
+      width = w; height = h;
+      svgEl.attr('viewBox', '0 0 ' + w + ' ' + h);
+      simulation.force('center', d3.forceCenter(w/2, h/2));
+      simulation.alpha(0.3).restart();
+    }, 200);
+    window.addEventListener('resize', graphResizeHandler);
+  }
+
+  var toggleBtns = document.querySelectorAll('.toggle-btn');
+  toggleBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      if (btn.getAttribute('aria-selected') === 'true') return;
+      toggleBtns.forEach(function(b){ b.setAttribute('aria-selected', b === btn ? 'true' : 'false'); });
+      buildGraph(btn.getAttribute('data-mode'));
+    });
+  });
+
+  // ---- init ----
+  renderFamilyChips();
+  renderSentimentChips();
+  renderThemeSelect();
+  render();
+  buildGraph('pol');
+
+})();
+</script>
+
+</body></html>
