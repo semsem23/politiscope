@@ -172,6 +172,18 @@ Deux *variables* facultatives ajustent les garde-fous sans toucher au code :
 IPv4. L'URL directe y échouerait à chaque connexion, perdant 15 s en tentative
 vouée à l'échec avant de se rabattre sur le pooler. Autant viser juste.
 
+### Lire les décomptes
+
+`db-sync` annonce ce qui est **réellement entré en base**, pas ce qui a été
+envoyé :
+
+    items RSS      444 nouveau(x) sur 698 envoyé(s)  (254 déjà en base)
+
+La distinction compte en exécution planifiée. Le dédoublonnage local s'appuie
+sur les fichiers JSONL, absents d'un runner neuf : `fetch-rss` y annonçait
+« 698 ajoutés, 0 déjà connu » alors que la base en écartait 254. Des logs
+nocturnes qui gonflent les chiffres sont des logs auxquels on cesse de se fier.
+
 ### Le plafond budgétaire tient sur un runner neuf
 
 Chaque exécution part d'un disque vierge : `x_state.json` y serait vide, et un

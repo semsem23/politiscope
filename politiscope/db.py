@@ -199,6 +199,21 @@ def fetch_user_ids(conn) -> dict[str, str]:
         return dict(cur.fetchall())
 
 
+def table_counts(conn, tables: Sequence[str]) -> dict[str, int]:
+    """Effectifs actuels, pour mesurer ce qu'un versement a réellement ajouté.
+
+    Le dédoublonnage local s'appuie sur les fichiers JSONL, absents d'un runner
+    neuf : il y déclare « 0 déjà connu » alors que la base, elle, en écarte
+    beaucoup. Seul l'écart avant/après dit la vérité.
+    """
+    out: dict[str, int] = {}
+    with conn.cursor() as cur:
+        for t in tables:
+            cur.execute(f"select count(*) from {t}")   # noqa: S608 — liste figée
+            out[t] = cur.fetchone()[0]
+    return out
+
+
 def fetch_month_spend(conn, month: str) -> tuple[float, int]:
     """Dépense et lectures déjà engagées ce mois-ci, d'après `ingest_runs`.
 

@@ -373,8 +373,11 @@ def cmd_db_sync(args) -> int:
     for row in rss:
         cands.extend(candidates_from_rss(row))
 
+    TABLES = ("tweets", "rss_items", "candidates")
     with db.connect() as conn:
         db.migrate(conn)
+        avant = db.table_counts(conn, TABLES)
+
         n_acc = db.upsert_accounts(conn, accounts)
         if state.user_ids:
             db.set_user_ids(conn, state.user_ids)
@@ -383,12 +386,23 @@ def cmd_db_sync(args) -> int:
         n_cd = db.upsert_candidates(conn, cands, _norm)
         if state.last_id:
             db.set_last_tweet_ids(conn, state.last_id)
+
+        apres = db.table_counts(conn, TABLES)
         st = db.stats(conn)
 
-    print(f"  comptes      {n_acc:>5} envoyés")
-    print(f"  tweets       {n_tw:>5} envoyés")
-    print(f"  items RSS    {n_rss:>5} envoyés")
-    print(f"  candidates   {n_cd:>5} envoyées")
+    # On annonce ce qui est réellement entré, pas ce qui a été envoyé : sur un
+    # runner neuf les fichiers locaux sont vides, le dédoublonnage local ne
+    # voit rien, et « envoyés » surestimerait chaque nuit.
+    def ligne(label: str, table: str, envoyes: int) -> str:
+        neufs = apres[table] - avant[table]
+        rejoues = envoyes - neufs
+        suffixe = f"  ({rejoues} déjà en base)" if rejoues > 0 else ""
+        return f"  {label:<12} {neufs:>5} nouveau(x) sur {envoyes} envoyé(s){suffixe}"
+
+    print(f"  {'comptes':<12} {n_acc:>5} synchronisé(s)")
+    print(ligne("tweets", "tweets", n_tw))
+    print(ligne("items RSS", "rss_items", n_rss))
+    print(ligne("candidates", "candidates", n_cd))
     print()
     print("En base :")
     for k, v in st.items():
