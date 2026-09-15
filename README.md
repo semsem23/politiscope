@@ -199,22 +199,21 @@ les 26 handles et re-téléchargerait `BACKFILL_DAYS` de tweets à chaque nuit.
 
 ## Publier une citation sur le site
 
-La seule étape du pipeline qui exige un jugement humain. Une candidate porte des
-faits — qui a dit quoi, quand, avec quelle URL. Une entrée porte en plus une
-lecture : le `sujet`, et la `justif` qui dit ce qu'il faut comprendre de la
-citation. Rien de cela ne se déduit du texte, et l'inventer reviendrait à
-fabriquer l'analyse que le baromètre prétend offrir.
+La seule étape du pipeline qui exige une relecture humaine. Une candidate
+porte des faits — qui a dit quoi, quand, avec quelle URL. Une entrée porte en
+plus le `sujet` : de quoi elle parle, en une phrase. Cela ne se déduit pas
+automatiquement du thème détecté.
 
 ```bash
 python -m politiscope.cli publish --limit 5 --since-hours 48   # écrit publish_draft.json
-#   … remplir sujet / justif dans le fichier …
+#   … remplir sujet dans le fichier …
 python -m politiscope.cli publish --apply --dry-run            # valide sans insérer
 python -m politiscope.cli publish --apply                      # insère
 ```
 
 Le brouillon pré-remplit ce qui est déductible (nom, parti, famille, citation,
-date, source, thème détecté) et laisse vides les champs de jugement. Supprimez
-une entrée du tableau pour ne pas la publier.
+date, source, thème détecté) et laisse `sujet` vide. Supprimez une entrée du
+tableau pour ne pas la publier.
 
 ### Publier depuis GitHub
 
@@ -227,7 +226,7 @@ workflows manuels — les secrets sont déjà dans le dépôt :
    n'y a aucune candidate, le résumé du job le dit et rien n'est commité. Un
    brouillon déjà rempli n'est jamais écrasé — voir plus bas.
 2. Éditez `publish_draft.json` directement sur github.com : remplissez
-   `sujet` et `justif`. Ne touchez ni à `citation` ni à `source`
+   `sujet`. Ne touchez ni à `citation` ni à `source`
    — l'application les recompare à la candidate d'origine et refuse toute
    retouche. Commitez.
 3. *Actions -> Publish Draft -> Run workflow*. La validation passe en
@@ -247,7 +246,7 @@ n'expose rien.
 
 | Refus | Pourquoi |
 |---|---|
-| `sujet`, `justif` ou `theme` vide | une entrée sans lecture n'est pas une entrée |
+| `sujet` ou `theme` vide | une entrée sans lecture n'est pas une entrée |
 | `theme` absent de `topics` | clé étrangère |
 | **citation modifiée** | le brouillon ne peut pas réécrire les faits |
 | **source modifiée** ou non-https | idem |

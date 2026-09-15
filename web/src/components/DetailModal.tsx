@@ -78,22 +78,6 @@ export function DetailModal({ entry, onClose }: Props) {
           « {entry.citation} »
         </blockquote>
 
-        {entry.hashtags?.length > 0 && (
-          <>
-            <p className="modal-section-label">Hashtags associés</p>
-            <div className="hashtags">
-              {entry.hashtags.map((h) => (
-                <span className="hashtag" key={h}>
-                  {h}
-                </span>
-              ))}
-            </div>
-          </>
-        )}
-
-        <p className="modal-section-label">Ce qu'il faut en retenir</p>
-        <p className="justif">{entry.justif}</p>
-
         <div className="modal-footer">
           <span>{entry.date_texte}</span>
           <a href={entry.source} target="_blank" rel="noopener noreferrer">

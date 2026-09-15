@@ -77,20 +77,18 @@ def main() -> int:
             rows.append((
                 e["nom"], e["parti"], e.get("code_parti"), e["famille"], e["theme"],
                 e["sujet"], e["citation"], normalise(e["citation"]),
-                e.get("hashtags", []), e["justif"],
                 e["date"], parse_fr_date(e["date"]), e["source"],
             ))
         with conn.cursor() as cur:
             psycopg2.extras.execute_batch(cur, """
                 insert into entries (nom, parti, code_parti, famille, theme, sujet,
-                                     citation, citation_key, hashtags,
-                                     justif, date_texte, date_tri, source)
-                values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                                     citation, citation_key,
+                                     date_texte, date_tri, source)
+                values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 on conflict (nom, citation_key) do update
                   set parti = excluded.parti, code_parti = excluded.code_parti,
                       famille = excluded.famille, theme = excluded.theme,
-                      sujet = excluded.sujet, hashtags = excluded.hashtags,
-                      justif = excluded.justif,
+                      sujet = excluded.sujet,
                       date_texte = excluded.date_texte, date_tri = excluded.date_tri,
                       source = excluded.source
             """, rows)

@@ -49,7 +49,7 @@ Le site lit deux tables, toutes deux en lecture seule via RLS :
 
 | Table | Contenu |
 |---|---|
-| `entries` | les citations éditorialisées — sujet, justification, thème retenu |
+| `entries` | les citations éditorialisées — sujet et thème retenu |
 | `topics` | correspondance thème long → libellé court du graphe |
 
 `entries` est distincte de `candidates` : cette dernière est la matière brute

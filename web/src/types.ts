@@ -15,8 +15,6 @@ export interface Entry {
   theme: string;
   sujet: string;
   citation: string;
-  hashtags: string[];
-  justif: string;
   date_texte: string;
   date_tri: string | null;
   source: string;

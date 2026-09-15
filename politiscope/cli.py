@@ -475,7 +475,7 @@ def cmd_publish(args) -> int:
         print(f"  [{e['_score']:>3}] {e['nom']:<24} {e['theme']}")
         print(f"        « {e['citation'][:110]} »")
     print()
-    print("Remplissez sujet / justif, puis :")
+    print("Remplissez sujet, puis :")
     print("  python -m politiscope.cli publish --apply")
     return 0
 

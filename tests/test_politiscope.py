@@ -457,19 +457,17 @@ def test_date_francaise():
 
 
 def test_champs_de_jugement_declares_obligatoires():
-    """Le pipeline ne doit jamais inventer justif ou sujet."""
+    """Le pipeline ne doit jamais inventer sujet."""
     from politiscope.publish import CHAMPS_A_REMPLIR
-    for champ in ("justif", "sujet"):
-        assert champ in CHAMPS_A_REMPLIR
+    assert "sujet" in CHAMPS_A_REMPLIR
 
 
 def _draft_entry(**over):
     e = {"candidate_id": 1, "nom": "Test", "parti": "P", "famille": "majorite",
          "theme": "Budget & finances publiques", "sujet": "Un sujet",
          "citation": "Le budget est injuste pour les Français.",
-         "justif": "Ce qu'il faut en retenir.",
          "date_texte": "14 septembre 2026", "date_tri": "2026-09-14",
-         "source": "https://x.com/t/status/1", "hashtags": []}
+         "source": "https://x.com/t/status/1"}
     e.update(over)
     return e
 
@@ -504,7 +502,7 @@ def test_brouillon_complet_est_valide():
     assert _validate([_draft_entry()]) == []
 
 
-@pytest.mark.parametrize("champ", ["sujet", "justif", "theme"])
+@pytest.mark.parametrize("champ", ["sujet", "theme"])
 def test_champ_vide_est_refuse(champ):
     p = _validate([_draft_entry(**{champ: ""})])
     assert any(champ in x for x in p)

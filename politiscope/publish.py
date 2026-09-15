@@ -2,9 +2,8 @@
 
 C'est le seul endroit du pipeline où un jugement humain est obligatoire. Une
 candidate porte des faits — qui a dit quoi, quand, avec quelle URL. Une entrée
-porte en plus une lecture : le `sujet` en une phrase et la `justif` qui dit ce
-qu'il faut en comprendre. Rien de tout cela ne se déduit du texte, et les
-inventer reviendrait à fabriquer l'analyse que le baromètre prétend offrir.
+porte en plus le `sujet` : de quoi elle parle, en une phrase. Rien de cela ne
+se déduit automatiquement du thème détecté, d'où la relecture.
 
 D'où le fonctionnement en deux temps :
 
@@ -37,7 +36,7 @@ MOIS_FR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
 # Champs que la machine renseigne, et champs qui exigent une lecture humaine.
 CHAMPS_DEDUITS = ("nom", "parti", "code_parti", "famille", "citation",
                   "date_texte", "date_tri", "source")
-CHAMPS_A_REMPLIR = ("theme", "sujet", "justif")
+CHAMPS_A_REMPLIR = ("theme", "sujet")
 
 
 def date_fr(iso: str | None) -> tuple[str, str | None]:
@@ -124,8 +123,6 @@ def build_draft(conn, *, limit: int, min_score: int, per_person: int,
             # --- à valider / remplir ---
             "theme": theme,
             "sujet": "",
-            "justif": "",
-            "hashtags": [],
         })
         if len(draft) >= limit:
             break
@@ -135,10 +132,7 @@ def build_draft(conn, *, limit: int, min_score: int, per_person: int,
 def write_draft(entries: list[dict], path: Path) -> None:
     payload = {
         "_mode_emploi": [
-            "Remplissez `sujet` et `justif` pour chaque entrée.",
-            "sujet : le sujet principal en une phrase courte.",
-            "justif : une phrase disant ce qu'il faut comprendre de la citation —",
-            "  ce qu'elle avance, pas un jugement sur son auteur.",
+            "Remplissez `sujet` pour chaque entrée : de quoi elle parle, en une phrase.",
             "`theme` est pré-rempli par détection automatique : vérifiez-le.",
             "Ne modifiez ni `citation` ni `source` : l'application les recontrôle.",
             "Supprimez simplement une entrée du tableau pour ne pas la publier.",
@@ -204,7 +198,6 @@ def apply_draft(conn, entries: list[dict]) -> int:
         key = normalise(e["citation"])
         rows.append((e["nom"], e["parti"], e.get("code_parti"), e["famille"],
                      e["theme"], e["sujet"], e["citation"], key,
-                     e.get("hashtags") or [], e["justif"],
                      e["date_texte"], e.get("date_tri"), e["source"],
                      e.get("candidate_id")))
         pubs.append((e.get("candidate_id"), e["nom"], key))
@@ -212,9 +205,9 @@ def apply_draft(conn, entries: list[dict]) -> int:
     with conn.cursor() as cur:
         psycopg2.extras.execute_batch(cur, """
             insert into entries (nom, parti, code_parti, famille, theme, sujet,
-                                 citation, citation_key, hashtags,
-                                 justif, date_texte, date_tri, source, candidate_id)
-            values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                                 citation, citation_key,
+                                 date_texte, date_tri, source, candidate_id)
+            values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             on conflict (nom, citation_key) do nothing
         """, rows)
         psycopg2.extras.execute_batch(cur, """

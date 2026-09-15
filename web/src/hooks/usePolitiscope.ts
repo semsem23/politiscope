@@ -62,9 +62,7 @@ export function useFiltered(entries: Entry[], f: Filters): Entry[] {
       if (!f.familles[d.famille]) return false;
       if (f.theme !== "all" && d.theme !== f.theme) return false;
       if (q) {
-        const hay = [d.nom, d.parti, d.citation, d.sujet, ...(d.hashtags ?? [])]
-          .join(" ")
-          .toLowerCase();
+        const hay = [d.nom, d.parti, d.citation, d.sujet].join(" ").toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;

@@ -1,9 +1,6 @@
 {
   "_mode_emploi": [
-    "Remplissez `sujet` et `justif` pour chaque entrée.",
-    "sujet : le sujet principal en une phrase courte.",
-    "justif : une phrase disant ce qu'il faut comprendre de la citation —",
-    "  ce qu'elle avance, pas un jugement sur son auteur.",
+    "Remplissez `sujet` pour chaque entrée : de quoi elle parle, en une phrase.",
     "`theme` est pré-rempli par détection automatique : vérifiez-le.",
     "Ne modifiez ni `citation` ni `source` : l'application les recontrôle.",
     "Supprimez simplement une entrée du tableau pour ne pas la publier.",
@@ -22,9 +19,7 @@
       "date_tri": "2026-09-15",
       "source": "https://x.com/IanBrossat/status/2099771562828169341",
       "theme": "Pouvoir d'achat & vie chère",
-      "sujet": "",
-      "justif": "",
-      "hashtags": []
+      "sujet": ""
     },
     {
       "candidate_id": 1084,
@@ -38,9 +33,7 @@
       "date_tri": "2026-09-15",
       "source": "https://x.com/MathildePanot/status/2099769097328144524",
       "theme": "Budget & finances publiques",
-      "sujet": "",
-      "justif": "",
-      "hashtags": []
+      "sujet": ""
     },
     {
       "candidate_id": 1058,
@@ -54,9 +47,7 @@
       "date_tri": "2026-09-14",
       "source": "https://x.com/sebchenu/status/2099446435204755960",
       "theme": "Pouvoir d'achat & vie chère",
-      "sujet": "",
-      "justif": "",
-      "hashtags": []
+      "sujet": ""
     },
     {
       "candidate_id": 167,
@@ -70,9 +61,7 @@
       "date_tri": "2026-09-14",
       "source": "https://x.com/mbompard/status/2099418303676498134",
       "theme": "Stratégie 2027 & recomposition",
-      "sujet": "",
-      "justif": "",
-      "hashtags": []
+      "sujet": ""
     },
     {
       "candidate_id": 1073,
@@ -86,9 +75,7 @@
       "date_tri": "2026-09-13",
       "source": "https://x.com/f_philippot/status/2099189527562654067",
       "theme": "Europe & souveraineté",
-      "sujet": "",
-      "justif": "",
-      "hashtags": []
+      "sujet": ""
     },
     {
       "candidate_id": 1039,
@@ -102,9 +89,7 @@
       "date_tri": "2026-09-13",
       "source": "https://x.com/bayrou/status/2099188052656611604",
       "theme": "Stratégie 2027 & recomposition",
-      "sujet": "",
-      "justif": "",
-      "hashtags": []
+      "sujet": ""
     },
     {
       "candidate_id": 31,
@@ -118,9 +103,7 @@
       "date_tri": "2026-09-13",
       "source": "https://x.com/MLP_officiel/status/2099184127098470645",
       "theme": "Stratégie 2027 & recomposition",
-      "sujet": "",
-      "justif": "",
-      "hashtags": []
+      "sujet": ""
     },
     {
       "candidate_id": 24,
@@ -134,9 +117,7 @@
       "date_tri": "2026-09-13",
       "source": "https://x.com/laurentwauquiez/status/2099148661598908755",
       "theme": "Immigration & sécurité",
-      "sujet": "",
-      "justif": "",
-      "hashtags": []
+      "sujet": ""
     },
     {
       "candidate_id": 233,
@@ -150,9 +131,7 @@
       "date_tri": "2026-09-13",
       "source": "https://x.com/faureolivier/status/2099123645834490264",
       "theme": "Social & inclusion",
-      "sujet": "",
-      "justif": "",
-      "hashtags": []
+      "sujet": ""
     },
     {
       "candidate_id": 87,
@@ -166,9 +145,7 @@
       "date_tri": "2026-09-14",
       "source": "https://x.com/ZemmourEric/status/2099492621844349218",
       "theme": "Pouvoir d'achat & vie chère",
-      "sujet": "",
-      "justif": "",
-      "hashtags": []
+      "sujet": ""
     }
   ]
 }
