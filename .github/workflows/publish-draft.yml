@@ -108,6 +108,6 @@ jobs:
             echo ""
             echo "$n entrée(s) à relire."
             echo ""
-            echo "Remplissez \`sujet\`, \`sentiment\` et \`justif\` dans \`publish_draft.json\`,"
+            echo "Remplissez \`sujet\` et \`justif\` dans \`publish_draft.json\`,"
             echo "commitez, puis lancez *Publier le brouillon*."
           } >> "$GITHUB_STEP_SUMMARY"

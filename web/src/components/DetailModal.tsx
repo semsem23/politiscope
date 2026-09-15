@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { initials } from "../hooks/usePolitiscope";
-import { familleOf, sentimentOf, type Entry } from "../types";
+import { familleOf, type Entry } from "../types";
 
 interface Props {
   entry: Entry | null;
@@ -36,9 +36,8 @@ export function DetailModal({ entry, onClose }: Props) {
 
   if (!entry) return null;
 
-  const sent = sentimentOf(entry.sentiment);
   const fam = familleOf(entry.famille);
-  const style = { "--sent-color": sent.color, "--sent-bg": sent.bg } as React.CSSProperties;
+  const style = { "--fam-color": fam.color } as React.CSSProperties;
 
   return (
     <div
@@ -71,11 +70,6 @@ export function DetailModal({ entry, onClose }: Props) {
           </button>
         </div>
 
-        <span className="sent-badge" style={style}>
-          <span className="dot" />
-          Ton {sent.label.toLowerCase()}
-        </span>
-
         <p className="modal-section-label">Sujet principal</p>
         <p className="modal-topic">{entry.sujet}</p>
 
@@ -97,7 +91,7 @@ export function DetailModal({ entry, onClose }: Props) {
           </>
         )}
 
-        <p className="modal-section-label">Pourquoi ce sentiment</p>
+        <p className="modal-section-label">Ce qu'il faut en retenir</p>
         <p className="justif">{entry.justif}</p>
 
         <div className="modal-footer">

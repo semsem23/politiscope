@@ -198,13 +198,13 @@ les 26 handles et re-téléchargerait `BACKFILL_DAYS` de tweets à chaque nuit.
 
 La seule étape du pipeline qui exige un jugement humain. Une candidate porte des
 faits — qui a dit quoi, quand, avec quelle URL. Une entrée porte en plus une
-lecture : le `sentiment`, la `justif` de ce choix, le `sujet`. Rien de cela ne se
-déduit du texte, et l'inventer reviendrait à fabriquer l'analyse que le baromètre
-prétend offrir.
+lecture : le `sujet`, et la `justif` qui dit ce qu'il faut comprendre de la
+citation. Rien de cela ne se déduit du texte, et l'inventer reviendrait à
+fabriquer l'analyse que le baromètre prétend offrir.
 
 ```bash
 python -m politiscope.cli publish --limit 5 --since-hours 48   # écrit publish_draft.json
-#   … remplir sujet / sentiment / justif dans le fichier …
+#   … remplir sujet / justif dans le fichier …
 python -m politiscope.cli publish --apply --dry-run            # valide sans insérer
 python -m politiscope.cli publish --apply                      # insère
 ```
@@ -222,7 +222,7 @@ workflows manuels — les secrets sont déjà dans le dépôt :
    `since_hours` et `min_score`. Le brouillon est commité sur `main` ; s'il
    n'y a aucune candidate, le résumé du job le dit et rien n'est commité.
 2. Éditez `publish_draft.json` directement sur github.com : remplissez
-   `sujet`, `sentiment` et `justif`. Ne touchez ni à `citation` ni à `source`
+   `sujet` et `justif`. Ne touchez ni à `citation` ni à `source`
    — l'application les recompare à la candidate d'origine et refuse toute
    retouche. Commitez.
 3. *Actions -> Publier le brouillon -> Run workflow*. La validation passe en
@@ -237,8 +237,7 @@ n'expose rien.
 
 | Refus | Pourquoi |
 |---|---|
-| `sujet`, `sentiment`, `justif` ou `theme` vide | une entrée sans lecture n'est pas une entrée |
-| `sentiment` hors de positif/neutre/negatif | contrainte de la base |
+| `sujet`, `justif` ou `theme` vide | une entrée sans lecture n'est pas une entrée |
 | `theme` absent de `topics` | clé étrangère |
 | **citation modifiée** | le brouillon ne peut pas réécrire les faits |
 | **source modifiée** ou non-https | idem |

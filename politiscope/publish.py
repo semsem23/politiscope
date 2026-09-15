@@ -2,9 +2,9 @@
 
 C'est le seul endroit du pipeline où un jugement humain est obligatoire. Une
 candidate porte des faits — qui a dit quoi, quand, avec quelle URL. Une entrée
-porte en plus une lecture : le `sentiment` de la déclaration, la `justif` de ce
-choix, le `sujet` en une phrase. Rien de tout cela ne se déduit du texte, et
-les inventer reviendrait à fabriquer l'analyse que le baromètre prétend offrir.
+porte en plus une lecture : le `sujet` en une phrase et la `justif` qui dit ce
+qu'il faut en comprendre. Rien de tout cela ne se déduit du texte, et les
+inventer reviendrait à fabriquer l'analyse que le baromètre prétend offrir.
 
 D'où le fonctionnement en deux temps :
 
@@ -31,15 +31,13 @@ from .quotes import normalise
 
 log = logging.getLogger("politiscope.publish")
 
-SENTIMENTS = ("positif", "neutre", "negatif")
-
 MOIS_FR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
            "août", "septembre", "octobre", "novembre", "décembre"]
 
 # Champs que la machine renseigne, et champs qui exigent une lecture humaine.
 CHAMPS_DEDUITS = ("nom", "parti", "code_parti", "famille", "citation",
                   "date_texte", "date_tri", "source")
-CHAMPS_A_REMPLIR = ("theme", "sujet", "sentiment", "justif")
+CHAMPS_A_REMPLIR = ("theme", "sujet", "justif")
 
 
 def date_fr(iso: str | None) -> tuple[str, str | None]:
@@ -126,7 +124,6 @@ def build_draft(conn, *, limit: int, min_score: int, per_person: int,
             # --- à valider / remplir ---
             "theme": theme,
             "sujet": "",
-            "sentiment": "",
             "justif": "",
             "hashtags": [],
         })
@@ -138,11 +135,10 @@ def build_draft(conn, *, limit: int, min_score: int, per_person: int,
 def write_draft(entries: list[dict], path: Path) -> None:
     payload = {
         "_mode_emploi": [
-            "Remplissez `sujet`, `sentiment` et `justif` pour chaque entrée.",
-            "sentiment : positif | neutre | negatif — le TON de la déclaration,",
-            "  pas un jugement sur son auteur.",
-            "justif : une phrase expliquant ce ton.",
+            "Remplissez `sujet` et `justif` pour chaque entrée.",
             "sujet : le sujet principal en une phrase courte.",
+            "justif : une phrase disant ce qu'il faut comprendre de la citation —",
+            "  ce qu'elle avance, pas un jugement sur son auteur.",
             "`theme` est pré-rempli par détection automatique : vérifiez-le.",
             "Ne modifiez ni `citation` ni `source` : l'application les recontrôle.",
             "Supprimez simplement une entrée du tableau pour ne pas la publier.",
@@ -172,10 +168,6 @@ def validate(conn, entries: list[dict]) -> list[str]:
         for champ in CHAMPS_A_REMPLIR:
             if not str(e.get(champ) or "").strip():
                 problemes.append(f"{ref} : « {champ} » est vide")
-
-        s = e.get("sentiment")
-        if s and s not in SENTIMENTS:
-            problemes.append(f"{ref} : sentiment « {s} » invalide ({'|'.join(SENTIMENTS)})")
 
         t = e.get("theme")
         if t and t not in themes:
@@ -212,7 +204,7 @@ def apply_draft(conn, entries: list[dict]) -> int:
         key = normalise(e["citation"])
         rows.append((e["nom"], e["parti"], e.get("code_parti"), e["famille"],
                      e["theme"], e["sujet"], e["citation"], key,
-                     e.get("hashtags") or [], e["sentiment"], e["justif"],
+                     e.get("hashtags") or [], e["justif"],
                      e["date_texte"], e.get("date_tri"), e["source"],
                      e.get("candidate_id")))
         pubs.append((e.get("candidate_id"), e["nom"], key))
@@ -220,9 +212,9 @@ def apply_draft(conn, entries: list[dict]) -> int:
     with conn.cursor() as cur:
         psycopg2.extras.execute_batch(cur, """
             insert into entries (nom, parti, code_parti, famille, theme, sujet,
-                                 citation, citation_key, hashtags, sentiment,
+                                 citation, citation_key, hashtags,
                                  justif, date_texte, date_tri, source, candidate_id)
-            values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             on conflict (nom, citation_key) do nothing
         """, rows)
         psycopg2.extras.execute_batch(cur, """

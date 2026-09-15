@@ -1,7 +1,7 @@
 import * as d3 from "d3";
 import { useEffect, useRef, useState } from "react";
 import { initials } from "../hooks/usePolitiscope";
-import { familleOf, type Entry, type SentimentId, type Topic } from "../types";
+import { familleOf, type Entry, type Topic } from "../types";
 
 type Mode = "pol" | "parti";
 
@@ -18,14 +18,8 @@ interface GNode extends d3.SimulationNodeDatum {
 }
 
 interface GLink extends d3.SimulationLinkDatum<GNode> {
-  sentiment: SentimentId;
   ref: Entry;
 }
-
-const sentColor = (s: SentimentId) =>
-  s === "positif" ? "var(--pos)" : s === "negatif" ? "var(--neg)" : "var(--neu)";
-const sentBg = (s: SentimentId) =>
-  s === "positif" ? "var(--pos-bg)" : s === "negatif" ? "var(--neg-bg)" : "var(--neu-bg)";
 
 interface Props {
   entries: Entry[];
@@ -80,7 +74,6 @@ export function TopicGraph({ entries, topics, onSelect, theme, onThemeChange }: 
       links = entries.map((d) => ({
         source: `topic:${d.theme}`,
         target: `sec:${d.code_parti ?? d.parti}`,
-        sentiment: d.sentiment,
         ref: d,
       })) as unknown as GLink[];
       labelMaxLen = 15;
@@ -91,12 +84,12 @@ export function TopicGraph({ entries, topics, onSelect, theme, onThemeChange }: 
         label: initials(d.nom),
         fullName: d.nom,
         r: 15,
+        famille: d.famille,
         ref: d,
       }));
       links = entries.map((d) => ({
         source: `topic:${d.theme}`,
         target: `sec:pol:${d.id}`,
-        sentiment: d.sentiment,
         ref: d,
       })) as unknown as GLink[];
       labelMaxLen = 4;
@@ -144,7 +137,7 @@ export function TopicGraph({ entries, topics, onSelect, theme, onThemeChange }: 
       .join("line")
       .attr("class", "graph-link")
       .attr("stroke-width", 1.6)
-      .attr("stroke", (d) => sentColor(d.sentiment));
+      .attr("stroke", (d) => familleOf(d.ref.famille).color);
 
     let dragDistance = 0;
 
@@ -182,20 +175,8 @@ export function TopicGraph({ entries, topics, onSelect, theme, onThemeChange }: 
     nodeSel
       .append("circle")
       .attr("r", (d) => d.r)
-      .style("stroke", (d) =>
-        d.type !== "sec"
-          ? null
-          : mode === "parti"
-            ? familleOf(d.famille!).color
-            : sentColor(d.ref!.sentiment)
-      )
-      .style("fill", (d) =>
-        d.type !== "sec"
-          ? null
-          : mode === "parti"
-            ? "var(--surface-raised)"
-            : sentBg(d.ref!.sentiment)
-      );
+      .style("stroke", (d) => (d.type !== "sec" ? null : familleOf(d.famille!).color))
+      .style("fill", (d) => (d.type !== "sec" ? null : "var(--surface-raised)"));
 
     nodeSel
       .append("text")
@@ -292,8 +273,8 @@ export function TopicGraph({ entries, topics, onSelect, theme, onThemeChange }: 
 
   const legend =
     mode === "pol"
-      ? ["taille = nombre de personnalités qui en parlent", "couleur du lien = ton de sa citation sur ce sujet", "Personnalité"]
-      : ["taille = nombre de partis qui en parlent", "anneau = famille politique, lien = ton de la citation", "Parti"];
+      ? ["taille = nombre de personnalités qui en parlent", "anneau et lien = famille politique", "Personnalité"]
+      : ["taille = nombre de partis qui en parlent", "anneau et lien = famille politique", "Parti"];
 
   return (
     <section className="topic-graph-section" aria-label="Carte des sujets">
