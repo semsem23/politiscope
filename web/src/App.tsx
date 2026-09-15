@@ -27,8 +27,15 @@ export default function App() {
   const [selected, setSelected] = useState<Entry | null>(null);
 
   const filtered = useFiltered(entries, filters);
+  const graphEntries = useMemo(
+    () => (filters.theme === "all" ? entries : entries.filter((e) => e.theme === filters.theme)),
+    [entries, filters.theme]
+  );
   const onReset = useCallback(() => setFilters(emptyFilters()), []);
   const closeModal = useCallback(() => setSelected(null), []);
+  const onThemeChange = useCallback((theme: string) => {
+    setFilters((f) => ({ ...f, theme: f.theme === theme ? "all" : theme }));
+  }, []);
 
   const stats = useMemo(
     () =>
@@ -118,7 +125,13 @@ export default function App() {
       )}
 
       {!loading && entries.length > 0 && (
-        <TopicGraph entries={entries} topics={topics} onSelect={setSelected} />
+        <TopicGraph
+          entries={graphEntries}
+          topics={topics}
+          onSelect={setSelected}
+          theme={filters.theme}
+          onThemeChange={onThemeChange}
+        />
       )}
 
       <footer className="page-footer">

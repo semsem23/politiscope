@@ -310,6 +310,8 @@ input.control { min-width: 180px; }
 .graph-link { stroke-opacity: 0.55; fill: none; }
 .graph-node.is-dim { opacity: 0.18; }
 .graph-link.is-dim { opacity: 0.08; }
+.graph-node-topic.is-selected circle { stroke: var(--accent); stroke-width: 3.5px; }
+.graph-node-topic.is-selected text { fill: var(--accent); }
 .graph-tooltip {
   position: absolute; pointer-events: none; background: var(--surface-raised);
   border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 8px;

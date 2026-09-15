@@ -31,9 +31,11 @@ interface Props {
   entries: Entry[];
   topics: Topic[];
   onSelect: (e: Entry) => void;
+  theme: string;
+  onThemeChange: (theme: string) => void;
 }
 
-export function TopicGraph({ entries, topics, onSelect }: Props) {
+export function TopicGraph({ entries, topics, onSelect, theme, onThemeChange }: Props) {
   const [mode, setMode] = useState<Mode>("pol");
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -108,12 +110,12 @@ export function TopicGraph({ entries, topics, onSelect }: Props) {
       degree.get(s)!.add(t);
     }
     const topicNodes: GNode[] = [...degree].map(([tid, targets]) => {
-      const theme = tid.replace("topic:", "");
+      const themeId = tid.replace("topic:", "");
       return {
         id: tid,
         type: "topic",
-        label: shortOf.get(theme) ?? theme,
-        fullName: theme,
+        label: shortOf.get(themeId) ?? themeId,
+        fullName: themeId,
         count: targets.size,
         r: 20 + targets.size * 5,
       };
@@ -144,22 +146,29 @@ export function TopicGraph({ entries, topics, onSelect }: Props) {
       .attr("stroke-width", 1.6)
       .attr("stroke", (d) => sentColor(d.sentiment));
 
+    let dragDistance = 0;
+
     const nodeSel = svg
       .append("g")
       .selectAll<SVGGElement, GNode>("g")
       .data(nodes)
       .join("g")
-      .attr("class", (d) => `graph-node ${d.type === "topic" ? "graph-node-topic" : "graph-node-pol"}`)
-      .style("cursor", (d) => (d.type === "sec" && mode === "pol" ? "pointer" : "grab"))
+      .attr("class", (d) => {
+        const base = `graph-node ${d.type === "topic" ? "graph-node-topic" : "graph-node-pol"}`;
+        return d.type === "topic" && d.fullName === theme ? `${base} is-selected` : base;
+      })
+      .style("cursor", (d) => (d.type === "topic" || (d.type === "sec" && mode === "pol") ? "pointer" : "grab"))
       .call(
         d3
           .drag<SVGGElement, GNode>()
           .on("start", (event, d) => {
+            dragDistance = 0;
             if (!event.active) simulation.alphaTarget(0.25).restart();
             d.fx = d.x;
             d.fy = d.y;
           })
           .on("drag", (event, d) => {
+            dragDistance += Math.abs(event.dx) + Math.abs(event.dy);
             d.fx = event.x;
             d.fy = event.y;
           })
@@ -235,7 +244,9 @@ export function TopicGraph({ entries, topics, onSelect }: Props) {
         linkSel.classed("is-dim", false);
       })
       .on("click", (_e, d) => {
-        if (d.type === "sec" && mode === "pol") onSelect(d.ref!);
+        if (dragDistance > 4) return;
+        if (d.type === "topic") onThemeChange(d.fullName);
+        else if (d.type === "sec" && mode === "pol") onSelect(d.ref!);
       });
 
     // Marge de bord : les libellés longs ne doivent pas déborder du cadre.
@@ -277,7 +288,7 @@ export function TopicGraph({ entries, topics, onSelect }: Props) {
       simulation.stop();
       svg.selectAll("*").remove();
     };
-  }, [entries, topics, mode, onSelect]);
+  }, [entries, topics, mode, onSelect, theme, onThemeChange]);
 
   const legend =
     mode === "pol"
@@ -292,7 +303,8 @@ export function TopicGraph({ entries, topics, onSelect }: Props) {
             <h2 className="section-title">Carte des sujets</h2>
             <p className="section-sub">
               Les grands sujets de la rentrée, reliés à ceux qui les portent. Glissez un nœud,
-              survolez pour voir les liens. Indépendante des filtres ci-dessus.
+              survolez pour voir les liens. Suit uniquement le filtre Thème ci-dessus : cliquez un
+              sujet pour filtrer toute la page, recliquez pour tout réafficher.
             </p>
           </div>
           <div className="graph-toggle" role="tablist" aria-label="Niveau du graphe">
