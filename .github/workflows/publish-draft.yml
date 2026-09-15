@@ -1,0 +1,113 @@
+name: Brouillon de publication
+
+# Première moitié de `publish`, exécutée ici plutôt qu'en local : les
+# identifiants Supabase vivent déjà dans les secrets du dépôt, personne n'a
+# besoin de les recopier sur sa machine pour préparer une publication.
+#
+# Le brouillon est commité sur `main` pour être relu et rempli directement sur
+# github.com. Il ne contient que des tweets publics et leur URL : le commiter
+# n'expose rien.
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Nombre maximum d'entrées"
+        default: "10"
+      since_hours:
+        description: "Fenêtre glissante (heures)"
+        default: "48"
+      min_score:
+        description: "Score minimal"
+        default: "75"
+
+# Même groupe que l'ingestion : un brouillon construit pendant que `db-sync`
+# écrit lirait un état intermédiaire.
+concurrency:
+  group: ingestion
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_POOLER_URL }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_REGION: eu-west-2
+      PYTHONIOENCODING: utf-8
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      - name: Construire le brouillon
+        # Les entrées passent par l'environnement plutôt que par interpolation
+        # directe : rien de ce qui vient du formulaire n'atteint le shell.
+        env:
+          LIMIT: ${{ inputs.limit }}
+          SINCE_HOURS: ${{ inputs.since_hours }}
+          MIN_SCORE: ${{ inputs.min_score }}
+        run: |
+          # Un brouillon déjà commité serait pris pour le nouveau : `publish`
+          # n'écrit rien quand il ne trouve aucune candidate.
+          rm -f publish_draft.json
+          python -m politiscope.cli publish \
+            --limit "$LIMIT" \
+            --min-score "$MIN_SCORE" \
+            --since-hours "$SINCE_HOURS"
+
+      - name: Commiter le brouillon
+        env:
+          LIMIT: ${{ inputs.limit }}
+          SINCE_HOURS: ${{ inputs.since_hours }}
+          MIN_SCORE: ${{ inputs.min_score }}
+        run: |
+          if [ ! -f publish_draft.json ]; then
+            {
+              echo "### Aucune candidate publiable"
+              echo ""
+              echo "Critères : limit $LIMIT · since-hours $SINCE_HOURS · min-score $MIN_SCORE"
+              echo ""
+              echo "Rien n'a été commité. Élargissez la fenêtre ou abaissez le score."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add publish_draft.json
+
+          if git diff --cached --quiet; then
+            {
+              echo "### Brouillon inchangé"
+              echo ""
+              echo "Le brouillon déjà sur \`main\` correspond aux mêmes candidates."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          git commit -m "Brouillon de publication"
+          git push
+
+          n=$(python -c "import json;print(len(json.load(open('publish_draft.json',encoding='utf-8'))['entries']))")
+          {
+            echo "### Brouillon commité"
+            echo ""
+            echo "$n entrée(s) à relire."
+            echo ""
+            echo "Remplissez \`sujet\`, \`sentiment\` et \`justif\` dans \`publish_draft.json\`,"
+            echo "commitez, puis lancez *Publier le brouillon*."
+          } >> "$GITHUB_STEP_SUMMARY"

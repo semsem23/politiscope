@@ -1,0 +1,88 @@
+name: Publier le brouillon
+
+# Seconde moitié de `publish` : valide `publish_draft.json` rempli à la main,
+# puis insère les entrées que le site affiche.
+#
+# La validation passe d'abord en `--dry-run` : un brouillon incomplet ou dont
+# la citation a été retouchée s'arrête ici, sans rien insérer.
+
+on:
+  workflow_dispatch:
+
+# Même groupe que l'ingestion : publier pendant que `db-sync` écrit relirait
+# les candidates à mi-chemin.
+concurrency:
+  group: ingestion
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_POOLER_URL }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_REGION: eu-west-2
+      PYTHONIOENCODING: utf-8
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      - name: Valider le brouillon
+        run: |
+          set +e
+          python -m politiscope.cli publish --apply --dry-run \
+            2>&1 | tee "$RUNNER_TEMP/validation.txt"
+          code=${PIPESTATUS[0]}
+          set -e
+          if [ "$code" -ne 0 ]; then
+            {
+              echo "### Brouillon refusé — rien n'a été publié"
+              echo ""
+              echo '```'
+              cat "$RUNNER_TEMP/validation.txt"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      - name: Publier
+        run: |
+          # `| tee` renverrait le code de tee : sans pipefail, un échec
+          # d'insertion passerait pour un succès et le brouillon serait retiré.
+          set -o pipefail
+          python -m politiscope.cli publish --apply | tee "$RUNNER_TEMP/publication.txt"
+          {
+            echo "### Publié"
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/publication.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Retirer le brouillon appliqué
+        # Un brouillon qui resterait sur `main` inviterait à le rejouer. La
+        # base refuserait l'insertion — `validate` écarte toute citation déjà
+        # publiée — mais autant ne pas proposer le geste.
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm --quiet --ignore-unmatch publish_draft.json
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "Retire le brouillon publié"
+          git push

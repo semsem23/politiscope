@@ -213,6 +213,26 @@ Le brouillon pré-remplit ce qui est déductible (nom, parti, famille, citation,
 date, source, thème détecté) et laisse vides les champs de jugement. Supprimez
 une entrée du tableau pour ne pas la publier.
 
+### Publier depuis GitHub
+
+Sans identifiants Supabase en local, les deux mêmes étapes existent en
+workflows manuels — les secrets sont déjà dans le dépôt :
+
+1. *Actions -> Brouillon de publication -> Run workflow*, avec `limit`,
+   `since_hours` et `min_score`. Le brouillon est commité sur `main` ; s'il
+   n'y a aucune candidate, le résumé du job le dit et rien n'est commité.
+2. Éditez `publish_draft.json` directement sur github.com : remplissez
+   `sujet`, `sentiment` et `justif`. Ne touchez ni à `citation` ni à `source`
+   — l'application les recompare à la candidate d'origine et refuse toute
+   retouche. Commitez.
+3. *Actions -> Publier le brouillon -> Run workflow*. La validation passe en
+   `--dry-run` d'abord : en cas de refus, les erreurs s'affichent dans le
+   résumé du job et rien n'est inséré. Sinon les entrées partent en base et le
+   brouillon est retiré du dépôt, pour ne jamais être appliqué deux fois.
+
+Le brouillon ne contient que des tweets publics et leur URL : le commiter
+n'expose rien.
+
 ### Ce que la validation refuse
 
 | Refus | Pourquoi |
