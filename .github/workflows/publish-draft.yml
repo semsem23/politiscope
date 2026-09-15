@@ -20,6 +20,10 @@ on:
       min_score:
         description: "Score minimal"
         default: "75"
+      force:
+        description: "Écraser un brouillon déjà rempli"
+        type: boolean
+        default: false
 
 # Même groupe que l'ingestion : un brouillon construit pendant que `db-sync`
 # écrit lirait un état intermédiaire.
@@ -52,6 +56,33 @@ jobs:
 
       - name: Installer les dépendances
         run: pip install -r requirements.txt
+
+      # Régénérer efface les jugements déjà saisis, et le travail de relecture
+      # avec. Le cas s'est produit trois fois : le garde-fou passe avant le rm.
+      - name: Refuser d'écraser un brouillon rempli
+        if: ${{ !inputs.force }}
+        run: |
+          python - <<'PY'
+          import json, os, pathlib, sys
+
+          chemin = pathlib.Path("publish_draft.json")
+          if not chemin.exists():
+              sys.exit(0)
+
+          entrees = json.loads(chemin.read_text(encoding="utf-8")).get("entries", [])
+          remplies = [e for e in entrees
+                      if any(str(e.get(c) or "").strip() for c in ("sujet", "justif"))]
+          if not remplies:
+              sys.exit(0)
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+              f.write("### Un brouillon rempli attend déjà sur `main`\n\n")
+              f.write(f"{len(remplies)} entrée(s) sur {len(entrees)} sont renseignées. "
+                      "Les régénérer effacerait ce travail.\n\n")
+              f.write("Lancez *Publier le brouillon*, ou relancez celui-ci en cochant "
+                      "`force` pour repartir de zéro.\n")
+          sys.exit(1)
+          PY
 
       - name: Construire le brouillon
         # Les entrées passent par l'environnement plutôt que par interpolation
