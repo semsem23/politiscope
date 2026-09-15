@@ -29,12 +29,13 @@ Le projet Vercel `politiscope` est lié à `semsem23/politiscope`. **Tout push s
 `main` déclenche un build et une mise en production.** Il n'y a plus d'envoi
 manuel de fichiers.
 
-Deux réglages à connaître, car ils ne sont pas dans le dépôt :
+La configuration du build vit dans `vercel.json` à la racine du dépôt
+(`installCommand`, `buildCommand`, `outputDirectory`) : rien à régler à la main
+dans l'interface Vercel, tout est versionné.
 
-| Réglage Vercel | Valeur | Pourquoi |
-|---|---|---|
-| Root Directory | `web` | il n'y a pas de `package.json` à la racine du dépôt |
-| Framework | Vite | détecté automatiquement |
+Un seul réglage compte côté projet Vercel, et il doit **rester vide** : Root
+Directory. Le mettre à `web` ferait ignorer `vercel.json` par Vercel (qui ne le
+cherche alors que dans `web/`, où il n'est pas), et casserait le build.
 
 Les variables `VITE_*` viennent de `.env.production`, **commité volontairement** :
 Vite les inline dans le bundle, donc la clé publishable est déjà servie à chaque

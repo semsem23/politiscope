@@ -278,8 +278,9 @@ interdit qu'une candidate marquée vérifiée existe sans URL.
 ## Déploiement du site
 
 Le dépôt est lié au projet Vercel : un push sur `main` reconstruit et met en
-ligne le site. Voir `web/README.md` pour les deux réglages non versionnés
-(Root Directory `web`, framework Vite).
+ligne le site. La configuration du build est versionnée dans `vercel.json` à
+la racine — le Root Directory du projet Vercel doit rester vide, voir
+`web/README.md`.
 
 ## Tests
 
