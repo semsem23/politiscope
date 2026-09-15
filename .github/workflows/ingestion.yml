@@ -1,4 +1,4 @@
-name: Ingestion nocturne
+name: Nightly Ingestion
 
 # Alimente Politiscope sans intervention : Google Actualités (gratuit), puis
 # les timelines X (payantes, incrémentales), puis versement en base.
@@ -9,9 +9,9 @@ name: Ingestion nocturne
 
 on:
   schedule:
-    # 03:15 UTC — creux de trafic, et après la clôture des éditions du soir.
-    # Heure française : 05:15 l'été, 04:15 l'hiver.
-    - cron: "15 3 * * *"
+    # 04:00 UTC — cron ignore les fuseaux, donc l'heure de Paris dérive avec
+    # l'heure d'été : 06:00 l'été (CEST, UTC+2), 05:00 l'hiver (CET, UTC+1).
+    - cron: "0 4 * * *"
   workflow_dispatch:
     inputs:
       rss_days:

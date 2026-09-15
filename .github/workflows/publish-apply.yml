@@ -1,4 +1,4 @@
-name: Publier le brouillon
+name: Publish Draft
 
 # Seconde moitié de `publish` : valide `publish_draft.json` rempli à la main,
 # puis insère les entrées que le site affiche.

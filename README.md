@@ -144,10 +144,13 @@ demande une vérification humaine (presse).
 
 ## Ingestion automatique
 
-`.github/workflows/ingestion.yml` lance chaque nuit à 03h15 UTC : Google
-Actualités, puis les timelines X, puis le versement en base. Déclenchable à la
-main via *Actions -> Ingestion nocturne -> Run workflow*, avec une case pour
-sauter l'ingestion X (la seule payante).
+`.github/workflows/ingestion.yml` lance chaque nuit à 04h00 UTC (06h00 à Paris
+l'été, 05h00 l'hiver) : Google Actualités, puis les timelines X, puis le
+versement en base. Déclenchable à la main via *Actions -> Nightly Ingestion ->
+Run workflow*, avec une case pour sauter l'ingestion X (la seule payante).
+Une fois terminée avec succès, elle déclenche automatiquement *Draft
+Publication* ci-dessous — un brouillon frais chaque matin, sans rien à
+lancer.
 
 **Rien n'est publié automatiquement.** Le workflow remplit `candidates` ; le
 passage en `entries` reste manuel, parce qu'il exige un jugement.
@@ -218,17 +221,24 @@ une entrée du tableau pour ne pas la publier.
 Sans identifiants Supabase en local, les deux mêmes étapes existent en
 workflows manuels — les secrets sont déjà dans le dépôt :
 
-1. *Actions -> Brouillon de publication -> Run workflow*, avec `limit`,
+1. *Draft Publication* se lance seule chaque matin après l'ingestion — ou à la
+   main via *Actions -> Draft Publication -> Run workflow*, avec `limit`,
    `since_hours` et `min_score`. Le brouillon est commité sur `main` ; s'il
-   n'y a aucune candidate, le résumé du job le dit et rien n'est commité.
+   n'y a aucune candidate, le résumé du job le dit et rien n'est commité. Un
+   brouillon déjà rempli n'est jamais écrasé — voir plus bas.
 2. Éditez `publish_draft.json` directement sur github.com : remplissez
    `sujet` et `justif`. Ne touchez ni à `citation` ni à `source`
    — l'application les recompare à la candidate d'origine et refuse toute
    retouche. Commitez.
-3. *Actions -> Publier le brouillon -> Run workflow*. La validation passe en
+3. *Actions -> Publish Draft -> Run workflow*. La validation passe en
    `--dry-run` d'abord : en cas de refus, les erreurs s'affichent dans le
    résumé du job et rien n'est inséré. Sinon les entrées partent en base et le
    brouillon est retiré du dépôt, pour ne jamais être appliqué deux fois.
+
+Si un brouillon rempli attend déjà sur `main`, *Draft Publication* — qu'elle
+soit relancée à la main ou par l'ingestion du lendemain — refuse de le
+régénérer et le dit dans le résumé du job, plutôt que d'effacer la relecture
+en cours. Cocher `force` passe outre pour repartir de zéro.
 
 Le brouillon ne contient que des tweets publics et leur URL : le commiter
 n'expose rien.

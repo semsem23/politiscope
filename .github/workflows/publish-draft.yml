@@ -1,4 +1,4 @@
-name: Brouillon de publication
+name: Draft Publication
 
 # Première moitié de `publish`, exécutée ici plutôt qu'en local : les
 # identifiants Supabase vivent déjà dans les secrets du dépôt, personne n'a
@@ -7,6 +7,11 @@ name: Brouillon de publication
 # Le brouillon est commité sur `main` pour être relu et rempli directement sur
 # github.com. Il ne contient que des tweets publics et leur URL : le commiter
 # n'expose rien.
+#
+# Se déclenche aussi à la suite de Nightly Ingestion : un brouillon frais est
+# proposé chaque matin, sans commande à taper. Ce déclenchement automatique
+# n'a pas de `force` — le garde-fou ci-dessous reste donc actif, pour ne
+# jamais écraser un brouillon déjà en cours de relecture.
 
 on:
   workflow_dispatch:
@@ -24,6 +29,10 @@ on:
         description: "Écraser un brouillon déjà rempli"
         type: boolean
         default: false
+  workflow_run:
+    workflows: ["Nightly Ingestion"]
+    types: [completed]
+    branches: [main]
 
 # Même groupe que l'ingestion : un brouillon construit pendant que `db-sync`
 # écrit lirait un état intermédiaire.
@@ -36,6 +45,12 @@ permissions:
 
 jobs:
   draft:
+    # Manuel : toujours. Automatique : seulement si l'ingestion qui a
+    # déclenché ce passage s'est terminée avec succès — une ingestion en
+    # échec n'a probablement rien versé de nouveau en base.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -60,7 +75,10 @@ jobs:
       # Régénérer efface les jugements déjà saisis, et le travail de relecture
       # avec. Le cas s'est produit trois fois : le garde-fou passe avant le rm.
       - name: Refuser d'écraser un brouillon rempli
-        if: ${{ !inputs.force }}
+        # `inputs.*` n'existe que pour workflow_dispatch ; `github.event.inputs.*`
+        # fonctionne aussi pour le déclenchement automatique via workflow_run,
+        # où il est simplement absent — donc jamais 'true', donc jamais forcé.
+        if: ${{ github.event.inputs.force != 'true' }}
         run: |
           python - <<'PY'
           import json, os, pathlib, sys
@@ -79,7 +97,7 @@ jobs:
               f.write("### Un brouillon rempli attend déjà sur `main`\n\n")
               f.write(f"{len(remplies)} entrée(s) sur {len(entrees)} sont renseignées. "
                       "Les régénérer effacerait ce travail.\n\n")
-              f.write("Lancez *Publier le brouillon*, ou relancez celui-ci en cochant "
+              f.write("Lancez *Publish Draft*, ou relancez celui-ci en cochant "
                       "`force` pour repartir de zéro.\n")
           sys.exit(1)
           PY
@@ -87,10 +105,12 @@ jobs:
       - name: Construire le brouillon
         # Les entrées passent par l'environnement plutôt que par interpolation
         # directe : rien de ce qui vient du formulaire n'atteint le shell.
+        # Les `|| '...'` reprennent les défauts déclarés ci-dessus : absents du
+        # déclenchement automatique, ils n'existent alors que là.
         env:
-          LIMIT: ${{ inputs.limit }}
-          SINCE_HOURS: ${{ inputs.since_hours }}
-          MIN_SCORE: ${{ inputs.min_score }}
+          LIMIT: ${{ github.event.inputs.limit || '10' }}
+          SINCE_HOURS: ${{ github.event.inputs.since_hours || '48' }}
+          MIN_SCORE: ${{ github.event.inputs.min_score || '75' }}
         run: |
           # Un brouillon déjà commité serait pris pour le nouveau : `publish`
           # n'écrit rien quand il ne trouve aucune candidate.
@@ -102,9 +122,9 @@ jobs:
 
       - name: Commiter le brouillon
         env:
-          LIMIT: ${{ inputs.limit }}
-          SINCE_HOURS: ${{ inputs.since_hours }}
-          MIN_SCORE: ${{ inputs.min_score }}
+          LIMIT: ${{ github.event.inputs.limit || '10' }}
+          SINCE_HOURS: ${{ github.event.inputs.since_hours || '48' }}
+          MIN_SCORE: ${{ github.event.inputs.min_score || '75' }}
         run: |
           if [ ! -f publish_draft.json ]; then
             {
@@ -140,5 +160,5 @@ jobs:
             echo "$n entrée(s) à relire."
             echo ""
             echo "Remplissez \`sujet\` et \`justif\` dans \`publish_draft.json\`,"
-            echo "commitez, puis lancez *Publier le brouillon*."
+            echo "commitez, puis lancez *Publish Draft*."
           } >> "$GITHUB_STEP_SUMMARY"
