@@ -40,6 +40,7 @@ class Settings:
     artifact_file: Path = ROOT / "archive" / "politiscope.html"
 
     bearer_token: str | None = field(default_factory=lambda: os.getenv("X_BEARER_TOKEN"))
+    anthropic_api_key: str | None = field(default_factory=lambda: os.getenv("ANTHROPIC_API_KEY"))
 
     # Garde-fous : une boucle qui s'emballe ne doit jamais pouvoir vider le compte.
     budget_usd_month: float = field(default_factory=lambda: _env_float("BUDGET_USD_MONTH", 25.0))

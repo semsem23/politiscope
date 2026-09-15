@@ -165,6 +165,7 @@ passage en `entries` reste manuel, parce qu'il exige un jugement.
 | `SUPABASE_PROJECT_REF` | la référence du projet Supabase |
 | `SUPABASE_DB_PASSWORD` | le mot de passe Postgres |
 | `X_BEARER_TOKEN` | le jeton X |
+| `ANTHROPIC_API_KEY` | facultatif — voir « Suggestion automatique du sujet » |
 
 Deux *variables* facultatives ajustent les garde-fous sans toucher au code :
 `BUDGET_USD_MONTH` (défaut 25) et `MAX_READS_PER_RUN` (défaut 600).
@@ -201,19 +202,38 @@ les 26 handles et re-téléchargerait `BACKFILL_DAYS` de tweets à chaque nuit.
 
 La seule étape du pipeline qui exige une relecture humaine. Une candidate
 porte des faits — qui a dit quoi, quand, avec quelle URL. Une entrée porte en
-plus le `sujet` : de quoi elle parle, en une phrase. Cela ne se déduit pas
-automatiquement du thème détecté.
+plus le `sujet` : une étiquette d'un ou deux mots disant de quoi elle parle.
+Cela ne se déduit pas automatiquement du thème détecté.
 
 ```bash
 python -m politiscope.cli publish --limit 5 --since-hours 48   # écrit publish_draft.json
-#   … remplir sujet dans le fichier …
+#   … vérifier / compléter sujet dans le fichier …
 python -m politiscope.cli publish --apply --dry-run            # valide sans insérer
 python -m politiscope.cli publish --apply                      # insère
 ```
 
 Le brouillon pré-remplit ce qui est déductible (nom, parti, famille, citation,
-date, source, thème détecté) et laisse `sujet` vide. Supprimez une entrée du
+date, source, thème détecté). `sujet` est en plus souvent pré-rempli par
+Claude Haiku — voir ci-dessous — mais reste à relire. Supprimez une entrée du
 tableau pour ne pas la publier.
+
+### Suggestion automatique du sujet
+
+`sujet_suggere()` demande à Claude Haiku 4.5 une étiquette d'un ou deux mots à
+partir de la seule citation, et ne l'accepte que si la réponse y ressemble
+vraiment (peu de mots, pas de ponctuation de phrase) — sinon le champ reste
+vide, comme avant que cette fonction existe. C'est délibéré : le modèle refuse
+parfois d'en proposer une (citation rapportée par un tiers, blague sans sujet
+de fond) et écrit une explication au lieu d'une étiquette ; mieux vaut laisser
+vide et relire à la main que publier une étiquette fabriquée.
+
+Sans `ANTHROPIC_API_KEY` (secret facultatif), le brouillon se construit
+normalement, `sujet` reste simplement vide partout — rien ne casse. Le coût
+mesuré est de l'ordre de 0,0005 $ par citation.
+
+**Ce que ça change pour la relecture :** une suggestion présente reste une
+suggestion — relisez-la contre la citation avant de valider, elle peut se
+tromper d'angle même quand le format est correct.
 
 ### Publier depuis GitHub
 

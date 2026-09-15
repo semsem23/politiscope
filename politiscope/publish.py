@@ -1,9 +1,13 @@
 """Publication : transforme une citation candidate en entrée affichée sur le site.
 
-C'est le seul endroit du pipeline où un jugement humain est obligatoire. Une
+C'est le seul endroit du pipeline où une relecture humaine est obligatoire. Une
 candidate porte des faits — qui a dit quoi, quand, avec quelle URL. Une entrée
-porte en plus le `sujet` : de quoi elle parle, en une phrase. Rien de cela ne
-se déduit automatiquement du thème détecté, d'où la relecture.
+porte en plus le `sujet` : une étiquette d'un ou deux mots disant de quoi elle
+parle. Claude Haiku en propose une à la construction du brouillon (`sujet_suggere`)
+mais ne la fabrique jamais à l'aveugle : sans clé API, en cas de panne, ou quand
+la citation n'est pas exploitable (propos rapportés d'un tiers, blague sans sujet
+de fond), le champ reste vide plutôt que de risquer une étiquette inventée —
+relisez chaque suggestion, et complétez ce qui manque.
 
 D'où le fonctionnement en deux temps :
 
@@ -37,6 +41,62 @@ MOIS_FR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
 CHAMPS_DEDUITS = ("nom", "parti", "code_parti", "famille", "citation",
                   "date_texte", "date_tri", "source")
 CHAMPS_A_REMPLIR = ("theme", "sujet")
+
+# Suggestion de `sujet` via Claude Haiku : testé à la main sur dix citations
+# réelles avant d'être câblé ici. Un mot-thème générique ou une expression déjà
+# présente dans la citation -- jamais une phrase, jamais un détail absent du
+# texte (lieu, date, contexte inventés).
+SUJET_MODEL = "claude-haiku-4-5"
+SUJET_SYSTEM = """Tu lis une citation publique d'un responsable politique français et tu \
+écris `sujet` : une étiquette d'UN ou DEUX mots nommant le thème précis de la \
+citation -- jamais une phrase, jamais un jugement sur la personne qui parle.
+
+Deux façons de choisir, selon ce qui décrit le mieux le sujet réel :
+- un mot-thème générique et courant en politique française (immigration, retraite,
+  inflation, climat...) ;
+- une expression à deux mots, soit un thème composé (dette publique, pouvoir
+  d'achat), soit une expression marquante qui apparaît déjà telle quelle dans la
+  citation si elle nomme le sujet précisément (grand remplacement, protoxyde
+  d'azote) -- sans y ajouter aucun détail absent du texte (lieu, date, contexte).
+
+Exemples :
+- « Le logement social est devenu le logement du Grand Remplacement (...) » -> Grand remplacement
+- « On va se battre (...) pour l'interdiction du protoxyde d'azote (...) » -> Protoxyde d'azote
+- « Qui a créé 1300 milliards de dettes ? (...) » -> Dette publique
+- « ... pension moyenne atteint péniblement 1400 euros (...) » -> Retraite
+- « ... prêt à taux zéro pour ... rénover ... leur logement (...) » -> Pouvoir d'achat
+
+Réponds uniquement par le mot ou les deux mots, sans guillemets, sans point final, rien d'autre."""
+
+
+def sujet_suggere(citation: str) -> str:
+    """Propose un `sujet` via Claude Haiku, ou chaîne vide si ce n'est pas possible.
+
+    Reste vide sans exception : pas de clé API, panne réseau, ou réponse qui ne
+    ressemble pas à une étiquette d'un-deux mots (le modèle refuse parfois --
+    citation rapportée par un tiers, blague sans sujet de fond -- et écrit une
+    explication au lieu d'un sujet ; mieux vaut laisser vide, relu à la main,
+    que publier une étiquette fabriquée).
+    """
+    if not settings.anthropic_api_key:
+        return ""
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        resp = client.messages.create(
+            model=SUJET_MODEL, max_tokens=20, system=SUJET_SYSTEM,
+            messages=[{"role": "user", "content": citation}],
+        )
+        texte = next((b.text for b in resp.content if b.type == "text"), "")
+    except Exception as e:
+        log.warning("sujet auto indisponible (%s)", str(e).splitlines()[0][:80])
+        return ""
+
+    texte = texte.strip().rstrip(".").strip()
+    mots = texte.split()
+    if not texte or len(mots) > 3 or len(texte) > 40 or "\n" in texte:
+        return ""
+    return texte
 
 
 def date_fr(iso: str | None) -> tuple[str, str | None]:
@@ -122,7 +182,7 @@ def build_draft(conn, *, limit: int, min_score: int, per_person: int,
             "source": source,
             # --- à valider / remplir ---
             "theme": theme,
-            "sujet": "",
+            "sujet": sujet_suggere(citation),
         })
         if len(draft) >= limit:
             break
@@ -132,7 +192,10 @@ def build_draft(conn, *, limit: int, min_score: int, per_person: int,
 def write_draft(entries: list[dict], path: Path) -> None:
     payload = {
         "_mode_emploi": [
-            "Remplissez `sujet` pour chaque entrée : de quoi elle parle, en une phrase.",
+            "`sujet` est parfois pré-rempli par Claude Haiku (un ou deux mots) :",
+            "  relisez-le contre la citation, corrigez-le, ou laissez-le si c'est bon.",
+            "S'il est vide -- clé API absente, ou citation jugée pas assez sûre --,",
+            "  remplissez-le vous-même : de quoi la citation parle, en un ou deux mots.",
             "`theme` est pré-rempli par détection automatique : vérifiez-le.",
             "Ne modifiez ni `citation` ni `source` : l'application les recontrôle.",
             "Supprimez simplement une entrée du tableau pour ne pas la publier.",
