@@ -49,7 +49,7 @@ Le site lit deux tables, toutes deux en lecture seule via RLS :
 
 | Table | Contenu |
 |---|---|
-| `entries` | les citations éditorialisées — sentiment, justification, thème retenu |
+| `entries` | les citations éditorialisées — sujet, justification, thème retenu |
 | `topics` | correspondance thème long → libellé court du graphe |
 
 `entries` est distincte de `candidates` : cette dernière est la matière brute
@@ -65,11 +65,11 @@ anonyme renvoie 401.
 
 ```
 src/
-  types.ts                    modèle, familles, sentiments
+  types.ts                    modèle, familles
   lib/supabase.ts             client public
   hooks/usePolitiscope.ts     chargement, filtrage, tri
   components/
-    FilterBar.tsx             familles, sentiments, thème, tri, recherche
+    FilterBar.tsx             familles, thème, tri, recherche
     BubbleField.tsx           les bulles
     DetailModal.tsx           la fiche (Échap, clic extérieur, focus)
     TopicGraph.tsx            graphe d3 à deux niveaux

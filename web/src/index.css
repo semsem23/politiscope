@@ -16,13 +16,6 @@
   --fam-extreme-droite: #1baf7a;
   --fam-gauche-radicale: #eda100;
   --fam-gauche-social: #e87ba4;
-
-  --pos: #0ca30c;
-  --pos-bg: #e6f5e2;
-  --neg: #d03b3b;
-  --neg-bg: #fbe9e4;
-  --neu: #79766d;
-  --neu-bg: #eeece5;
   --topic-color: #4a3aa7;
 
   --shadow: 0 1px 2px rgba(11, 11, 11, 0.04), 0 8px 24px -12px rgba(11, 11, 11, 0.18);
@@ -45,13 +38,6 @@
     --fam-extreme-droite: #199e70;
     --fam-gauche-radicale: #c98500;
     --fam-gauche-social: #d55181;
-
-    --pos: #4fbf4f;
-    --pos-bg: #16281a;
-    --neg: #e66767;
-    --neg-bg: #34201d;
-    --neu: #a6a396;
-    --neu-bg: #232320;
     --topic-color: #9085e9;
 
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px -12px rgba(0, 0, 0, 0.55);
@@ -73,12 +59,6 @@
   --fam-extreme-droite: #199e70;
   --fam-gauche-radicale: #c98500;
   --fam-gauche-social: #d55181;
-  --pos: #4fbf4f;
-  --pos-bg: #16281a;
-  --neg: #e66767;
-  --neg-bg: #34201d;
-  --neu: #a6a396;
-  --neu-bg: #232320;
   --topic-color: #9085e9;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px -12px rgba(0, 0, 0, 0.55);
 }
@@ -115,23 +95,6 @@ a { color: var(--accent); }
   border-left: 2px solid var(--line); padding-left: 14px;
 }
 .methodo strong { color: var(--ink-soft); font-weight: 600; }
-
-/* ---------- Bandeau de statistiques ---------- */
-.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
-.stat-tile {
-  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
-  padding: 16px 18px; display: flex; flex-direction: column; gap: 6px;
-}
-.stat-tile .label {
-  display: flex; align-items: center; gap: 7px;
-  font-size: 12.5px; font-weight: 600; color: var(--ink-soft);
-}
-.stat-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
-.stat-tile .value {
-  font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums;
-  font-size: 28px; font-weight: 500; letter-spacing: -0.01em;
-}
-.stat-tile .sub { font-size: 12px; color: var(--muted); }
 
 /* ---------- Barre de filtres ---------- */
 .filterbar {
@@ -193,8 +156,8 @@ input.control { min-width: 180px; }
 .orb {
   position: relative; width: 96px; height: 96px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  border: 2.5px solid var(--sent-color, var(--neu));
-  background: var(--sent-bg, var(--neu-bg));
+  border: 2.5px solid var(--fam-color, var(--muted));
+  background: color-mix(in srgb, var(--fam-color, var(--muted)) 12%, var(--surface));
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 .bubble:hover .orb, .bubble:focus-visible .orb {
@@ -202,10 +165,6 @@ input.control { min-width: 180px; }
 }
 .orb .initials {
   font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: 22px; color: var(--ink);
-}
-.orb .fam-dot {
-  position: absolute; top: 3px; right: 3px; width: 15px; height: 15px; border-radius: 50%;
-  background: var(--fam-color, var(--muted)); border: 2px solid var(--surface);
 }
 .bubble .name { font-size: 13px; font-weight: 600; line-height: 1.25; }
 .bubble .party {
@@ -233,7 +192,8 @@ input.control { min-width: 180px; }
 .modal-id { display: flex; align-items: center; gap: 12px; }
 .modal-orb {
   width: 52px; height: 52px; border-radius: 50%; flex: none;
-  border: 2.5px solid var(--sent-color, var(--neu)); background: var(--sent-bg, var(--neu-bg));
+  border: 2.5px solid var(--fam-color, var(--muted));
+  background: color-mix(in srgb, var(--fam-color, var(--muted)) 12%, var(--surface));
   display: flex; align-items: center; justify-content: center;
   font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: 18px;
 }
@@ -246,12 +206,6 @@ input.control { min-width: 180px; }
   flex: none; font-size: 15px; line-height: 1;
 }
 .modal-close:hover { color: var(--ink); }
-.sent-badge {
-  display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600;
-  padding: 5px 10px; border-radius: 999px;
-  color: var(--sent-color, var(--neu)); background: var(--sent-bg, var(--neu-bg)); margin-bottom: 16px;
-}
-.sent-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .modal-section-label {
   font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px;
   text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 6px;
@@ -259,7 +213,7 @@ input.control { min-width: 180px; }
 .modal-topic { font-size: 14px; font-weight: 600; margin-bottom: 18px; }
 .quote {
   margin: 0 0 18px; padding: 2px 0 2px 16px;
-  border-left: 2.5px solid var(--sent-color, var(--muted));
+  border-left: 2.5px solid var(--fam-color, var(--muted));
   font-family: "Fraunces", Georgia, serif; font-style: italic; font-weight: 500;
   font-size: 18px; line-height: 1.5; color: var(--ink);
 }
@@ -325,7 +279,7 @@ input.control { min-width: 180px; }
   margin-right: 6px; vertical-align: -2px; border: 2px solid;
 }
 .node-swatch.topic { background: var(--surface-raised); border-color: var(--topic-color); }
-.node-swatch.pol { background: var(--neu-bg); border-color: var(--neu); }
+.node-swatch.pol { background: var(--surface-raised); border-color: var(--muted); }
 
 /* ---------- Pied de page ---------- */
 .page-footer {
@@ -355,7 +309,6 @@ input.control { min-width: 180px; }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
 @media (max-width: 560px) {
-  .stats { grid-template-columns: 1fr; }
   .bubble { width: 104px; }
   .orb { width: 84px; height: 84px; }
   .graph-container { height: 380px; }

@@ -77,20 +77,20 @@ def main() -> int:
             rows.append((
                 e["nom"], e["parti"], e.get("code_parti"), e["famille"], e["theme"],
                 e["sujet"], e["citation"], normalise(e["citation"]),
-                e.get("hashtags", []), e["sentiment"], e["justif"],
+                e.get("hashtags", []), e["justif"],
                 e["date"], parse_fr_date(e["date"]), e["source"],
             ))
         with conn.cursor() as cur:
             psycopg2.extras.execute_batch(cur, """
                 insert into entries (nom, parti, code_parti, famille, theme, sujet,
-                                     citation, citation_key, hashtags, sentiment,
+                                     citation, citation_key, hashtags,
                                      justif, date_texte, date_tri, source)
-                values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 on conflict (nom, citation_key) do update
                   set parti = excluded.parti, code_parti = excluded.code_parti,
                       famille = excluded.famille, theme = excluded.theme,
                       sujet = excluded.sujet, hashtags = excluded.hashtags,
-                      sentiment = excluded.sentiment, justif = excluded.justif,
+                      justif = excluded.justif,
                       date_texte = excluded.date_texte, date_tri = excluded.date_tri,
                       source = excluded.source
             """, rows)
@@ -103,18 +103,12 @@ def main() -> int:
             cur.execute("""select famille, count(*) from entries
                            group by famille order by 2 desc""")
             par_famille = cur.fetchall()
-            cur.execute("""select sentiment, count(*) from entries
-                           group by sentiment order by 2 desc""")
-            par_sentiment = cur.fetchall()
 
     print(f"\ntopics  {n_topics}")
     print(f"entries {n_entries}")
     print("\npar famille :")
     for f, n in par_famille:
         print(f"  {n:>2}  {f}")
-    print("par sentiment :")
-    for s, n in par_sentiment:
-        print(f"  {n:>2}  {s}")
     return 0
 
 

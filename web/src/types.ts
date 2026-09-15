@@ -5,8 +5,6 @@ export type FamilleId =
   | "gauche-radicale"
   | "gauche-social";
 
-export type SentimentId = "positif" | "neutre" | "negatif";
-
 /** Une entrée éditorialisée, telle que stockée dans Supabase. */
 export interface Entry {
   id: number;
@@ -18,7 +16,6 @@ export interface Entry {
   sujet: string;
   citation: string;
   hashtags: string[];
-  sentiment: SentimentId;
   justif: string;
   date_texte: string;
   date_tri: string | null;
@@ -37,13 +34,6 @@ export interface Famille {
   color: string;
 }
 
-export interface Sentiment {
-  id: SentimentId;
-  label: string;
-  color: string;
-  bg: string;
-}
-
 export const FAMILLES: Famille[] = [
   { id: "majorite", label: "Majorité présidentielle", color: "var(--fam-majorite)" },
   { id: "droite-rep", label: "Droite républicaine", color: "var(--fam-droite-rep)" },
@@ -52,22 +42,12 @@ export const FAMILLES: Famille[] = [
   { id: "gauche-social", label: "Gauche social-démocrate / écologiste", color: "var(--fam-gauche-social)" },
 ];
 
-export const SENTIMENTS: Sentiment[] = [
-  { id: "positif", label: "Positif", color: "var(--pos)", bg: "var(--pos-bg)" },
-  { id: "neutre", label: "Neutre", color: "var(--neu)", bg: "var(--neu-bg)" },
-  { id: "negatif", label: "Négatif", color: "var(--neg)", bg: "var(--neg-bg)" },
-];
-
 export const familleOf = (id: FamilleId) =>
   FAMILLES.find((f) => f.id === id) ?? FAMILLES[0];
-
-export const sentimentOf = (id: SentimentId) =>
-  SENTIMENTS.find((s) => s.id === id) ?? SENTIMENTS[1];
 
 export type SortKey =
   | "theme"
   | "date-desc"
   | "date-asc"
   | "alpha"
-  | "parti"
-  | "sentiment";
+  | "parti";

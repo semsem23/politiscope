@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
-import type { Entry, FamilleId, SentimentId, SortKey, Topic } from "../types";
+import type { Entry, FamilleId, SortKey, Topic } from "../types";
 
 interface Loaded {
   entries: Entry[];
@@ -44,7 +44,6 @@ export function usePolitiscopeData(): Loaded {
 
 export interface Filters {
   familles: Record<FamilleId, boolean>;
-  sentiments: Record<SentimentId, boolean>;
   theme: string;
   sort: SortKey;
   search: string;
@@ -61,7 +60,6 @@ export function useFiltered(entries: Entry[], f: Filters): Entry[] {
     const q = f.search.trim().toLowerCase();
     const list = entries.filter((d) => {
       if (!f.familles[d.famille]) return false;
-      if (!f.sentiments[d.sentiment]) return false;
       if (f.theme !== "all" && d.theme !== f.theme) return false;
       if (q) {
         const hay = [d.nom, d.parti, d.citation, d.sujet, ...(d.hashtags ?? [])]
@@ -85,10 +83,6 @@ export function useFiltered(entries: Entry[], f: Filters): Entry[] {
           return byName(a, b);
         case "parti":
           return a.parti.localeCompare(b.parti, "fr") || byName(a, b);
-        case "sentiment": {
-          const order = { positif: 0, neutre: 1, negatif: 2 } as const;
-          return order[a.sentiment] - order[b.sentiment] || byName(a, b);
-        }
         default: {
           const diff = (counts[b.theme] ?? 0) - (counts[a.theme] ?? 0);
           if (diff !== 0) return diff;

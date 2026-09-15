@@ -452,7 +452,7 @@ def cmd_publish(args) -> int:
             if args.dry_run:
                 print(f"[DRY-RUN] {len(entries)} entrée(s) valides, prêtes à publier :")
                 for e in entries:
-                    print(f"  {e['nom']:<24} {e['sentiment']:<8} {e['theme']}")
+                    print(f"  {e['nom']:<24} {e['theme']}")
                 return 0
             n = publish.apply_draft(conn, entries)
         print(f"✅ {n} entrée(s) publiée(s). Le site les affichera au rechargement.")
@@ -475,7 +475,7 @@ def cmd_publish(args) -> int:
         print(f"  [{e['_score']:>3}] {e['nom']:<24} {e['theme']}")
         print(f"        « {e['citation'][:110]} »")
     print()
-    print("Remplissez sujet / sentiment / justif, puis :")
+    print("Remplissez sujet / justif, puis :")
     print("  python -m politiscope.cli publish --apply")
     return 0
 

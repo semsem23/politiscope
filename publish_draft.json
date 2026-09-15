@@ -1,7 +1,5 @@
 {
   "_mode_emploi": [
-    "Remplissez `sujet`, `sentiment` et `justif` pour chaque entrée.",
-    "sentiment : positif | neutre | negatif — le TON de la déclaration,",
     "  pas un jugement sur son auteur.",
     "justif : une phrase expliquant ce ton.",
     "sujet : le sujet principal en une phrase courte.",
@@ -22,10 +20,9 @@
       "date_texte": "14 septembre 2026",
       "date_tri": "2026-09-14",
       "source": "https://x.com/IanBrossat/status/2099573646557626781",
-      "theme": "Pouvoir d'achat & vie chère",
-      "sujet": "",
-      "sentiment": "",
-      "justif": "",
+      "theme": "Immigration & sécurité",
+      "sujet": "Accusation d'hypocrisie visant Jordan Bardella sur le logement social",
+      "justif": "Attaque personnelle : le propos dénonce une « hypocrisie XXL » et oppose au RN le parcours familial de son président.",
       "hashtags": []
     },
     {
@@ -39,10 +36,9 @@
       "date_texte": "15 septembre 2026",
       "date_tri": "2026-09-15",
       "source": "https://x.com/Fabien_Roussel/status/2099782882386493588",
-      "theme": "Europe & souveraineté",
-      "sujet": "",
-      "sentiment": "",
-      "justif": "",
+      "theme": "Inégalités & fiscalité",
+      "sujet": "Dénonciation des dividendes versés aux actionnaires face aux efforts demandés aux salariés et retraités",
+      "justif": "Ton indigné : « rapacité », « tondre », et un appel à ce que « la tonte change de camp ».",
       "hashtags": []
     },
     {
@@ -57,9 +53,8 @@
       "date_tri": "2026-09-15",
       "source": "https://x.com/MathildePanot/status/2099771763940892995",
       "theme": "Budget & finances publiques",
-      "sujet": "",
-      "sentiment": "",
-      "justif": "",
+      "sujet": "Appel à investir dans la bifurcation écologique et les services publics plutôt que de maintenir les baisses d'impôts",
+      "justif": "La proposition d'investissement est portée par une critique du « monde de malheur » et des « cadeaux aux plus riches ».",
       "hashtags": []
     },
     {
@@ -74,9 +69,8 @@
       "date_tri": "2026-09-15",
       "source": "https://x.com/mbompard/status/2099769002184540234",
       "theme": "Pouvoir d'achat & vie chère",
-      "sujet": "",
-      "sentiment": "",
-      "justif": "",
+      "sujet": "Soutien au blocage du dépôt pétrolier de Fos-sur-Mer et demande de blocage des prix du carburant",
+      "justif": "Le soutien affiché aux pêcheurs s'accompagne d'une mise en cause de l'« inaction » du gouvernement et des « profiteurs de crise ».",
       "hashtags": []
     },
     {
@@ -91,9 +85,8 @@
       "date_tri": "2026-09-15",
       "source": "https://x.com/fhollande/status/2099757377163559138",
       "theme": "Europe & souveraineté",
-      "sujet": "",
-      "sentiment": "",
-      "justif": "",
+      "sujet": "Mise en garde contre la stratégie de déstabilisation russe et appel à la défense européenne",
+      "justif": "Constat sur une menace extérieure assorti d'un appel à la fermeté, sans mise en cause d'un adversaire politique intérieur.",
       "hashtags": []
     },
     {
@@ -108,9 +101,8 @@
       "date_tri": "2026-09-14",
       "source": "https://x.com/ericcoquerel/status/2099565957861572645",
       "theme": "Budget & finances publiques",
-      "sujet": "",
-      "sentiment": "",
-      "justif": "",
+      "sujet": "Réponse de la Banque de France sur la part de dette publique qu'elle détient",
+      "justif": "Ton mesuré : l'auteur récuse explicitement la polémique et renvoie à un communiqué argumenté.",
       "hashtags": []
     },
     {
@@ -125,9 +117,8 @@
       "date_tri": "2026-09-14",
       "source": "https://x.com/auroreberge/status/2099560726696231236",
       "theme": "Budget & finances publiques",
-      "sujet": "",
-      "sentiment": "",
-      "justif": "",
+      "sujet": "Le vote du budget présenté comme un test de responsabilité pour les oppositions",
+      "justif": "La formule du « crash test » met en cause la responsabilité des oppositions et les renvoie au jugement des Français.",
       "hashtags": []
     },
     {
@@ -142,9 +133,8 @@
       "date_tri": "2026-09-14",
       "source": "https://x.com/J_Bardella/status/2099545366706155659",
       "theme": "Stratégie 2027 & recomposition",
-      "sujet": "",
-      "sentiment": "",
-      "justif": "",
+      "sujet": "Promesse de reconquête du pays à l'échéance de 2027",
+      "justif": "Slogan de mobilisation, sans contenu programmatique ni mise en cause d'un adversaire.",
       "hashtags": []
     },
     {
@@ -158,10 +148,9 @@
       "date_texte": "14 septembre 2026",
       "date_tri": "2026-09-14",
       "source": "https://x.com/sebchenu/status/2099528551191986352",
-      "theme": "Pouvoir d'achat & vie chère",
-      "sujet": "",
-      "sentiment": "",
-      "justif": "",
+      "theme": "Immigration & sécurité",
+      "sujet": "Priorité nationale dans l'attribution des logements sociaux",
+      "justif": "Proposition politique exposée à partir de chiffres, sur un ton déclaratif et sans attaque nominative.",
       "hashtags": []
     },
     {
@@ -176,9 +165,8 @@
       "date_tri": "2026-09-14",
       "source": "https://x.com/knafo_sarah/status/2099505703706636506",
       "theme": "Stratégie 2027 & recomposition",
-      "sujet": "",
-      "sentiment": "",
-      "justif": "",
+      "sujet": "Accusation d'instrumentalisation de l'histoire et de l'antisémitisme dans la campagne",
+      "justif": "Accusation grave : les adversaires sont soupçonnés de fermer les yeux, voire de « collaborer » avec ce qui menacerait le pays.",
       "hashtags": []
     }
   ]

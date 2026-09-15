@@ -1,5 +1,5 @@
 import type { Filters } from "../hooks/usePolitiscope";
-import { FAMILLES, SENTIMENTS, type Entry, type SortKey } from "../types";
+import { FAMILLES, type Entry, type SortKey } from "../types";
 
 interface Props {
   entries: Entry[];
@@ -14,7 +14,6 @@ const SORTS: { value: SortKey; label: string }[] = [
   { value: "date-asc", label: "Trier — plus ancien d'abord" },
   { value: "alpha", label: "Trier — ordre alphabétique" },
   { value: "parti", label: "Trier — par parti" },
-  { value: "sentiment", label: "Trier — par sentiment" },
 ];
 
 export function FilterBar({ entries, filters, setFilters, onReset }: Props) {
@@ -51,32 +50,7 @@ export function FilterBar({ entries, filters, setFilters, onReset }: Props) {
       </div>
 
       <div className="filter-row">
-        <span className="filter-group-label">Sentiment</span>
-        {SENTIMENTS.map((s) => {
-          const active = filters.sentiments[s.id];
-          return (
-            <button
-              key={s.id}
-              type="button"
-              className="chip"
-              data-active={active}
-              aria-pressed={active}
-              onClick={() =>
-                setFilters({
-                  ...filters,
-                  sentiments: { ...filters.sentiments, [s.id]: !active },
-                })
-              }
-            >
-              <span className="dot" style={{ background: s.color }} />
-              {s.label}
-            </button>
-          );
-        })}
-
-        <span className="filter-group-label" style={{ marginLeft: 10 }}>
-          Thème
-        </span>
+        <span className="filter-group-label">Thème</span>
         <select
           className="control"
           value={filters.theme}

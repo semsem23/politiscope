@@ -4,7 +4,7 @@ import { DetailModal } from "./components/DetailModal";
 import { FilterBar } from "./components/FilterBar";
 import { TopicGraph } from "./components/TopicGraph";
 import { useFiltered, usePolitiscopeData, type Filters } from "./hooks/usePolitiscope";
-import { FAMILLES, SENTIMENTS, type Entry, type FamilleId, type SentimentId } from "./types";
+import { FAMILLES, type Entry, type FamilleId } from "./types";
 
 const CONTEXTE =
   "Les élections municipales se sont achevées en mars 2026 ; la France entre désormais en " +
@@ -15,7 +15,6 @@ const CONTEXTE =
 
 const emptyFilters = (): Filters => ({
   familles: Object.fromEntries(FAMILLES.map((f) => [f.id, true])) as Record<FamilleId, boolean>,
-  sentiments: Object.fromEntries(SENTIMENTS.map((s) => [s.id, true])) as Record<SentimentId, boolean>,
   theme: "all",
   sort: "theme",
   search: "",
@@ -36,15 +35,6 @@ export default function App() {
   const onThemeChange = useCallback((theme: string) => {
     setFilters((f) => ({ ...f, theme: f.theme === theme ? "all" : theme }));
   }, []);
-
-  const stats = useMemo(
-    () =>
-      SENTIMENTS.map((s) => {
-        const n = entries.filter((e) => e.sentiment === s.id).length;
-        return { ...s, n, pct: entries.length ? Math.round((100 * n) / entries.length) : 0 };
-      }),
-    [entries]
-  );
 
   if (error) {
     return (
@@ -70,27 +60,10 @@ export default function App() {
         <p className="methodo">
           <strong>Méthode.</strong> Citations publiques réellement prononcées — discours,
           déclarations à la presse, publications sur X — collectées par un pipeline d'ingestion et
-          relues à la main. Chaque fiche renvoie vers sa source d'origine. Le sentiment évalue le{" "}
-          <em>ton</em> de la déclaration, non un jugement sur son auteur.
+          relues à la main. Chaque fiche renvoie vers sa source d'origine et résume{" "}
+          <em>ce que la citation avance</em>, non un jugement sur son auteur.
         </p>
       </header>
-
-      <section className="stats" aria-label="Répartition du sentiment">
-        {stats.map((s) => (
-          <div className="stat-tile" key={s.id}>
-            <div className="label">
-              <span className="stat-dot" style={{ background: s.color }} />
-              {s.label}
-            </div>
-            <div className="value" style={{ color: s.color }}>
-              {loading ? "—" : `${s.pct} %`}
-            </div>
-            <div className="sub">
-              {loading ? "chargement…" : `${s.n} déclarations sur ${entries.length}`}
-            </div>
-          </div>
-        ))}
-      </section>
 
       <FilterBar
         entries={entries}
