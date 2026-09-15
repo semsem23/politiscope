@@ -81,12 +81,13 @@ jobs:
       - name: Installer les dépendances
         run: pip install -r requirements.txt
 
-      # Régénérer efface le travail de relecture en cours. Se fier à « sujet
-      # est rempli » ne suffit plus depuis que Claude Haiku le pré-remplit à la
-      # génération -- avant toute relecture humaine. Le signal fiable est
-      # l'auteur du dernier commit sur le fichier : le bot lui-même veut dire
-      # que personne n'y a touché depuis ; quelqu'un d'autre veut dire qu'une
-      # relecture est en cours, même à peine commencée.
+      # Régénérer efface le travail de relecture en cours. Le signal n'est ni
+      # « sujet est rempli » (Claude Haiku le pré-remplit avant toute relecture)
+      # ni « le dernier commit n'est pas du bot » (un commit sans rapport avec
+      # la relecture -- une migration de schéma, par exemple -- déclenchait
+      # ça à tort). Le signal fiable : sujet/theme ont-ils changé depuis la
+      # dernière génération par ce workflow ? Si non, personne n'a rien relu,
+      # peu importe qui a commité entre-temps -- sûr de régénérer.
       - name: Refuser d'écraser un brouillon rempli
         # `inputs.*` n'existe que pour workflow_dispatch ; `github.event.inputs.*`
         # fonctionne aussi pour le déclenchement automatique via workflow_run,
@@ -101,20 +102,51 @@ jobs:
               sys.exit(0)
 
           BOT_EMAIL = "41898282+github-actions[bot]@users.noreply.github.com"
-          auteur = subprocess.run(
-              ["git", "log", "-1", "--format=%ae", "--", str(chemin)],
-              capture_output=True, text=True, check=True,
-          ).stdout.strip()
 
-          if auteur == BOT_EMAIL:
+          def champs(entrees):
+              # Seuls sujet/theme comptent comme « relu » : le reste (score,
+              # citation, source...) ne se modifie jamais à la main.
+              return {e.get("candidate_id"): (e.get("sujet"), e.get("theme"))
+                      for e in entrees}
+
+          # Filtré ici, pas via --author/--grep : "[bot]" dans l'adresse est
+          # une expression régulière valide (classe de caractères) pour git,
+          # donc pas le texte littéral recherché -- le filtre ne matchait
+          # jamais.
+          historique = subprocess.run(
+              ["git", "log", "--format=%H%x00%ae%x00%s", "--", str(chemin)],
+              capture_output=True, text=True, check=True,
+          ).stdout
+          genere = ""
+          for ligne in historique.splitlines():
+              h, ae, s = ligne.split("\x00", 2)
+              if ae == BOT_EMAIL and s == "Brouillon de publication":
+                  genere = h
+                  break
+
+          actuel = json.loads(chemin.read_text(encoding="utf-8")).get("entries", [])
+
+          if genere:
+              avant_brut = subprocess.run(
+                  ["git", "show", f"{genere}:{chemin}"],
+                  capture_output=True, text=True, check=True,
+              ).stdout
+              avant = json.loads(avant_brut).get("entries", [])
+              inchange = champs(actuel) == champs(avant)
+          else:
+              # Aucune génération retrouvée dans l'historique : cas inattendu,
+              # on ne prend pas le risque -- comme avant l'existence de ce
+              # garde-fou plus précis.
+              inchange = False
+
+          if inchange:
               sys.exit(0)
 
-          entrees = json.loads(chemin.read_text(encoding="utf-8")).get("entries", [])
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
               f.write("### Un brouillon relu à la main attend déjà sur `main`\n\n")
-              f.write(f"Dernière modification par {auteur or 'un humain'}, pas par "
-                      f"le workflow : {len(entrees)} entrée(s), une relecture est "
-                      "peut-être en cours. Les régénérer effacerait ce travail.\n\n")
+              f.write(f"{len(actuel)} entrée(s) ; sujet ou theme ont changé depuis "
+                      "la dernière génération -- une relecture est en cours. "
+                      "Les régénérer effacerait ce travail.\n\n")
               f.write("Lancez *Publish Draft*, ou relancez celui-ci en cochant "
                       "`force` pour repartir de zéro.\n")
           sys.exit(1)
