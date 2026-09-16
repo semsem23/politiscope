@@ -11,6 +11,20 @@
   ],
   "entries": [
     {
+      "candidate_id": 1943,
+      "_score": 100,
+      "nom": "Sarah Knafo",
+      "parti": "Reconquête — députée européenne",
+      "code_parti": "Reconquête",
+      "famille": "extreme-droite",
+      "citation": "5️⃣ Je vote tout ce qui protège notre souveraineté, notre démocratie, nos câbles, nos ports et nos centrales. Mais surveiller la parole des Européens n'a jamais arrêté un drone. On ne défend pas un continent en fichant ses citoyens.",
+      "date_texte": "16 septembre 2026",
+      "date_tri": "2026-09-16",
+      "source": "https://x.com/knafo_sarah/status/2100139628820824144",
+      "theme": "Europe & souveraineté",
+      "sujet": "Souveraineté"
+    },
+    {
       "candidate_id": 1796,
       "_score": 90,
       "nom": "Manuel Bompard",
@@ -36,7 +50,7 @@
       "date_tri": "2026-09-15",
       "source": "https://x.com/sebchenu/status/2099918072572211439",
       "theme": "Budget & finances publiques",
-      "sujet": "Contribution européenne"
+      "sujet": "Contribution UE"
     },
     {
       "candidate_id": 1782,
@@ -50,7 +64,7 @@
       "date_tri": "2026-09-15",
       "source": "https://x.com/ECiotti/status/2099872613153517583",
       "theme": "Immigration & sécurité",
-      "sujet": "Sécurité"
+      "sujet": "Sécurité publique"
     },
     {
       "candidate_id": 1816,
@@ -64,7 +78,7 @@
       "date_tri": "2026-09-16",
       "source": "https://x.com/ericcoquerel/status/2100115072211165230",
       "theme": "Europe & souveraineté",
-      "sujet": "Dividendes"
+      "sujet": "Dividendes versés"
     },
     {
       "candidate_id": 1667,
@@ -95,6 +109,20 @@
       "sujet": "Grand remplacement"
     },
     {
+      "candidate_id": 1959,
+      "_score": 75,
+      "nom": "Marine Tondelier",
+      "parti": "Les Écologistes",
+      "code_parti": "Écologistes",
+      "famille": "gauche-social",
+      "citation": "C’est tout le sens de notre nouveau livret consacré aux littoraux : les rendre habitables face au changement climatique, mieux partager leurs richesses et leurs usages, protéger le vivant et donner un avenir à celles et ceux qui vivent de la mer. Notre conviction est simple :",
+      "date_texte": "16 septembre 2026",
+      "date_tri": "2026-09-16",
+      "source": "https://x.com/marinetondelier/status/2100136091571388483",
+      "theme": "Climat & écologie",
+      "sujet": "Littoraux"
+    },
+    {
       "candidate_id": 1772,
       "_score": 75,
       "nom": "Bruno Retailleau",
@@ -106,7 +134,7 @@
       "date_tri": "2026-09-16",
       "source": "https://x.com/BrunoRetailleau/status/2100116317554524281",
       "theme": "Budget & finances publiques",
-      "sujet": "Prix carburant"
+      "sujet": "Carburant"
     },
     {
       "candidate_id": 1792,
@@ -120,35 +148,7 @@
       "date_tri": "2026-09-15",
       "source": "https://x.com/f_philippot/status/2099948437395722608",
       "theme": "Europe & souveraineté",
-      "sujet": "Politique étrangère"
-    },
-    {
-      "candidate_id": 1767,
-      "_score": 75,
-      "nom": "Sébastien Lecornu",
-      "parti": "Renaissance — Premier ministre",
-      "code_parti": "Renaissance",
-      "famille": "majorite",
-      "citation": "Le dérèglement climatique est une réalité scientifique depuis des décennies. La France est particulièrement concernée, avec un réchauffement plus rapide et plus marqué que la moyenne mondiale. L’État a bâti une stratégie d’adaptation : 85 % des actions du plan national (PNACC3)",
-      "date_texte": "15 septembre 2026",
-      "date_tri": "2026-09-15",
-      "source": "https://x.com/SebLecornu/status/2099944339065487604",
-      "theme": "Climat & écologie",
-      "sujet": "Climat"
-    },
-    {
-      "candidate_id": 1833,
-      "_score": 75,
-      "nom": "Ian Brossat",
-      "parti": "Parti Communiste Français",
-      "code_parti": null,
-      "famille": "gauche-radicale",
-      "citation": "Le programme du RN en matière de logement aurait pu être écrit par le maire de Neuilly tant il transpire la bourgeoisie la plus crasse. Qui peut penser sérieusement que ces gens défendront les travailleuses et travailleurs de ce pays ?",
-      "date_texte": "15 septembre 2026",
-      "date_tri": "2026-09-15",
-      "source": "https://x.com/IanBrossat/status/2099927778539831524",
-      "theme": "Pouvoir d'achat & vie chère",
-      "sujet": "Logement"
+      "sujet": "Souveraineté nationale"
     }
   ]
 }
