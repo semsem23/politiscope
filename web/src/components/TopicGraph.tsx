@@ -204,7 +204,7 @@ export function TopicGraph({ entries, topics, onSelect, theme, onThemeChange }: 
           tip.innerHTML =
             `<strong>${d.fullName}</strong>${d.members!.length} citation${d.members!.length > 1 ? "s" : ""} · ${th.join(", ")}`;
         } else {
-          tip.innerHTML = `<strong>${d.fullName}</strong>${d.ref!.sujet}<br><span style="opacity:.65">${d.ref!.date_texte}</span>`;
+          tip.innerHTML = `<strong>${d.fullName}</strong>${shortOf.get(d.ref!.theme) ?? d.ref!.theme}<br><span style="opacity:.65">${d.ref!.date_texte}</span>`;
         }
         positionTip(event);
 

@@ -431,7 +431,7 @@ def cmd_selftest(args) -> int:
 
 
 def cmd_publish(args) -> int:
-    """Brouillon -> relecture humaine -> insertion. Voir politiscope/publish.py."""
+    """Draft -> human review -> insertion. See politiscope/publish.py."""
     from . import db, publish
 
     path = Path(args.file) if args.file else settings.root / "publish_draft.json"
@@ -439,43 +439,43 @@ def cmd_publish(args) -> int:
     if args.apply:
         entries = publish.load_draft(path)
         if not entries:
-            print("Brouillon vide : rien à publier.")
+            print("Empty draft: nothing to publish.")
             return 0
         with db.connect() as conn:
             problemes = publish.validate(conn, entries)
             if problemes:
-                print(f"⛔ {len(problemes)} problème(s) — rien n'a été publié :")
+                print(f"⛔ {len(problemes)} problem(s) — nothing was published:")
                 print()
                 for p in problemes:
                     print(f"  · {p}")
                 return 1
             if args.dry_run:
-                print(f"[DRY-RUN] {len(entries)} entrée(s) valides, prêtes à publier :")
+                print(f"[DRY-RUN] {len(entries)} valid entrie(s), ready to publish:")
                 for e in entries:
                     print(f"  {e['nom']:<24} {e['theme']}")
                 return 0
             n = publish.apply_draft(conn, entries)
-        print(f"✅ {n} entrée(s) publiée(s). Le site les affichera au rechargement.")
+        print(f"✅ {n} entrie(s) published. The site will show them on reload.")
         return 0
 
-    # --- mode brouillon ---
+    # --- draft mode ---
     with db.connect() as conn:
         draft = publish.build_draft(
             conn, limit=args.limit, min_score=args.min_score,
             per_person=args.per_person, since_hours=args.since_hours,
             famille=args.famille)
     if not draft:
-        print("Aucune candidate publiable. Lancez `fetch-x` / `fetch-rss` puis `db-sync`.")
+        print("No publishable candidate. Run `fetch-x` / `fetch-rss` then `db-sync`.")
         return 0
 
     publish.write_draft(draft, path)
-    print(f"{len(draft)} candidate(s) écrite(s) dans {path.name}")
+    print(f"{len(draft)} candidate(s) written to {path.name}")
     print()
     for e in draft:
         print(f"  [{e['_score']:>3}] {e['nom']:<24} {e['theme']}")
         print(f"        « {e['citation'][:110]} »")
     print()
-    print("Remplissez sujet, puis :")
+    print("Check theme, then:")
     print("  python -m politiscope.cli publish --apply")
     return 0
 
@@ -533,9 +533,9 @@ def main(argv: list[str] | None = None) -> int:
     pb.add_argument("--file", help="chemin du brouillon (defaut publish_draft.json)")
     pb.add_argument("--dry-run", action="store_true", help="valide sans inserer")
     pb.add_argument("--limit", type=int, default=10)
-    pb.add_argument("--min-score", type=int, default=75)
+    pb.add_argument("--min-score", type=int, default=60)
     pb.add_argument("--per-person", type=int, default=1)
-    pb.add_argument("--since-hours", type=float)
+    pb.add_argument("--since-hours", type=float, default=24)
     pb.add_argument("--famille")
     pb.set_defaults(fn=cmd_publish)
 
