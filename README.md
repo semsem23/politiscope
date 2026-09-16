@@ -152,8 +152,10 @@ Une fois terminée avec succès, elle déclenche automatiquement *Draft
 Publication* ci-dessous — un brouillon frais chaque matin, sans rien à
 lancer.
 
-**Rien n'est publié automatiquement.** Le workflow remplit `candidates` ; le
-passage en `entries` reste manuel, parce qu'il exige un jugement.
+Cette ingestion ne fait que remplir `candidates`. Le passage en `entries` se
+fait ensuite sans intervention par la chaîne *Draft Publication* -> *Publish
+Draft* qu'elle déclenche — voir *Publishing a citation on the site* pour le
+détail, et pour la différence avec un passage manuel de cette chaîne.
 
 ### Secrets à créer dans le dépôt
 
@@ -199,35 +201,47 @@ les 26 handles et re-téléchargerait `BACKFILL_DAYS` de tweets à chaque nuit.
 
 ## Publishing a citation on the site
 
-The only pipeline step that requires a human review. A candidate carries
-facts — who said what, when, with which URL. An entry also carries `theme`:
-the one the heuristic detected, which a human confirms or corrects before
-publication.
+A candidate carries facts — who said what, when, with which URL. An entry
+also carries `theme`: the one the heuristic detected. By default nobody
+reviews it — see *Publishing from GitHub* below — but the CLI and the
+manual GitHub path both still support reading it by hand before it goes
+live.
 
 ```bash
 python -m politiscope.cli publish --limit 5 --since-hours 24   # writes publish_draft.json
-#   … check / correct theme in the file …
+#   … optionally check / correct theme in the file …
 python -m politiscope.cli publish --apply --dry-run            # validates without inserting
 python -m politiscope.cli publish --apply                      # inserts
 ```
 
 The draft pre-fills what can be deduced (name, party, family, citation, date,
-source, detected theme). Only `theme` needs reviewing: it must exist in the
-`topics` table. Remove an entry from the array to skip publishing it.
+source, detected theme). `theme` must exist in the `topics` table for the
+draft to validate. Remove an entry from the array to skip publishing it.
 
 ### Publishing from GitHub
 
-Without Supabase credentials locally, the same two steps exist as manual
-workflows — the secrets are already in the repo:
+Without Supabase credentials locally, the same steps exist as GitHub
+workflows — the secrets are already in the repo. Two paths:
 
-1. *Draft Publication* runs on its own every morning after ingestion — or by
-   hand via *Actions -> Draft Publication -> Run workflow*, with `limit`,
-   `since_hours` and `min_score`. The draft is committed to `main`; if there's
-   no candidate, the job summary says so and nothing is committed. An
-   already-filled draft is never overwritten — see below.
-2. Edit `publish_draft.json` directly on github.com: check `theme`. Don't
-   touch `citation` or `source` — applying it re-compares them against the
-   original candidate and refuses any tampering. Commit.
+**Automatic, every night — no action needed.** *Nightly Ingestion* triggers
+*Draft Publication*, which builds a draft and commits it to `main`; its
+completion in turn triggers *Publish Draft*, which validates it
+(`--dry-run` first) and inserts it. `theme` is only what the automatic
+detection produced — nobody reads it in this path. If ingestion found
+nothing publishable, the chain stops cleanly at whichever step has nothing
+to do, and each job's summary says so.
+
+**Manual, for review or testing.** Running *Draft Publication* by hand
+(*Actions -> Draft Publication -> Run workflow*, with `limit`,
+`since_hours`, `min_score`) does **not** auto-cascade into *Publish Draft* —
+that's what keeps a manual run safe to use for reviewing or experimenting:
+
+1. Run *Draft Publication* by hand. The draft is committed to `main`; if
+   there's no candidate, the job summary says so and nothing is committed.
+   An already-filled draft is never overwritten — see below.
+2. Edit `publish_draft.json` directly on github.com: check `theme` if you
+   want to. Don't touch `citation` or `source` — applying it re-compares
+   them against the original candidate and refuses any tampering. Commit.
 3. *Actions -> Publish Draft -> Run workflow*. Validation first runs in
    `--dry-run`: on refusal, the errors show up in the job summary and nothing
    is inserted. Otherwise the entries go into the database and the draft is
@@ -235,8 +249,9 @@ workflows — the secrets are already in the repo:
 
 If a filled draft is already waiting on `main`, *Draft Publication* —
 whether re-run by hand or by the next morning's ingestion — refuses to
-regenerate it and says so in the job summary, rather than erasing the review
-in progress. Checking `force` overrides that to start fresh.
+regenerate it and says so in the job summary, rather than erasing whatever
+is sitting there unpublished. Checking `force` overrides that to start
+fresh.
 
 The draft only contains public tweets and their URL: committing it exposes
 nothing.
