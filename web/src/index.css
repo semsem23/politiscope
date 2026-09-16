@@ -210,7 +210,6 @@ input.control { min-width: 180px; }
   font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px;
   text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 6px;
 }
-.modal-topic { font-size: 14px; font-weight: 600; margin-bottom: 18px; }
 .quote {
   margin: 0 0 18px; padding: 2px 0 2px 16px;
   border-left: 2.5px solid var(--fam-color, var(--muted));

@@ -1,27 +1,22 @@
-"""Publication : transforme une citation candidate en entrée affichée sur le site.
+"""Publication: turns a candidate citation into an entry shown on the site.
 
-C'est le seul endroit du pipeline où une relecture humaine est obligatoire. Une
-candidate porte des faits — qui a dit quoi, quand, avec quelle URL. Une entrée
-porte en plus le `sujet` : une étiquette d'un ou deux mots disant de quoi elle
-parle. Claude Haiku en propose une à la construction du brouillon (`sujet_suggere`)
-mais ne la fabrique jamais à l'aveugle : sans clé API, en cas de panne, ou quand
-la citation n'est pas exploitable (propos rapportés d'un tiers, blague sans sujet
-de fond), le champ reste vide plutôt que de risquer une étiquette inventée —
-relisez chaque suggestion, et complétez ce qui manque.
+This is the only place in the pipeline where a human review is required. A
+candidate carries facts — who said what, when, with which URL. `theme` is
+pre-filled by automatic detection, but still needs checking: it's an entry's
+only judgment field, and nothing guarantees the heuristic got it right.
 
-D'où le fonctionnement en deux temps :
+Hence the two-step flow:
 
-    publish --draft   -> écrit un brouillon JSON, faits pré-remplis,
-                         champs de jugement laissés vides
-    publish --apply   -> valide le brouillon rempli et l'insère
+    publish --draft   -> writes a JSON draft, facts pre-filled,
+                         judgment fields left empty
+    publish --apply   -> validates the filled draft and inserts it
 
-La citation et la source ne sont jamais modifiables : si le brouillon les
-altère, l'application échoue.
+The citation and the source are never editable: if the draft alters them,
+applying it fails.
 """
 from __future__ import annotations
 
 import json
-import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -32,71 +27,13 @@ from . import db
 from .config import settings
 from .quotes import normalise
 
-log = logging.getLogger("politiscope.publish")
-
 MOIS_FR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
            "août", "septembre", "octobre", "novembre", "décembre"]
 
-# Champs que la machine renseigne, et champs qui exigent une lecture humaine.
+# Fields the machine fills in, and fields that require a human read.
 CHAMPS_DEDUITS = ("nom", "parti", "code_parti", "famille", "citation",
                   "date_texte", "date_tri", "source")
-CHAMPS_A_REMPLIR = ("theme", "sujet")
-
-# Suggestion de `sujet` via Claude Haiku : testé à la main sur dix citations
-# réelles avant d'être câblé ici. Un mot-thème générique ou une expression déjà
-# présente dans la citation -- jamais une phrase, jamais un détail absent du
-# texte (lieu, date, contexte inventés).
-SUJET_MODEL = "claude-haiku-4-5"
-SUJET_SYSTEM = """Tu lis une citation publique d'un responsable politique français et tu \
-écris `sujet` : une étiquette d'UN ou DEUX mots nommant le thème précis de la \
-citation -- jamais une phrase, jamais un jugement sur la personne qui parle.
-
-Deux façons de choisir, selon ce qui décrit le mieux le sujet réel :
-- un mot-thème générique et courant en politique française (immigration, retraite,
-  inflation, climat...) ;
-- une expression à deux mots, soit un thème composé (dette publique, pouvoir
-  d'achat), soit une expression marquante qui apparaît déjà telle quelle dans la
-  citation si elle nomme le sujet précisément (grand remplacement, protoxyde
-  d'azote) -- sans y ajouter aucun détail absent du texte (lieu, date, contexte).
-
-Exemples :
-- « Le logement social est devenu le logement du Grand Remplacement (...) » -> Grand remplacement
-- « On va se battre (...) pour l'interdiction du protoxyde d'azote (...) » -> Protoxyde d'azote
-- « Qui a créé 1300 milliards de dettes ? (...) » -> Dette publique
-- « ... pension moyenne atteint péniblement 1400 euros (...) » -> Retraite
-- « ... prêt à taux zéro pour ... rénover ... leur logement (...) » -> Pouvoir d'achat
-
-Réponds uniquement par le mot ou les deux mots, sans guillemets, sans point final, rien d'autre."""
-
-
-def sujet_suggere(citation: str) -> str:
-    """Propose un `sujet` via Claude Haiku, ou chaîne vide si ce n'est pas possible.
-
-    Reste vide sans exception : pas de clé API, panne réseau, ou réponse qui ne
-    ressemble pas à une étiquette d'un-deux mots (le modèle refuse parfois --
-    citation rapportée par un tiers, blague sans sujet de fond -- et écrit une
-    explication au lieu d'un sujet ; mieux vaut laisser vide, relu à la main,
-    que publier une étiquette fabriquée).
-    """
-    if not settings.anthropic_api_key:
-        return ""
-    try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-        resp = client.messages.create(
-            model=SUJET_MODEL, max_tokens=20, system=SUJET_SYSTEM,
-            messages=[{"role": "user", "content": citation}],
-        )
-        texte = next((b.text for b in resp.content if b.type == "text"), "")
-    except Exception as e:
-        log.warning("sujet auto indisponible (%s)", str(e).splitlines()[0][:80])
-        return ""
-
-    texte = texte.strip().rstrip(".").strip()
-    mots = texte.split()
-    if not texte or len(mots) > 3 or len(texte) > 40 or "\n" in texte:
-        return ""
-    return texte
+CHAMPS_A_REMPLIR = ("theme",)
 
 
 def date_fr(iso: str | None) -> tuple[str, str | None]:
@@ -111,7 +48,7 @@ def date_fr(iso: str | None) -> tuple[str, str | None]:
 
 
 def _reference_maps(conn) -> tuple[dict[str, dict], set[str]]:
-    """Ce qu'on sait déjà : partis par personne, et thèmes autorisés."""
+    """What we already know: parties by person, and allowed themes."""
     with conn.cursor() as cur:
         cur.execute("select nom, parti, code_parti, famille from entries")
         par_nom = {r[0]: {"parti": r[1], "code_parti": r[2], "famille": r[3]}
@@ -128,7 +65,7 @@ def _comptes() -> dict[str, dict]:
 
 def build_draft(conn, *, limit: int, min_score: int, per_person: int,
                 since_hours: float | None, famille: str | None) -> list[dict]:
-    """Sélectionne des candidates publiables et pré-remplit ce qui est déductible."""
+    """Selects publishable candidates and pre-fills what can be deduced."""
     par_nom, _ = _reference_maps(conn)
     comptes = _comptes()
 
@@ -136,8 +73,8 @@ def build_draft(conn, *, limit: int, min_score: int, per_person: int,
                "c.source is not null", "c.score >= %s"]
     params: list[Any] = [min_score]
     if since_hours:
-        # `make_interval(hours => …)` exige un entier ; la multiplication
-        # accepte un flottant, donc « --since-hours 1.5 » fonctionne aussi.
+        # `make_interval(hours => …)` requires an integer; multiplication
+        # accepts a float, so `--since-hours 1.5` works too.
         clauses.append("c.date >= now() - (%s * interval '1 hour')")
         params.append(float(since_hours))
     if famille:
@@ -171,7 +108,7 @@ def build_draft(conn, *, limit: int, min_score: int, per_person: int,
         draft.append({
             "candidate_id": cid,
             "_score": score,
-            # --- déduit, ne pas modifier ---
+            # --- deduced, do not modify ---
             "nom": nom,
             "parti": connu.get("parti") or compte.get("parti") or parti or "",
             "code_parti": connu.get("code_parti"),
@@ -180,9 +117,8 @@ def build_draft(conn, *, limit: int, min_score: int, per_person: int,
             "date_texte": texte,
             "date_tri": tri,
             "source": source,
-            # --- à valider / remplir ---
+            # --- to validate / fill in ---
             "theme": theme,
-            "sujet": sujet_suggere(citation),
         })
         if len(draft) >= limit:
             break
@@ -192,14 +128,12 @@ def build_draft(conn, *, limit: int, min_score: int, per_person: int,
 def write_draft(entries: list[dict], path: Path) -> None:
     payload = {
         "_mode_emploi": [
-            "`sujet` est parfois pré-rempli par Claude Haiku (un ou deux mots) :",
-            "  relisez-le contre la citation, corrigez-le, ou laissez-le si c'est bon.",
-            "S'il est vide -- clé API absente, ou citation jugée pas assez sûre --,",
-            "  remplissez-le vous-même : de quoi la citation parle, en un ou deux mots.",
-            "`theme` est pré-rempli par détection automatique : vérifiez-le.",
-            "Ne modifiez ni `citation` ni `source` : l'application les recontrôle.",
-            "Supprimez simplement une entrée du tableau pour ne pas la publier.",
-            f"Puis : python -m politiscope.cli publish --apply {path.name}",
+            "`theme` is pre-filled by automatic detection: check it against",
+            "  the citation, correct it, or leave it if it's right.",
+            "  If it's empty, fill it in: it must exist in the `topics` table.",
+            "Don't modify `citation` or `source`: applying re-checks them.",
+            "Just remove an entry from the array to skip publishing it.",
+            f"Then: python -m politiscope.cli publish --apply {path.name}",
         ],
         "entries": entries,
     }
@@ -208,7 +142,7 @@ def write_draft(entries: list[dict], path: Path) -> None:
 
 # --- validation -----------------------------------------------------------
 def validate(conn, entries: list[dict]) -> list[str]:
-    """Renvoie la liste des problèmes. Vide = le brouillon est publiable."""
+    """Returns the list of problems. Empty = the draft is publishable."""
     _, themes = _reference_maps(conn)
     problemes: list[str] = []
 
@@ -220,57 +154,57 @@ def validate(conn, entries: list[dict]) -> list[str]:
 
     vus: set[str] = set()
     for i, e in enumerate(entries, 1):
-        ref = f"entrée {i} ({e.get('nom') or 'sans nom'})"
+        ref = f"entry {i} ({e.get('nom') or 'no name'})"
 
         for champ in CHAMPS_A_REMPLIR:
             if not str(e.get(champ) or "").strip():
-                problemes.append(f"{ref} : « {champ} » est vide")
+                problemes.append(f"{ref}: « {champ} » is empty")
 
         t = e.get("theme")
         if t and t not in themes:
-            problemes.append(f"{ref} : thème « {t} » absent de la table topics")
+            problemes.append(f"{ref}: theme « {t} » missing from the topics table")
 
         src = str(e.get("source") or "")
         if not src.startswith("https://"):
-            problemes.append(f"{ref} : source non-https")
+            problemes.append(f"{ref}: non-https source")
 
-        # La citation et la source doivent correspondre exactement à la candidate :
-        # c'est ce qui garantit qu'aucune retouche de texte ne passe en base.
+        # The citation and source must match the candidate exactly: that's
+        # what guarantees no text tampering makes it into the database.
         cid = e.get("candidate_id")
         if cid not in officiel:
-            problemes.append(f"{ref} : candidate_id {cid} introuvable")
+            problemes.append(f"{ref}: candidate_id {cid} not found")
         else:
             cit_ref, src_ref, key = officiel[cid]
             if e.get("citation") != cit_ref:
-                problemes.append(f"{ref} : la citation a été modifiée — refusé")
+                problemes.append(f"{ref}: citation was modified — refused")
             if src != src_ref:
-                problemes.append(f"{ref} : la source a été modifiée — refusé")
+                problemes.append(f"{ref}: source was modified — refused")
             if key in deja:
-                problemes.append(f"{ref} : citation déjà publiée")
+                problemes.append(f"{ref}: citation already published")
             if key in vus:
-                problemes.append(f"{ref} : citation en double dans le brouillon")
+                problemes.append(f"{ref}: duplicate citation in the draft")
             vus.add(key)
 
     return problemes
 
 
 def apply_draft(conn, entries: list[dict]) -> int:
-    """Insère les entrées et enregistre la publication. Tout ou rien."""
+    """Inserts the entries and records the publication. All or nothing."""
     rows, pubs = [], []
     for e in entries:
         key = normalise(e["citation"])
         rows.append((e["nom"], e["parti"], e.get("code_parti"), e["famille"],
-                     e["theme"], e["sujet"], e["citation"], key,
+                     e["theme"], e["citation"], key,
                      e["date_texte"], e.get("date_tri"), e["source"],
                      e.get("candidate_id")))
         pubs.append((e.get("candidate_id"), e["nom"], key))
 
     with conn.cursor() as cur:
         psycopg2.extras.execute_batch(cur, """
-            insert into entries (nom, parti, code_parti, famille, theme, sujet,
+            insert into entries (nom, parti, code_parti, famille, theme,
                                  citation, citation_key,
                                  date_texte, date_tri, source, candidate_id)
-            values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             on conflict (nom, citation_key) do nothing
         """, rows)
         psycopg2.extras.execute_batch(cur, """
@@ -283,9 +217,9 @@ def apply_draft(conn, entries: list[dict]) -> int:
 
 def load_draft(path: Path) -> list[dict]:
     if not path.exists():
-        raise SystemExit(f"Brouillon introuvable : {path}")
+        raise SystemExit(f"Draft not found: {path}")
     data = json.loads(path.read_text(encoding="utf-8"))
     entries = data.get("entries") if isinstance(data, dict) else data
     if not isinstance(entries, list):
-        raise SystemExit("Brouillon mal formé : clé « entries » attendue.")
+        raise SystemExit("Malformed draft: expected key « entries ».")
     return entries

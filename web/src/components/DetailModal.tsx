@@ -70,9 +70,6 @@ export function DetailModal({ entry, onClose }: Props) {
           </button>
         </div>
 
-        <p className="modal-section-label">Sujet principal</p>
-        <p className="modal-topic">{entry.sujet}</p>
-
         <p className="modal-section-label">Citation</p>
         <blockquote className="quote" style={style}>
           « {entry.citation} »

@@ -165,7 +165,6 @@ passage en `entries` reste manuel, parce qu'il exige un jugement.
 | `SUPABASE_PROJECT_REF` | la référence du projet Supabase |
 | `SUPABASE_DB_PASSWORD` | le mot de passe Postgres |
 | `X_BEARER_TOKEN` | le jeton X |
-| `ANTHROPIC_API_KEY` | facultatif — voir « Suggestion automatique du sujet » |
 
 Deux *variables* facultatives ajustent les garde-fous sans toucher au code :
 `BUDGET_USD_MONTH` (défaut 25) et `MAX_READS_PER_RUN` (défaut 600).
@@ -198,92 +197,73 @@ positions de timeline, **et dépense du mois** lue dans `ingest_runs`.
 C'est aussi ce qui évite de repayer : sans reprise, un runner neuf re-résoudrait
 les 26 handles et re-téléchargerait `BACKFILL_DAYS` de tweets à chaque nuit.
 
-## Publier une citation sur le site
+## Publishing a citation on the site
 
-La seule étape du pipeline qui exige une relecture humaine. Une candidate
-porte des faits — qui a dit quoi, quand, avec quelle URL. Une entrée porte en
-plus le `sujet` : une étiquette d'un ou deux mots disant de quoi elle parle.
-Cela ne se déduit pas automatiquement du thème détecté.
+The only pipeline step that requires a human review. A candidate carries
+facts — who said what, when, with which URL. An entry also carries `theme`:
+the one the heuristic detected, which a human confirms or corrects before
+publication.
 
 ```bash
-python -m politiscope.cli publish --limit 5 --since-hours 48   # écrit publish_draft.json
-#   … vérifier / compléter sujet dans le fichier …
-python -m politiscope.cli publish --apply --dry-run            # valide sans insérer
-python -m politiscope.cli publish --apply                      # insère
+python -m politiscope.cli publish --limit 5 --since-hours 24   # writes publish_draft.json
+#   … check / correct theme in the file …
+python -m politiscope.cli publish --apply --dry-run            # validates without inserting
+python -m politiscope.cli publish --apply                      # inserts
 ```
 
-Le brouillon pré-remplit ce qui est déductible (nom, parti, famille, citation,
-date, source, thème détecté). `sujet` est en plus souvent pré-rempli par
-Claude Haiku — voir ci-dessous — mais reste à relire. Supprimez une entrée du
-tableau pour ne pas la publier.
+The draft pre-fills what can be deduced (name, party, family, citation, date,
+source, detected theme). Only `theme` needs reviewing: it must exist in the
+`topics` table. Remove an entry from the array to skip publishing it.
 
-### Suggestion automatique du sujet
+### Publishing from GitHub
 
-`sujet_suggere()` demande à Claude Haiku 4.5 une étiquette d'un ou deux mots à
-partir de la seule citation, et ne l'accepte que si la réponse y ressemble
-vraiment (peu de mots, pas de ponctuation de phrase) — sinon le champ reste
-vide, comme avant que cette fonction existe. C'est délibéré : le modèle refuse
-parfois d'en proposer une (citation rapportée par un tiers, blague sans sujet
-de fond) et écrit une explication au lieu d'une étiquette ; mieux vaut laisser
-vide et relire à la main que publier une étiquette fabriquée.
+Without Supabase credentials locally, the same two steps exist as manual
+workflows — the secrets are already in the repo:
 
-Sans `ANTHROPIC_API_KEY` (secret facultatif), le brouillon se construit
-normalement, `sujet` reste simplement vide partout — rien ne casse. Le coût
-mesuré est de l'ordre de 0,0005 $ par citation.
+1. *Draft Publication* runs on its own every morning after ingestion — or by
+   hand via *Actions -> Draft Publication -> Run workflow*, with `limit`,
+   `since_hours` and `min_score`. The draft is committed to `main`; if there's
+   no candidate, the job summary says so and nothing is committed. An
+   already-filled draft is never overwritten — see below.
+2. Edit `publish_draft.json` directly on github.com: check `theme`. Don't
+   touch `citation` or `source` — applying it re-compares them against the
+   original candidate and refuses any tampering. Commit.
+3. *Actions -> Publish Draft -> Run workflow*. Validation first runs in
+   `--dry-run`: on refusal, the errors show up in the job summary and nothing
+   is inserted. Otherwise the entries go into the database and the draft is
+   removed from the repo, so it can never be applied twice.
 
-**Ce que ça change pour la relecture :** une suggestion présente reste une
-suggestion — relisez-la contre la citation avant de valider, elle peut se
-tromper d'angle même quand le format est correct.
+If a filled draft is already waiting on `main`, *Draft Publication* —
+whether re-run by hand or by the next morning's ingestion — refuses to
+regenerate it and says so in the job summary, rather than erasing the review
+in progress. Checking `force` overrides that to start fresh.
 
-### Publier depuis GitHub
+The draft only contains public tweets and their URL: committing it exposes
+nothing.
 
-Sans identifiants Supabase en local, les deux mêmes étapes existent en
-workflows manuels — les secrets sont déjà dans le dépôt :
+### What validation refuses
 
-1. *Draft Publication* se lance seule chaque matin après l'ingestion — ou à la
-   main via *Actions -> Draft Publication -> Run workflow*, avec `limit`,
-   `since_hours` et `min_score`. Le brouillon est commité sur `main` ; s'il
-   n'y a aucune candidate, le résumé du job le dit et rien n'est commité. Un
-   brouillon déjà rempli n'est jamais écrasé — voir plus bas.
-2. Éditez `publish_draft.json` directement sur github.com : remplissez
-   `sujet`. Ne touchez ni à `citation` ni à `source`
-   — l'application les recompare à la candidate d'origine et refuse toute
-   retouche. Commitez.
-3. *Actions -> Publish Draft -> Run workflow*. La validation passe en
-   `--dry-run` d'abord : en cas de refus, les erreurs s'affichent dans le
-   résumé du job et rien n'est inséré. Sinon les entrées partent en base et le
-   brouillon est retiré du dépôt, pour ne jamais être appliqué deux fois.
-
-Si un brouillon rempli attend déjà sur `main`, *Draft Publication* — qu'elle
-soit relancée à la main ou par l'ingestion du lendemain — refuse de le
-régénérer et le dit dans le résumé du job, plutôt que d'effacer la relecture
-en cours. Cocher `force` passe outre pour repartir de zéro.
-
-Le brouillon ne contient que des tweets publics et leur URL : le commiter
-n'expose rien.
-
-### Ce que la validation refuse
-
-| Refus | Pourquoi |
+| Refusal | Why |
 |---|---|
-| `sujet` ou `theme` vide | une entrée sans lecture n'est pas une entrée |
-| `theme` absent de `topics` | clé étrangère |
-| **citation modifiée** | le brouillon ne peut pas réécrire les faits |
-| **source modifiée** ou non-https | idem |
-| citation déjà publiée, ou en double | évite les doublons sur le site |
+| empty `theme` | an entry without a review isn't an entry |
+| `theme` missing from `topics` | foreign key |
+| **modified citation** | the draft can't rewrite the facts |
+| **modified source** or non-https | same |
+| citation already published, or duplicate | avoids duplicates on the site |
 
-Les deux refus en gras sont l'essentiel : le brouillon est un fichier éditable,
-et rien ne doit permettre d'y retoucher une citation avant insertion. La citation
-et la source sont recomparées à la candidate d'origine à chaque application.
+The two bold refusals are the essential ones: the draft is an editable file,
+and nothing should allow tampering with a citation before insertion. The
+citation and the source are re-compared against the original candidate on
+every apply.
 
-Publier inscrit la citation dans `publications` : elle ne sera plus jamais
-reproposée, même si elle est ensuite retirée du site.
+Publishing records the citation in `publications`: it will never be proposed
+again, even if it's later removed from the site.
 
-### Une personne, plusieurs citations
+### One person, several citations
 
-Rien n'empêche de publier plusieurs citations d'une même personne — c'est même
-l'intérêt d'un baromètre suivi dans le temps. Le site affiche alors plusieurs
-bulles pour elle, et compte « N citations · M personnalités ».
+Nothing stops publishing several citations from the same person — that's
+even the point of a barometer tracked over time. The site then shows several
+bubbles for them, and counts "N citations · M personalities".
 
 ## Base de données (Supabase)
 

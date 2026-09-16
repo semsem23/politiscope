@@ -45,12 +45,12 @@ donc une page blanche.
 
 ## Données
 
-Le site lit deux tables, toutes deux en lecture seule via RLS :
+The site reads two tables, both read-only via RLS:
 
-| Table | Contenu |
+| Table | Content |
 |---|---|
-| `entries` | les citations éditorialisées — sujet et thème retenu |
-| `topics` | correspondance thème long → libellé court du graphe |
+| `entries` | the editorialized citations — theme retained |
+| `topics` | mapping from long theme -> short graph label |
 
 `entries` est distincte de `candidates` : cette dernière est la matière brute
 sortie de l'ingestion, sans jugement humain. Le site n'affiche que ce qui a été

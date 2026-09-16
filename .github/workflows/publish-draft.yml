@@ -1,32 +1,32 @@
 name: Draft Publication
 
-# Première moitié de `publish`, exécutée ici plutôt qu'en local : les
-# identifiants Supabase vivent déjà dans les secrets du dépôt, personne n'a
-# besoin de les recopier sur sa machine pour préparer une publication.
+# First half of `publish`, run here rather than locally: the Supabase
+# credentials already live in the repo's secrets, so nobody needs to copy
+# them onto their machine to prepare a publication.
 #
-# Le brouillon est commité sur `main` pour être relu et rempli directement sur
-# github.com. Il ne contient que des tweets publics et leur URL : le commiter
-# n'expose rien.
+# The draft is committed to `main` to be reviewed and filled in directly on
+# github.com. It only contains public tweets and their URL: committing it
+# exposes nothing.
 #
-# Se déclenche aussi à la suite de Nightly Ingestion : un brouillon frais est
-# proposé chaque matin, sans commande à taper. Ce déclenchement automatique
-# n'a pas de `force` — le garde-fou ci-dessous reste donc actif, pour ne
-# jamais écraser un brouillon déjà en cours de relecture.
+# Also triggers after Nightly Ingestion: a fresh draft is proposed every
+# morning, with nothing to type. That automatic trigger carries no `force` —
+# the guard below therefore stays active, so it never overwrites a draft
+# that's already being reviewed.
 
 on:
   workflow_dispatch:
     inputs:
       limit:
-        description: "Nombre maximum d'entrées"
+        description: "Maximum number of entries"
         default: "10"
       since_hours:
-        description: "Fenêtre glissante (heures)"
-        default: "48"
+        description: "Rolling window (hours)"
+        default: "24"
       min_score:
-        description: "Score minimal"
-        default: "75"
+        description: "Minimum score"
+        default: "60"
       force:
-        description: "Écraser un brouillon déjà rempli"
+        description: "Overwrite an already-filled draft"
         type: boolean
         default: false
   workflow_run:
@@ -34,8 +34,8 @@ on:
     types: [completed]
     branches: [main]
 
-# Même groupe que l'ingestion : un brouillon construit pendant que `db-sync`
-# écrit lirait un état intermédiaire.
+# Same group as ingestion: a draft built while `db-sync` is writing would
+# read an intermediate state.
 concurrency:
   group: ingestion
   cancel-in-progress: false
@@ -45,9 +45,9 @@ permissions:
 
 jobs:
   draft:
-    # Manuel : toujours. Automatique : seulement si l'ingestion qui a
-    # déclenché ce passage s'est terminée avec succès — une ingestion en
-    # échec n'a probablement rien versé de nouveau en base.
+    # Manual: always. Automatic: only if the ingestion that triggered this
+    # run finished successfully — a failed ingestion probably didn't push
+    # anything new to the database.
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
@@ -59,16 +59,12 @@ jobs:
       SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       SUPABASE_REGION: eu-west-2
-      # Suggère `sujet` (un ou deux mots) sur chaque entrée du brouillon.
-      # Facultatif : absent, le brouillon se construit quand même -- `sujet`
-      # reste alors vide comme avant, à remplir à la main.
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       PYTHONIOENCODING: utf-8
 
     steps:
-      # Historique complet, pas le défaut peu profond : le garde-fou plus bas
-      # lit `git log` sur publish_draft.json, et un clone à un seul commit ne
-      # verrait le dernier auteur que si ce commit précis touchait le fichier.
+      # Full history, not the shallow default: the guard below reads
+      # `git log` on publish_draft.json, and a single-commit clone would only
+      # see the last author if that exact commit touched the file.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -78,20 +74,19 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Installer les dépendances
+      - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # Régénérer efface le travail de relecture en cours. Le signal n'est ni
-      # « sujet est rempli » (Claude Haiku le pré-remplit avant toute relecture)
-      # ni « le dernier commit n'est pas du bot » (un commit sans rapport avec
-      # la relecture -- une migration de schéma, par exemple -- déclenchait
-      # ça à tort). Le signal fiable : sujet/theme ont-ils changé depuis la
-      # dernière génération par ce workflow ? Si non, personne n'a rien relu,
-      # peu importe qui a commité entre-temps -- sûr de régénérer.
-      - name: Refuser d'écraser un brouillon rempli
-        # `inputs.*` n'existe que pour workflow_dispatch ; `github.event.inputs.*`
-        # fonctionne aussi pour le déclenchement automatique via workflow_run,
-        # où il est simplement absent — donc jamais 'true', donc jamais forcé.
+      # Regenerating wipes out any review in progress. The signal isn't
+      # "the last commit isn't the bot's" (an unrelated commit — a schema
+      # migration, say — used to trigger this wrongly). The reliable signal:
+      # has `theme` changed since this workflow's last generation? If not,
+      # nobody has reviewed anything, no matter who committed in between —
+      # safe to regenerate.
+      - name: Refuse to overwrite a filled draft
+        # `inputs.*` only exists for workflow_dispatch; `github.event.inputs.*`
+        # also works for the automatic trigger via workflow_run, where it's
+        # simply absent — so never 'true', so never forced.
         if: ${{ github.event.inputs.force != 'true' }}
         run: |
           python - <<'PY'
@@ -104,15 +99,13 @@ jobs:
           BOT_EMAIL = "41898282+github-actions[bot]@users.noreply.github.com"
 
           def champs(entrees):
-              # Seuls sujet/theme comptent comme « relu » : le reste (score,
-              # citation, source...) ne se modifie jamais à la main.
-              return {e.get("candidate_id"): (e.get("sujet"), e.get("theme"))
-                      for e in entrees}
+              # Only `theme` counts as "reviewed": the rest (score, citation,
+              # source...) is never edited by hand.
+              return {e.get("candidate_id"): e.get("theme") for e in entrees}
 
-          # Filtré ici, pas via --author/--grep : "[bot]" dans l'adresse est
-          # une expression régulière valide (classe de caractères) pour git,
-          # donc pas le texte littéral recherché -- le filtre ne matchait
-          # jamais.
+          # Filtered here, not via --author/--grep: "[bot]" in the address is
+          # a valid regular expression (character class) for git, not the
+          # literal text being searched for -- the filter never matched.
           historique = subprocess.run(
               ["git", "log", "--format=%H%x00%ae%x00%s", "--", str(chemin)],
               capture_output=True, text=True, check=True,
@@ -120,7 +113,7 @@ jobs:
           genere = ""
           for ligne in historique.splitlines():
               h, ae, s = ligne.split("\x00", 2)
-              if ae == BOT_EMAIL and s == "Brouillon de publication":
+              if ae == BOT_EMAIL and s == "Draft publication":
                   genere = h
                   break
 
@@ -134,55 +127,55 @@ jobs:
               avant = json.loads(avant_brut).get("entries", [])
               inchange = champs(actuel) == champs(avant)
           else:
-              # Aucune génération retrouvée dans l'historique : cas inattendu,
-              # on ne prend pas le risque -- comme avant l'existence de ce
-              # garde-fou plus précis.
+              # No generation found in the history: unexpected case, don't
+              # take the risk -- same as before this more precise guard
+              # existed.
               inchange = False
 
           if inchange:
               sys.exit(0)
 
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
-              f.write("### Un brouillon relu à la main attend déjà sur `main`\n\n")
-              f.write(f"{len(actuel)} entrée(s) ; sujet ou theme ont changé depuis "
-                      "la dernière génération -- une relecture est en cours. "
-                      "Les régénérer effacerait ce travail.\n\n")
-              f.write("Lancez *Publish Draft*, ou relancez celui-ci en cochant "
-                      "`force` pour repartir de zéro.\n")
+              f.write("### A hand-reviewed draft is already waiting on `main`\n\n")
+              f.write(f"{len(actuel)} entry/entries; theme has changed since "
+                      "the last generation -- a review is in progress. "
+                      "Regenerating would erase that work.\n\n")
+              f.write("Run *Publish Draft*, or re-run this one with `force` "
+                      "checked to start over.\n")
           sys.exit(1)
           PY
 
-      - name: Construire le brouillon
-        # Les entrées passent par l'environnement plutôt que par interpolation
-        # directe : rien de ce qui vient du formulaire n'atteint le shell.
-        # Les `|| '...'` reprennent les défauts déclarés ci-dessus : absents du
-        # déclenchement automatique, ils n'existent alors que là.
+      - name: Build the draft
+        # Entries go through the environment rather than direct
+        # interpolation: nothing from the form reaches the shell. The
+        # `|| '...'` fallbacks repeat the defaults declared above: absent
+        # from the automatic trigger, they only exist there.
         env:
           LIMIT: ${{ github.event.inputs.limit || '10' }}
-          SINCE_HOURS: ${{ github.event.inputs.since_hours || '48' }}
-          MIN_SCORE: ${{ github.event.inputs.min_score || '75' }}
+          SINCE_HOURS: ${{ github.event.inputs.since_hours || '24' }}
+          MIN_SCORE: ${{ github.event.inputs.min_score || '60' }}
         run: |
-          # Un brouillon déjà commité serait pris pour le nouveau : `publish`
-          # n'écrit rien quand il ne trouve aucune candidate.
+          # An already-committed draft would be mistaken for the new one:
+          # `publish` writes nothing when it finds no candidate.
           rm -f publish_draft.json
           python -m politiscope.cli publish \
             --limit "$LIMIT" \
             --min-score "$MIN_SCORE" \
             --since-hours "$SINCE_HOURS"
 
-      - name: Commiter le brouillon
+      - name: Commit the draft
         env:
           LIMIT: ${{ github.event.inputs.limit || '10' }}
-          SINCE_HOURS: ${{ github.event.inputs.since_hours || '48' }}
-          MIN_SCORE: ${{ github.event.inputs.min_score || '75' }}
+          SINCE_HOURS: ${{ github.event.inputs.since_hours || '24' }}
+          MIN_SCORE: ${{ github.event.inputs.min_score || '60' }}
         run: |
           if [ ! -f publish_draft.json ]; then
             {
-              echo "### Aucune candidate publiable"
+              echo "### No publishable candidate"
               echo ""
-              echo "Critères : limit $LIMIT · since-hours $SINCE_HOURS · min-score $MIN_SCORE"
+              echo "Criteria: limit $LIMIT · since-hours $SINCE_HOURS · min-score $MIN_SCORE"
               echo ""
-              echo "Rien n'a été commité. Élargissez la fenêtre ou abaissez le score."
+              echo "Nothing was committed. Widen the window or lower the score."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -193,22 +186,22 @@ jobs:
 
           if git diff --cached --quiet; then
             {
-              echo "### Brouillon inchangé"
+              echo "### Draft unchanged"
               echo ""
-              echo "Le brouillon déjà sur \`main\` correspond aux mêmes candidates."
+              echo "The draft already on \`main\` matches the same candidates."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
 
-          git commit -m "Brouillon de publication"
+          git commit -m "Draft publication"
           git push
 
           n=$(python -c "import json;print(len(json.load(open('publish_draft.json',encoding='utf-8'))['entries']))")
           {
-            echo "### Brouillon commité"
+            echo "### Draft committed"
             echo ""
-            echo "$n entrée(s) à relire."
+            echo "$n entry/entries to review."
             echo ""
-            echo "Remplissez \`sujet\` dans \`publish_draft.json\`,"
-            echo "commitez, puis lancez *Publish Draft*."
+            echo "Check \`theme\` in \`publish_draft.json\`,"
+            echo "commit, then run *Publish Draft*."
           } >> "$GITHUB_STEP_SUMMARY"

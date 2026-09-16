@@ -13,7 +13,6 @@ export interface Entry {
   code_parti: string | null;
   famille: FamilleId;
   theme: string;
-  sujet: string;
   citation: string;
   date_texte: string;
   date_tri: string | null;

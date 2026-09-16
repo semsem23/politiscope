@@ -24,7 +24,7 @@ export function BubbleField({ entries, onSelect }: Props) {
             key={d.id}
             type="button"
             className="bubble"
-            title={`${d.nom} — ${d.sujet}`}
+            title={`${d.nom} — ${d.theme}`}
             onClick={() => onSelect(d)}
           >
             <span

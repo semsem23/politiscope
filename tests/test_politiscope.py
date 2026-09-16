@@ -457,63 +457,14 @@ def test_date_francaise():
 
 
 def test_champs_de_jugement_declares_obligatoires():
-    """Le pipeline ne doit jamais inventer sujet."""
+    """The pipeline must never invent the chosen theme."""
     from politiscope.publish import CHAMPS_A_REMPLIR
-    assert "sujet" in CHAMPS_A_REMPLIR
-
-
-# --- suggestion de sujet (Claude Haiku) -----------------------------------
-def _reponse(texte):
-    """Fabrique une réponse Anthropic minimale portant ce seul bloc texte."""
-    import unittest.mock as m
-    bloc = m.Mock(type="text", text=texte)
-    return m.Mock(content=[bloc])
-
-
-def test_sujet_suggere_sans_cle_ne_contacte_rien():
-    import unittest.mock as m
-    from politiscope import publish
-    with m.patch.object(publish, "settings", m.Mock(anthropic_api_key=None)), \
-         m.patch("anthropic.Anthropic") as client_cls:
-        assert publish.sujet_suggere("Une citation.") == ""
-        client_cls.assert_not_called()
-
-
-def test_sujet_suggere_etiquette_courte_acceptee():
-    import unittest.mock as m
-    from politiscope import publish
-    fake_client = m.Mock()
-    fake_client.messages.create.return_value = _reponse("Dette publique")
-    with m.patch.object(publish, "settings", m.Mock(anthropic_api_key="fake")), \
-         m.patch("anthropic.Anthropic", return_value=fake_client):
-        assert publish.sujet_suggere("citation") == "Dette publique"
-
-
-def test_sujet_suggere_refus_du_modele_devient_vide():
-    """Un refus arrive en phrase(s), pas en étiquette : jamais publié tel quel."""
-    import unittest.mock as m
-    from politiscope import publish
-    fake_client = m.Mock()
-    fake_client.messages.create.return_value = _reponse(
-        "Je ne vois pas de citation publique d'un responsable politique dans "
-        "votre texte."
-    )
-    with m.patch.object(publish, "settings", m.Mock(anthropic_api_key="fake")), \
-         m.patch("anthropic.Anthropic", return_value=fake_client):
-        assert publish.sujet_suggere("citation") == ""
-
-
-def test_sujet_suggere_panne_devient_vide():
-    import unittest.mock as m
-    from politiscope import publish
-    with m.patch.object(publish, "settings", m.Mock(anthropic_api_key="fake")), \
-         m.patch("anthropic.Anthropic", side_effect=RuntimeError("boom")):
-        assert publish.sujet_suggere("citation") == ""
+    assert "theme" in CHAMPS_A_REMPLIR
 
 
 def _draft_entry(**over):
     e = {"candidate_id": 1, "nom": "Test", "parti": "P", "famille": "majorite",
-         "theme": "Budget & finances publiques", "sujet": "Un sujet",
+         "theme": "Budget & finances publiques",
          "citation": "Le budget est injuste pour les Français.",
          "date_texte": "14 septembre 2026", "date_tri": "2026-09-14",
          "source": "https://x.com/t/status/1"}
@@ -522,7 +473,7 @@ def _draft_entry(**over):
 
 
 class _FakeCursor:
-    """Rejoue les deux requêtes de validate() sans base."""
+    """Replays validate()'s two queries without a database."""
     def __init__(self, officiel, deja):
         self.officiel, self.deja, self._rows = officiel, deja, []
     def execute(self, q, *a):
@@ -551,7 +502,7 @@ def test_brouillon_complet_est_valide():
     assert _validate([_draft_entry()]) == []
 
 
-@pytest.mark.parametrize("champ", ["sujet", "theme"])
+@pytest.mark.parametrize("champ", ["theme"])
 def test_champ_vide_est_refuse(champ):
     p = _validate([_draft_entry(**{champ: ""})])
     assert any(champ in x for x in p)
@@ -562,14 +513,14 @@ def test_theme_inconnu_est_refuse():
 
 
 def test_citation_modifiee_est_refusee():
-    """Garde-fou central : le brouillon ne doit pas pouvoir réécrire les faits."""
+    """Central safeguard: the draft must not be able to rewrite the facts."""
     p = _validate([_draft_entry(citation="Le budget est PARFAIT.")])
-    assert any("citation a été modifiée" in x for x in p)
+    assert any("citation was modified" in x for x in p)
 
 
 def test_source_modifiee_est_refusee():
     p = _validate([_draft_entry(source="https://exemple.fr/faux")])
-    assert any("source a été modifiée" in x for x in p)
+    assert any("source was modified" in x for x in p)
 
 
 def test_source_non_https_est_refusee():
@@ -578,12 +529,12 @@ def test_source_non_https_est_refusee():
 
 
 def test_citation_deja_publiee_est_refusee():
-    assert any("déjà publiée" in x for x in _validate([_draft_entry()], deja=("clef1",)))
+    assert any("already published" in x for x in _validate([_draft_entry()], deja=("clef1",)))
 
 
 def test_doublon_dans_le_brouillon_est_refuse():
     p = _validate([_draft_entry(), _draft_entry()])
-    assert any("double dans le brouillon" in x for x in p)
+    assert any("duplicate citation in the draft" in x for x in p)
 
 
 def test_plafond_mensuel_survit_a_un_runner_neuf(tmp_path, monkeypatch):

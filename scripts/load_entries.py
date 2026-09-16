@@ -1,4 +1,4 @@
-"""Charge artifact_data.json (26 entrées éditorialisées) dans Supabase."""
+"""Loads artifact_data.json (26 editorialized entries) into Supabase."""
 from __future__ import annotations
 
 import json
@@ -24,7 +24,7 @@ MOIS = {m: i + 1 for i, m in enumerate(
     ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
      "août", "septembre", "octobre", "novembre", "décembre"])}
 
-# Ordre d'affichage des thèmes dans le graphe, du plus structurant au plus niche.
+# Display order of themes in the graph, from most structuring to most niche.
 ORDRE = ["Stratégie 2027 & recomposition", "Budget & finances publiques",
          "Immigration & sécurité", "Pouvoir d'achat & vie chère",
          "Institutions & calendrier électoral", "Europe & souveraineté",
@@ -32,7 +32,7 @@ ORDRE = ["Stratégie 2027 & recomposition", "Budget & finances publiques",
 
 
 def parse_fr_date(s: str) -> date | None:
-    """« 13 septembre 2026 » / « août 2026 » / « 2026 » -> date triable."""
+    """« 13 septembre 2026 » / « août 2026 » / « 2026 » -> sortable date."""
     parts = s.strip().split()
     try:
         year = int(parts[-1])
@@ -60,7 +60,7 @@ def main() -> int:
     with db.connect() as conn:
         applied = db.migrate(conn)
         if applied:
-            print("migrations :", ", ".join(applied))
+            print("migrations:", ", ".join(applied))
 
         topic_rows = [(theme, court, ORDRE.index(theme) if theme in ORDRE else 100)
                       for theme, court in topics.items()]
@@ -76,19 +76,18 @@ def main() -> int:
         for e in entries:
             rows.append((
                 e["nom"], e["parti"], e.get("code_parti"), e["famille"], e["theme"],
-                e["sujet"], e["citation"], normalise(e["citation"]),
+                e["citation"], normalise(e["citation"]),
                 e["date"], parse_fr_date(e["date"]), e["source"],
             ))
         with conn.cursor() as cur:
             psycopg2.extras.execute_batch(cur, """
-                insert into entries (nom, parti, code_parti, famille, theme, sujet,
+                insert into entries (nom, parti, code_parti, famille, theme,
                                      citation, citation_key,
                                      date_texte, date_tri, source)
-                values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 on conflict (nom, citation_key) do update
                   set parti = excluded.parti, code_parti = excluded.code_parti,
                       famille = excluded.famille, theme = excluded.theme,
-                      sujet = excluded.sujet,
                       date_texte = excluded.date_texte, date_tri = excluded.date_tri,
                       source = excluded.source
             """, rows)
@@ -104,7 +103,7 @@ def main() -> int:
 
     print(f"\ntopics  {n_topics}")
     print(f"entries {n_entries}")
-    print("\npar famille :")
+    print("\nby family:")
     for f, n in par_famille:
         print(f"  {n:>2}  {f}")
     return 0
