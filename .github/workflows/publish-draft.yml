@@ -4,14 +4,20 @@ name: Draft Publication
 # credentials already live in the repo's secrets, so nobody needs to copy
 # them onto their machine to prepare a publication.
 #
-# The draft is committed to `main` to be reviewed and filled in directly on
-# github.com. It only contains public tweets and their URL: committing it
-# exposes nothing.
+# The draft is committed to `main`. It only contains public tweets and their
+# URL: committing it exposes nothing.
 #
-# Also triggers after Nightly Ingestion: a fresh draft is proposed every
-# morning, with nothing to type. That automatic trigger carries no `force` —
-# the guard below therefore stays active, so it never overwrites a draft
-# that's already being reviewed.
+# Also triggers after Nightly Ingestion: a fresh draft is built every
+# morning, with nothing to type. Publish Draft then picks it up on its own —
+# see that workflow — so the nightly chain runs end to end without a human
+# reading `theme`. A manual run here (*Run workflow*) behaves differently: it
+# does NOT auto-publish, so it stays the tool for reviewing a draft by hand
+# before committing to `main` yourself, or for testing different `limit` /
+# `since_hours` / `min_score` values.
+#
+# That automatic trigger carries no `force` — the guard below therefore
+# stays active, so it never overwrites a draft that's already being
+# reviewed by hand.
 
 on:
   workflow_dispatch:

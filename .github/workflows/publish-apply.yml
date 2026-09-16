@@ -1,13 +1,25 @@
 name: Publish Draft
 
-# Seconde moitié de `publish` : valide `publish_draft.json` rempli à la main,
-# puis insère les entrées que le site affiche.
+# Seconde moitié de `publish` : valide `publish_draft.json`, puis insère les
+# entrées que le site affiche.
 #
 # La validation passe d'abord en `--dry-run` : un brouillon incomplet ou dont
 # la citation a été retouchée s'arrête ici, sans rien insérer.
-
+#
+# Deux façons d'arriver ici :
+#   - automatique, à la suite de Draft Publication quand celle-ci a elle-même
+#     été déclenchée par Nightly Ingestion (donc jamais après un passage
+#     manuel de Draft Publication) : la chaîne ingestion -> brouillon ->
+#     publication tourne alors sans intervention, `theme` n'étant relu par
+#     personne — seule la détection automatique en répond ;
+#   - manuelle, via *Run workflow*, pour publier un brouillon relu à la main
+#     ou rejouer une publication après correction.
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Draft Publication"]
+    types: [completed]
+    branches: [main]
 
 # Même groupe que l'ingestion : publier pendant que `db-sync` écrit relirait
 # les candidates à mi-chemin.
@@ -20,6 +32,15 @@ permissions:
 
 jobs:
   apply:
+    # Manuel : toujours. Automatique : seulement si Draft Publication a réussi
+    # ET a elle-même été déclenchée par Nightly Ingestion (`event ==
+    # 'workflow_run'`) — un passage manuel de Draft Publication (test avec un
+    # `limit`/`min_score` différent, par exemple) ne doit pas publier tout
+    # seul ce qu'il vient de générer.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'workflow_run')
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -41,7 +62,25 @@ jobs:
       - name: Installer les dépendances
         run: pip install -r requirements.txt
 
+      # Déclenché automatiquement même quand Draft Publication n'a rien
+      # commité (aucune candidate ce jour-là) : sans ce filtre, `publish
+      # --apply` échouerait sur un fichier absent au lieu de sauter proprement.
+      - name: Vérifier qu'il y a un brouillon
+        id: check
+        run: |
+          if [ -f publish_draft.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Aucun brouillon à publier"
+              echo ""
+              echo "Draft Publication n'a rien commité — rien à faire ici."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Valider le brouillon
+        if: steps.check.outputs.present == 'true'
         run: |
           set +e
           python -m politiscope.cli publish --apply --dry-run \
@@ -60,6 +99,7 @@ jobs:
           fi
 
       - name: Publier
+        if: steps.check.outputs.present == 'true'
         run: |
           # `| tee` renverrait le code de tee : sans pipefail, un échec
           # d'insertion passerait pour un succès et le brouillon serait retiré.
@@ -74,6 +114,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Retirer le brouillon appliqué
+        if: steps.check.outputs.present == 'true'
         # Un brouillon qui resterait sur `main` inviterait à le rejouer. La
         # base refuserait l'insertion — `validate` écarte toute citation déjà
         # publiée — mais autant ne pas proposer le geste.

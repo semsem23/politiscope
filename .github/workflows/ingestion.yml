@@ -3,9 +3,11 @@ name: Nightly Ingestion
 # Alimente Politiscope sans intervention : Google Actualités (gratuit), puis
 # les timelines X (payantes, incrémentales), puis versement en base.
 #
-# Rien n'est publié automatiquement. L'ingestion remplit `candidates` ; le
-# passage en `entries` reste manuel, parce qu'il exige un jugement — voir la
-# commande `publish`.
+# Cette ingestion ne fait que remplir `candidates`. Le passage en `entries`
+# se fait dans deux workflows séparés qu'elle déclenche en chaîne — Draft
+# Publication puis Publish Draft — qui, ensemble, publient sans intervention
+# ce que `theme` a détecté automatiquement. Voir Draft Publication pour la
+# différence avec un passage manuel de la chaîne.
 
 on:
   schedule:
