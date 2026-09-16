@@ -537,6 +537,31 @@ def test_doublon_dans_le_brouillon_est_refuse():
     assert any("duplicate citation in the draft" in x for x in p)
 
 
+def test_apply_draft_transmet_le_handle():
+    """`handle` suit la même règle que les autres champs déduits : recopié tel quel."""
+    from politiscope import publish
+    import unittest.mock as m
+
+    calls = []
+
+    class _Cur:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    class _Conn:
+        def cursor(self): return _Cur()
+
+    with m.patch("psycopg2.extras.execute_batch",
+                 side_effect=lambda cur, sql, rows: calls.append((sql, rows))):
+        publish.apply_draft(_Conn(), [_draft_entry(handle="JLMelenchon")])
+
+    entries_sql, entries_rows = calls[0]
+    assert "insert into entries" in entries_sql
+    assert "handle" in entries_sql
+    assert len(entries_rows[0]) == 12
+    assert entries_rows[0][4] == "JLMelenchon"
+
+
 def test_plafond_mensuel_survit_a_un_runner_neuf(tmp_path, monkeypatch):
     """En exécution planifiée, x_state.json est vide : sans reprise depuis la
     base, le garde-fou budgétaire ne se déclencherait jamais."""

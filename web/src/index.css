@@ -138,39 +138,64 @@ input.control { min-width: 180px; }
 }
 .reset-btn:hover { color: var(--ink); }
 
-/* ---------- Champ de bulles ---------- */
+/* ---------- Bascule de vue (Personnalités | Citations) ---------- */
+.view-toggle { margin-bottom: 18px; }
+
+/* ---------- Grille des personnalités ---------- */
 .field-meta {
   display: flex; justify-content: space-between; align-items: baseline;
   font-size: 12.5px; color: var(--muted); margin-bottom: 14px; gap: 12px;
 }
-.bubble-field {
-  display: flex; flex-wrap: wrap; gap: 22px 18px;
+.person-grid {
+  display: flex; flex-wrap: wrap; gap: 18px;
   padding: 4px 0 8px; min-height: 160px;
 }
-.bubble {
-  width: 128px; display: flex; flex-direction: column; align-items: center; gap: 9px;
-  background: none; border: none; font: inherit; cursor: pointer; padding: 0;
+.person-card {
+  width: 226px; display: flex; flex-direction: column; align-items: center; gap: 9px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  font: inherit; cursor: pointer; padding: 18px 16px 16px;
   text-align: center; color: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
-.bubble:focus-visible .orb { outline: 2px solid var(--accent); outline-offset: 2px; }
+.person-card:hover, .person-card:focus-visible {
+  border-color: var(--muted); box-shadow: var(--shadow); transform: translateY(-2px);
+}
+.person-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .orb {
-  position: relative; width: 96px; height: 96px; border-radius: 50%;
+  position: relative; width: 88px; height: 88px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   border: 2.5px solid var(--fam-color, var(--muted));
   background: color-mix(in srgb, var(--fam-color, var(--muted)) 12%, var(--surface));
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
-}
-.bubble:hover .orb, .bubble:focus-visible .orb {
-  transform: translateY(-3px) scale(1.045); box-shadow: var(--shadow);
 }
 .orb .initials {
-  font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: 22px; color: var(--ink);
+  font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: 21px; color: var(--ink);
 }
-.bubble .name { font-size: 13px; font-weight: 600; line-height: 1.25; }
-.bubble .party {
+.count-badge {
+  position: absolute; top: -4px; right: -4px; min-width: 21px; height: 21px; padding: 0 5px;
+  border-radius: 999px; border: 2px solid var(--surface);
+  background: var(--ink); color: var(--page);
+  font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+}
+.person-card .name { font-size: 13.5px; font-weight: 600; line-height: 1.25; }
+.person-card .party {
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 10.5px; color: var(--muted); line-height: 1.3;
 }
+.card-preview {
+  width: 100%; text-align: left; margin-top: 6px; padding-top: 10px;
+  border-top: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.preview-theme {
+  font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10px;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
+}
+.preview-quote {
+  font-family: "Fraunces", Georgia, serif; font-style: italic; font-size: 13px;
+  line-height: 1.4; color: var(--ink-soft);
+}
+.preview-date { font-size: 11px; color: var(--muted); }
 .empty-state { width: 100%; padding: 48px 20px; text-align: center; color: var(--muted); font-size: 14px; }
 
 /* ---------- Fiche détaillée ---------- */
@@ -222,6 +247,26 @@ input.control { min-width: 180px; }
 }
 .modal-footer a { font-weight: 600; text-decoration: none; }
 .modal-footer a:hover { text-decoration: underline; }
+.modal-count { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+.citation-theme {
+  font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 6px;
+}
+.citation-block { margin-bottom: 20px; }
+.citation-block-latest {
+  background: color-mix(in srgb, var(--fam-color, var(--muted)) 7%, var(--surface));
+  border-radius: 12px; padding: 14px 16px 4px;
+}
+.citation-block-latest .quote { font-size: 19px; }
+.citation-timeline { list-style: none; margin: 0 0 20px; padding: 0; }
+.citation-timeline .citation-block:last-child { margin-bottom: 0; }
+.view-in-table-btn {
+  width: 100%; font: inherit; font-size: 13px; font-weight: 600; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  padding: 11px; cursor: pointer;
+}
+.view-in-table-btn:hover { border-color: var(--muted); background: var(--surface-raised); }
+.view-in-table-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* ---------- Graphe des sujets ---------- */
 .section-head { margin-bottom: 16px; }
@@ -273,6 +318,65 @@ input.control { min-width: 180px; }
 .node-swatch.topic { background: var(--surface-raised); border-color: var(--topic-color); }
 .node-swatch.pol { background: var(--surface-raised); border-color: var(--muted); }
 
+/* ---------- Vue Citations (tableau) ---------- */
+/* Le contenu large (citation, source) défile dans ce conteneur, jamais dans
+   la page entière. */
+.table-scroll {
+  overflow-x: auto; border: 1px solid var(--line); border-radius: 14px;
+  background: var(--surface);
+}
+.citations-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.citations-table th, .citations-table td {
+  padding: 10px 14px; text-align: left; vertical-align: top;
+  border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.citations-table th {
+  font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600;
+}
+.citations-table td.citation-cell {
+  white-space: normal; min-width: 280px;
+  font-family: "Fraunces", Georgia, serif; font-style: italic; color: var(--ink);
+}
+.citations-table td .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: 1px; }
+.citations-table tbody tr:last-child td { border-bottom: none; }
+.citations-table tbody tr:hover { background: color-mix(in srgb, var(--surface-raised) 70%, transparent); }
+.sort-btn {
+  font: inherit; font-family: inherit; font-size: inherit; font-weight: inherit;
+  text-transform: inherit; letter-spacing: inherit; color: inherit;
+  background: none; border: none; padding: 0; cursor: pointer;
+}
+.sort-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.link-btn {
+  font: inherit; font-weight: 600; background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--ink); text-decoration: underline; text-underline-offset: 2px;
+}
+.link-btn:hover { color: var(--accent); }
+.link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* En dessous de 640px : le tableau se replie en cartes empilées, une ligne
+   par personne, sur laquelle tout tap ouvre la fiche (sauf le nom, qui filtre). */
+@media (max-width: 639px) {
+  .table-scroll { overflow-x: visible; border: none; background: none; }
+  .citations-table { display: block; }
+  .citations-table thead { display: none; }
+  .citations-table tbody { display: block; }
+  .citations-table tr.citation-row {
+    display: block; cursor: pointer;
+    border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+    padding: 12px 14px; margin-bottom: 10px;
+  }
+  .citations-table td {
+    display: flex; gap: 10px; align-items: flex-start;
+    border-bottom: none; padding: 4px 0; white-space: normal;
+  }
+  .citations-table td::before {
+    content: attr(data-label); flex: none; width: 88px;
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 9.5px;
+    text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted);
+  }
+}
+
 /* ---------- Pied de page ---------- */
 .page-footer {
   margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--line);
@@ -301,7 +405,7 @@ input.control { min-width: 180px; }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
 @media (max-width: 560px) {
-  .bubble { width: 104px; }
+  .person-card { width: 100%; }
   .orb { width: 84px; height: 84px; }
   .graph-container { height: 380px; }
 }
