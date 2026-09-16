@@ -83,12 +83,18 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # Regenerating wipes out any review in progress. The signal isn't
-      # "the last commit isn't the bot's" (an unrelated commit — a schema
-      # migration, say — used to trigger this wrongly). The reliable signal:
-      # has `theme` changed since this workflow's last generation? If not,
-      # nobody has reviewed anything, no matter who committed in between —
-      # safe to regenerate.
+      # Regenerating wipes out any review in progress. The signal is who
+      # touched publish_draft.json last: the bot (its own build-and-commit
+      # step, or its own remove-after-apply step) means nobody has reviewed
+      # anything since -- safe to regenerate. A human (an edit on github.com)
+      # means a review is genuinely in progress.
+      #
+      # Diffing the draft's own content against the previous generation used
+      # to be the signal instead ("has `theme` changed"), but that breaks as
+      # soon as this runs unattended every night: fresh candidates from
+      # Nightly Ingestion reshuffle which ones `build_draft` picks, so the
+      # set of candidate_ids -- and so the diff -- changes on its own, with
+      # no human involved, and the guard refused to regenerate ever again.
       - name: Refuse to overwrite a filled draft
         # `inputs.*` only exists for workflow_dispatch; `github.event.inputs.*`
         # also works for the automatic trigger via workflow_run, where it's
@@ -104,47 +110,22 @@ jobs:
 
           BOT_EMAIL = "41898282+github-actions[bot]@users.noreply.github.com"
 
-          def champs(entrees):
-              # Only `theme` counts as "reviewed": the rest (score, citation,
-              # source...) is never edited by hand.
-              return {e.get("candidate_id"): e.get("theme") for e in entrees}
-
           # Filtered here, not via --author/--grep: "[bot]" in the address is
           # a valid regular expression (character class) for git, not the
           # literal text being searched for -- the filter never matched.
-          historique = subprocess.run(
-              ["git", "log", "--format=%H%x00%ae%x00%s", "--", str(chemin)],
+          dernier_auteur = subprocess.run(
+              ["git", "log", "--format=%ae", "-1", "--", str(chemin)],
               capture_output=True, text=True, check=True,
-          ).stdout
-          genere = ""
-          for ligne in historique.splitlines():
-              h, ae, s = ligne.split("\x00", 2)
-              if ae == BOT_EMAIL and s == "Draft publication":
-                  genere = h
-                  break
+          ).stdout.strip()
 
-          actuel = json.loads(chemin.read_text(encoding="utf-8")).get("entries", [])
-
-          if genere:
-              avant_brut = subprocess.run(
-                  ["git", "show", f"{genere}:{chemin}"],
-                  capture_output=True, text=True, check=True,
-              ).stdout
-              avant = json.loads(avant_brut).get("entries", [])
-              inchange = champs(actuel) == champs(avant)
-          else:
-              # No generation found in the history: unexpected case, don't
-              # take the risk -- same as before this more precise guard
-              # existed.
-              inchange = False
-
-          if inchange:
+          if dernier_auteur == BOT_EMAIL:
               sys.exit(0)
 
+          actuel = json.loads(chemin.read_text(encoding="utf-8")).get("entries", [])
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
               f.write("### A hand-reviewed draft is already waiting on `main`\n\n")
-              f.write(f"{len(actuel)} entry/entries; theme has changed since "
-                      "the last generation -- a review is in progress. "
+              f.write(f"{len(actuel)} entry/entries; someone has edited the file "
+                      "since it was generated -- a review is in progress. "
                       "Regenerating would erase that work.\n\n")
               f.write("Run *Publish Draft*, or re-run this one with `force` "
                       "checked to start over.\n")
