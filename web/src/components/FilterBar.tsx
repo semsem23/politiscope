@@ -1,32 +1,38 @@
-import type { Filters } from "../hooks/usePolitiscope";
-import { FAMILLES, type Entry, type SortKey } from "../types";
+import { distinctFigureCount, type Filters } from "../hooks/usePolitiscope";
+import { FAMILLES, type Entry, type Figure, type PersonSortKey } from "../types";
+
+export type View = "personnalites" | "citations";
 
 interface Props {
   entries: Entry[];
+  figures: Figure[];
+  view: View;
   filters: Filters;
   setFilters: (f: Filters) => void;
   onReset: () => void;
 }
 
-const SORTS: { value: SortKey; label: string }[] = [
-  { value: "theme", label: "Trier — sujet le plus discuté" },
-  { value: "date-desc", label: "Trier — plus récent d'abord" },
-  { value: "date-asc", label: "Trier — plus ancien d'abord" },
+const PERSON_SORTS: { value: PersonSortKey; label: string }[] = [
+  { value: "recent", label: "Trier — citation la plus récente" },
+  { value: "count", label: "Trier — nombre de citations" },
   { value: "alpha", label: "Trier — ordre alphabétique" },
-  { value: "parti", label: "Trier — par parti" },
 ];
 
-export function FilterBar({ entries, filters, setFilters, onReset }: Props) {
+export function FilterBar({ entries, figures, view, filters, setFilters, onReset }: Props) {
   const themes = [...new Set(entries.map((e) => e.theme))].sort((a, b) =>
     a.localeCompare(b, "fr")
   );
+  const sortedFigures = [...figures].sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
 
   return (
     <div className="filterbar">
       <div className="filter-row">
         <span className="filter-group-label">Famille politique</span>
         {FAMILLES.map((f) => {
-          const count = entries.filter((e) => e.famille === f.id).length;
+          const count =
+            view === "personnalites"
+              ? distinctFigureCount(entries, f.id)
+              : entries.filter((e) => e.famille === f.id).length;
           const active = filters.familles[f.id];
           return (
             <button
@@ -65,18 +71,38 @@ export function FilterBar({ entries, filters, setFilters, onReset }: Props) {
           ))}
         </select>
 
-        <select
-          className="control"
-          value={filters.sort}
-          aria-label="Trier"
-          onChange={(e) => setFilters({ ...filters, sort: e.target.value as SortKey })}
-        >
-          {SORTS.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.label}
-            </option>
-          ))}
-        </select>
+        {view === "citations" && (
+          <select
+            className="control"
+            value={filters.personId ?? "all"}
+            aria-label="Filtrer par personnalité"
+            onChange={(e) =>
+              setFilters({ ...filters, personId: e.target.value === "all" ? null : e.target.value })
+            }
+          >
+            <option value="all">Toutes les personnalités</option>
+            {sortedFigures.map((f) => (
+              <option key={f.figure_id} value={f.figure_id}>
+                {f.nom}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {view === "personnalites" && (
+          <select
+            className="control"
+            value={filters.personSort}
+            aria-label="Trier"
+            onChange={(e) => setFilters({ ...filters, personSort: e.target.value as PersonSortKey })}
+          >
+            {PERSON_SORTS.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        )}
 
         <input
           className="control"

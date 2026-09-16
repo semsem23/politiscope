@@ -1,10 +1,16 @@
 import { useCallback, useMemo, useState } from "react";
-import { BubbleField } from "./components/BubbleField";
-import { DetailModal } from "./components/DetailModal";
-import { FilterBar } from "./components/FilterBar";
+import { CitationsTable } from "./components/CitationsTable";
+import { FilterBar, type View } from "./components/FilterBar";
+import { PersonGrid } from "./components/PersonGrid";
+import { PersonModal } from "./components/PersonModal";
 import { TopicGraph } from "./components/TopicGraph";
-import { useFiltered, usePolitiscopeData, type Filters } from "./hooks/usePolitiscope";
-import { FAMILLES, type Entry, type FamilleId } from "./types";
+import {
+  useFilteredEntries,
+  useFilteredFigures,
+  usePolitiscopeData,
+  type Filters,
+} from "./hooks/usePolitiscope";
+import { FAMILLES, figureKeyOf, type Entry, type FamilleId } from "./types";
 
 const CONTEXTE =
   "Les élections municipales se sont achevées en mars 2026 ; la France entre désormais en " +
@@ -16,24 +22,47 @@ const CONTEXTE =
 const emptyFilters = (): Filters => ({
   familles: Object.fromEntries(FAMILLES.map((f) => [f.id, true])) as Record<FamilleId, boolean>,
   theme: "all",
-  sort: "theme",
   search: "",
+  personId: null,
+  personSort: "recent",
 });
 
-export default function App() {
-  const { entries, topics, loading, error } = usePolitiscopeData();
-  const [filters, setFilters] = useState<Filters>(emptyFilters);
-  const [selected, setSelected] = useState<Entry | null>(null);
+const VIEWS: { value: View; label: string }[] = [
+  { value: "personnalites", label: "Personnalités" },
+  { value: "citations", label: "Citations" },
+];
 
-  const filtered = useFiltered(entries, filters);
+export default function App() {
+  const { entries, topics, figures, loading, error } = usePolitiscopeData();
+  const [view, setView] = useState<View>("personnalites");
+  const [filters, setFilters] = useState<Filters>(emptyFilters);
+  const [personModalId, setPersonModalId] = useState<string | null>(null);
+
+  const filteredEntries = useFilteredEntries(entries, filters);
+  const filteredFigures = useFilteredFigures(entries, figures, filters);
   const graphEntries = useMemo(
     () => (filters.theme === "all" ? entries : entries.filter((e) => e.theme === filters.theme)),
     [entries, filters.theme]
   );
+
   const onReset = useCallback(() => setFilters(emptyFilters()), []);
-  const closeModal = useCallback(() => setSelected(null), []);
+  const closeModal = useCallback(() => setPersonModalId(null), []);
   const onThemeChange = useCallback((theme: string) => {
     setFilters((f) => ({ ...f, theme: f.theme === theme ? "all" : theme }));
+  }, []);
+  // Depuis le graphe : ouvre directement la fiche personnalité (mode « pol »).
+  const onSelectFromGraph = useCallback((e: Entry) => setPersonModalId(figureKeyOf(e)), []);
+  // Depuis le tableau, sur mobile : la ligne entière ouvre la fiche.
+  const onOpenPersonFromTable = useCallback((figureId: string) => setPersonModalId(figureId), []);
+  // Cliquer un nom dans le tableau filtre sur cette personne, sans ouvrir la fiche.
+  const onSelectPersonInTable = useCallback((figureId: string) => {
+    setFilters((f) => ({ ...f, personId: figureId }));
+  }, []);
+  // « Voir dans le tableau » : ferme la fiche et bascule vers la vue Citations filtrée.
+  const onViewInTable = useCallback((figureId: string) => {
+    setPersonModalId(null);
+    setView("citations");
+    setFilters((f) => ({ ...f, personId: figureId }));
   }, []);
 
   if (error) {
@@ -51,6 +80,8 @@ export default function App() {
     );
   }
 
+  const citationCount = filteredFigures.reduce((n, f) => n + f.matchCount, 0);
+
   return (
     <div className="wrap">
       <header className="masthead">
@@ -65,43 +96,73 @@ export default function App() {
         </p>
       </header>
 
+      <div className="view-toggle graph-toggle" role="tablist" aria-label="Vue">
+        {VIEWS.map((v) => (
+          <button
+            key={v.value}
+            type="button"
+            role="tab"
+            className="toggle-btn"
+            aria-selected={view === v.value}
+            onClick={() => setView(v.value)}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+
       <FilterBar
         entries={entries}
+        figures={figures}
+        view={view}
         filters={filters}
         setFilters={setFilters}
         onReset={onReset}
       />
 
       <div className="field-meta">
-        <span>
-          {loading
-            ? "chargement…"
-            : `${filtered.length} résultat${filtered.length > 1 ? "s" : ""}` +
-              (filters.theme !== "all" ? ` · ${filters.theme}` : "")}
-        </span>
-        {/* Une personne peut porter plusieurs citations : compter les bulles
-            comme des « personnalités » deviendrait faux dès la 2e publication. */}
+        {view === "personnalites" ? (
+          <span>
+            {loading
+              ? "chargement…"
+              : `${filteredFigures.length} personnalité${filteredFigures.length > 1 ? "s" : ""} · ` +
+                `${citationCount} citation${citationCount > 1 ? "s" : ""}`}
+          </span>
+        ) : (
+          <span>
+            {loading
+              ? "chargement…"
+              : `${filteredEntries.length} citation${filteredEntries.length > 1 ? "s" : ""}` +
+                (filters.theme !== "all" ? ` · ${filters.theme}` : "")}
+          </span>
+        )}
         <span>
           {entries.length} citation{entries.length > 1 ? "s" : ""} ·{" "}
-          {new Set(entries.map((e) => e.nom)).size} personnalités
+          {new Set(entries.map(figureKeyOf)).size} personnalités
         </span>
       </div>
 
       {loading ? (
-        <section className="bubble-field" aria-busy="true">
+        <section className="person-grid" aria-busy="true">
           {Array.from({ length: 12 }, (_, i) => (
             <span key={i} className="skeleton" style={{ width: 96, height: 96 }} />
           ))}
         </section>
+      ) : view === "personnalites" ? (
+        <PersonGrid figures={filteredFigures} onSelect={setPersonModalId} />
       ) : (
-        <BubbleField entries={filtered} onSelect={setSelected} />
+        <CitationsTable
+          entries={filteredEntries}
+          onSelectPerson={onSelectPersonInTable}
+          onOpenPerson={onOpenPersonFromTable}
+        />
       )}
 
       {!loading && entries.length > 0 && (
         <TopicGraph
           entries={graphEntries}
           topics={topics}
-          onSelect={setSelected}
+          onSelect={onSelectFromGraph}
           theme={filters.theme}
           onThemeChange={onThemeChange}
         />
@@ -124,7 +185,12 @@ export default function App() {
         </p>
       </footer>
 
-      <DetailModal entry={selected} onClose={closeModal} />
+      <PersonModal
+        figureId={personModalId}
+        entries={entries}
+        onClose={closeModal}
+        onViewInTable={onViewInTable}
+      />
     </div>
   );
 }

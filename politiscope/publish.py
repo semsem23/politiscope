@@ -31,7 +31,7 @@ MOIS_FR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
            "août", "septembre", "octobre", "novembre", "décembre"]
 
 # Fields the machine fills in, and fields that require a human read.
-CHAMPS_DEDUITS = ("nom", "parti", "code_parti", "famille", "citation",
+CHAMPS_DEDUITS = ("nom", "parti", "code_parti", "famille", "handle", "citation",
                   "date_texte", "date_tri", "source")
 CHAMPS_A_REMPLIR = ("theme",)
 
@@ -48,10 +48,10 @@ def date_fr(iso: str | None) -> tuple[str, str | None]:
 
 
 def _reference_maps(conn) -> tuple[dict[str, dict], set[str]]:
-    """What we already know: parties by person, and allowed themes."""
+    """What we already know: parties (and handle) by person, and allowed themes."""
     with conn.cursor() as cur:
-        cur.execute("select nom, parti, code_parti, famille from entries")
-        par_nom = {r[0]: {"parti": r[1], "code_parti": r[2], "famille": r[3]}
+        cur.execute("select nom, parti, code_parti, famille, handle from entries")
+        par_nom = {r[0]: {"parti": r[1], "code_parti": r[2], "famille": r[3], "handle": r[4]}
                    for r in cur.fetchall()}
         cur.execute("select theme from topics")
         themes = {r[0] for r in cur.fetchall()}
@@ -113,6 +113,7 @@ def build_draft(conn, *, limit: int, min_score: int, per_person: int,
             "parti": connu.get("parti") or compte.get("parti") or parti or "",
             "code_parti": connu.get("code_parti"),
             "famille": connu.get("famille") or famille_,
+            "handle": connu.get("handle") or compte.get("handle"),
             "citation": citation,
             "date_texte": texte,
             "date_tri": tri,
@@ -194,17 +195,17 @@ def apply_draft(conn, entries: list[dict]) -> int:
     for e in entries:
         key = normalise(e["citation"])
         rows.append((e["nom"], e["parti"], e.get("code_parti"), e["famille"],
-                     e["theme"], e["citation"], key,
+                     e.get("handle"), e["theme"], e["citation"], key,
                      e["date_texte"], e.get("date_tri"), e["source"],
                      e.get("candidate_id")))
         pubs.append((e.get("candidate_id"), e["nom"], key))
 
     with conn.cursor() as cur:
         psycopg2.extras.execute_batch(cur, """
-            insert into entries (nom, parti, code_parti, famille, theme,
+            insert into entries (nom, parti, code_parti, famille, handle, theme,
                                  citation, citation_key,
                                  date_texte, date_tri, source, candidate_id)
-            values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             on conflict (nom, citation_key) do nothing
         """, rows)
         psycopg2.extras.execute_batch(cur, """
