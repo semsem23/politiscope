@@ -45,12 +45,15 @@ donc une page blanche.
 
 ## Données
 
-The site reads two tables, both read-only via RLS:
+The site reads three tables/views, all read-only via RLS:
 
 | Table | Content |
 |---|---|
 | `entries` | the editorialized citations — theme retained |
 | `topics` | mapping from long theme -> short graph label |
+| `site_context` | masthead eyebrow/paragraph text (migration 008); falls back to hardcoded strings in `usePolitiscope.ts` if missing |
+
+`personnalites` (a view, migration 006) is read too — see its own fallback in `usePolitiscope.ts`.
 
 `entries` est distincte de `candidates` : cette dernière est la matière brute
 sortie de l'ingestion, sans jugement humain. Le site n'affiche que ce qui a été

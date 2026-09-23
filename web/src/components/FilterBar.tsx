@@ -24,6 +24,14 @@ export function FilterBar({ entries, figures, view, filters, setFilters, onReset
   );
   const sortedFigures = [...figures].sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
 
+  // Citations par famille, tous filtres ignorés — comme les chips : sert de
+  // repère visuel constant, pas un recalcul sous filtre actif.
+  const citationCounts = FAMILLES.map((f) => ({
+    famille: f,
+    count: entries.filter((e) => e.famille === f.id).length,
+  }));
+  const totalCitations = citationCounts.reduce((n, c) => n + c.count, 0);
+
   return (
     <div className="filterbar">
       <div className="filter-row">
@@ -54,6 +62,21 @@ export function FilterBar({ entries, figures, view, filters, setFilters, onReset
           );
         })}
       </div>
+
+      {totalCitations > 0 && (
+        <div className="family-bar" aria-hidden="true">
+          {citationCounts
+            .filter((c) => c.count > 0)
+            .map((c) => (
+              <span
+                key={c.famille.id}
+                className="family-bar-seg"
+                style={{ width: `${(c.count / totalCitations) * 100}%`, background: c.famille.color }}
+                title={`${c.famille.label} — ${c.count} citation${c.count > 1 ? "s" : ""}`}
+              />
+            ))}
+        </div>
+      )}
 
       <div className="filter-row">
         <span className="filter-group-label">Thème</span>
@@ -107,7 +130,7 @@ export function FilterBar({ entries, figures, view, filters, setFilters, onReset
         <input
           className="control"
           type="search"
-          placeholder="Rechercher un nom, un mot…"
+          placeholder="Nom ou mot-clé…"
           aria-label="Rechercher"
           value={filters.search}
           onChange={(e) => setFilters({ ...filters, search: e.target.value })}

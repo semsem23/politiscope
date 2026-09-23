@@ -1,11 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { supabase, supabaseConfigError } from "../lib/supabase";
 import { figureKeyOf, type Entry, type FamilleId, type Figure, type PersonSortKey, type Topic } from "../types";
+
+/** Textes du masthead tels qu'affichés jusqu'ici, en repli — voir useSiteContext. */
+export const DEFAULT_SITE_CONTEXT = {
+  eyebrow: "Baromètre politique · Rentrée 2026",
+  contexte:
+    "Les élections municipales se sont achevées en mars 2026 ; la France entre désormais en " +
+    "pré-campagne pour la présidentielle de 2027. Le gouvernement de Sébastien Lecornu, formé " +
+    "fin février après avoir fait passer le budget 2026 au 49.3, affronte une contestation " +
+    "sociale naissante sur le pouvoir d'achat pendant que plusieurs figures officialisent leur " +
+    "candidature à l'occasion des universités d'été de septembre.",
+};
 
 interface Loaded {
   entries: Entry[];
   topics: Topic[];
   figures: Figure[];
+  /** Clé/valeur de `site_context`, seulement les clés effectivement présentes en base. */
+  siteContext: Partial<typeof DEFAULT_SITE_CONTEXT>;
   loading: boolean;
   error: string | null;
 }
@@ -55,17 +68,23 @@ export function usePolitiscopeData(): Loaded {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [figures, setFigures] = useState<Figure[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [siteContext, setSiteContext] = useState<Partial<typeof DEFAULT_SITE_CONTEXT>>({});
+  // Client absent (config manquante) : connu de façon synchrone dès l'appel
+  // du hook, pas après une attente réseau — posé directement dans l'état
+  // initial plutôt que via un setState dans l'effet ci-dessous.
+  const [loading, setLoading] = useState(() => supabase !== null);
+  const [error, setError] = useState<string | null>(() => supabaseConfigError);
 
   useEffect(() => {
     let cancelled = false;
+    if (!supabase) return;
 
     (async () => {
-      const [e, t, p] = await Promise.all([
+      const [e, t, p, c] = await Promise.all([
         supabase.from("entries").select("*").order("date_tri", { ascending: false }),
         supabase.from("topics").select("*").order("ordre"),
         supabase.from("personnalites").select("*"),
+        supabase.from("site_context").select("key, value"),
       ]);
       if (cancelled) return;
 
@@ -88,6 +107,17 @@ export function usePolitiscopeData(): Loaded {
       } else {
         setFigures((p.data ?? []) as Figure[]);
       }
+
+      // Idem pour `site_context` (migration 008) : les clés absentes ou la
+      // table elle-même manquante retombent sur DEFAULT_SITE_CONTEXT, géré
+      // par l'appelant (voir App.tsx) — ici on ne pose que ce qui est en base.
+      if (c.error) {
+        console.warn("table `site_context` indisponible, repli sur les textes par défaut :", c.error.message);
+      } else {
+        const rows = (c.data ?? []) as { key: string; value: string }[];
+        setSiteContext(Object.fromEntries(rows.map((r) => [r.key, r.value])));
+      }
+
       setLoading(false);
     })();
 
@@ -96,7 +126,7 @@ export function usePolitiscopeData(): Loaded {
     };
   }, []);
 
-  return { entries, topics, figures, loading, error };
+  return { entries, topics, figures, siteContext, loading, error };
 }
 
 export interface Filters {

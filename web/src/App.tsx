@@ -6,19 +6,13 @@ import { PersonModal } from "./components/PersonModal";
 import { TopicGraph } from "./components/TopicGraph";
 import { parseLocation, useUrlSync, type ParsedRoute } from "./hooks/useUrl";
 import {
+  DEFAULT_SITE_CONTEXT,
   useFilteredEntries,
   useFilteredFigures,
   usePolitiscopeData,
   type Filters,
 } from "./hooks/usePolitiscope";
 import { FAMILLES, figureKeyOf, type Entry, type FamilleId } from "./types";
-
-const CONTEXTE =
-  "Les élections municipales se sont achevées en mars 2026 ; la France entre désormais en " +
-  "pré-campagne pour la présidentielle de 2027. Le gouvernement de Sébastien Lecornu, formé " +
-  "fin février après avoir fait passer le budget 2026 au 49.3, affronte une contestation " +
-  "sociale naissante sur le pouvoir d'achat pendant que plusieurs figures officialisent leur " +
-  "candidature à l'occasion des universités d'été de septembre.";
 
 const emptyFilters = (): Filters => ({
   familles: Object.fromEntries(FAMILLES.map((f) => [f.id, true])) as Record<FamilleId, boolean>,
@@ -34,7 +28,20 @@ const VIEWS: { value: View; label: string }[] = [
 ];
 
 export default function App() {
-  const { entries, topics, figures, loading, error } = usePolitiscopeData();
+  const { entries, topics, figures, siteContext, loading, error } = usePolitiscopeData();
+  const eyebrow = siteContext.eyebrow ?? DEFAULT_SITE_CONTEXT.eyebrow;
+  const contexte = siteContext.contexte ?? DEFAULT_SITE_CONTEXT.contexte;
+
+  // Date de la citation la plus récente en base : sert de repère « à jour
+  // jusqu'à quand » sans dépendre d'un journal d'ingestion séparé.
+  const lastUpdate = useMemo(() => {
+    let max: string | null = null;
+    for (const e of entries) {
+      if (e.date_tri && (!max || e.date_tri > max)) max = e.date_tri;
+    }
+    if (!max) return null;
+    return new Date(max).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+  }, [entries]);
 
   // Lue une seule fois : les initialisateurs paresseux ci-dessous n'utilisent
   // cette valeur qu'au tout premier rendu.
@@ -135,14 +142,19 @@ export default function App() {
   if (error) {
     return (
       <div className="state-panel">
-        <h2>Données indisponibles</h2>
-        <p>
-          La connexion à Supabase a échoué : <code>{error}</code>
-        </p>
-        <p>
-          Vérifiez <code>VITE_SUPABASE_URL</code> et <code>VITE_SUPABASE_PUBLISHABLE_KEY</code> dans
-          <code>.env.local</code>, puis relancez le serveur de développement.
-        </p>
+        <h2>Site indisponible</h2>
+        <p>Le baromètre ne parvient pas à charger ses données pour le moment. Réessayez dans quelques instants.</p>
+        {import.meta.env.DEV && (
+          <>
+            <p>
+              <strong>Détail (visible en développement uniquement)</strong> : <code>{error}</code>
+            </p>
+            <p>
+              Vérifiez <code>VITE_SUPABASE_URL</code> et <code>VITE_SUPABASE_PUBLISHABLE_KEY</code> dans{" "}
+              <code>.env.local</code>, puis relancez le serveur de développement.
+            </p>
+          </>
+        )}
       </div>
     );
   }
@@ -152,9 +164,10 @@ export default function App() {
   return (
     <div className="wrap">
       <header className="masthead">
-        <p className="eyebrow">Baromètre politique · Rentrée 2026</p>
+        <p className="eyebrow">{eyebrow}</p>
         <h1 className="title">Politiscope</h1>
-        <p className="dek">{CONTEXTE}</p>
+        <p className="dek">{contexte}</p>
+        {lastUpdate && <p className="last-update">Dernière mise à jour : {lastUpdate}</p>}
         <p className="methodo">
           <strong>Méthode.</strong> Citations publiques réellement prononcées — discours,
           déclarations à la presse, publications sur X — collectées par un pipeline d'ingestion et

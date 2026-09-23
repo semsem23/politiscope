@@ -7,10 +7,12 @@ interface Props {
   onSelect: (figureId: string) => void;
 }
 
-/** « …80 caractères environ, terminée par "…" ». */
+/** « …80 caractères environ, terminée par "…" » — coupe au dernier espace, jamais en plein mot. */
 function preview(text: string, max = 80): string {
   if (text.length <= max) return text;
-  return text.slice(0, max).trimEnd() + "…";
+  const cut = text.slice(0, max);
+  const lastSpace = cut.lastIndexOf(" ");
+  return (lastSpace > 0 ? cut.slice(0, lastSpace) : cut).trimEnd() + "…";
 }
 
 export function PersonGrid({ figures, onSelect }: Props) {
@@ -41,9 +43,15 @@ export function PersonGrid({ figures, onSelect }: Props) {
               <span className="count-badge" aria-hidden="true">
                 {fig.matchCount}
               </span>
+              <span className="sr-only">
+                {fig.matchCount} citation{fig.matchCount > 1 ? "s" : ""}
+              </span>
             </span>
             <span className="name">{fig.nom}</span>
-            <span className="party">{fam.label}</span>
+            <span className="party">
+              <span className="dot" style={{ background: fam.color }} />
+              {fam.label}
+            </span>
             <span className="card-preview">
               <span className="preview-theme">{fig.dernier_theme}</span>
               <span className="preview-quote">« {preview(fig.derniere_citation)} »</span>
