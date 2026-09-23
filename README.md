@@ -1,7 +1,7 @@
 # Politiscope — pipeline d'ingestion
 
-Alimente le baromètre [Politiscope](https://claude.ai/code/artifact/f19d7318-d4a5-446e-ae05-a2cd3acccfdf)
-en citations politiques françaises sourcées.
+Alimente le baromètre [Politiscope](https://politiscope.app) en citations
+politiques françaises sourcées.
 
 ## Principe
 
@@ -13,7 +13,8 @@ Deux sources complémentaires, réunies par une étape de sélection :
 | **Google Actualités** (`fetch-rss`) | gratuit | Déclarations orales : meetings, plateaux, interviews | **à vérifier** |
 
 Un tweet est verbatim par construction et porte une URL citable : il alimente
-directement le champ `source` de `DATA`. Un titre de presse, lui, ne fournit
+directement le champ `source` d'une candidate (`candidates.source`, repris tel
+quel dans `entries.source` à la publication). Un titre de presse, lui, ne fournit
 qu'une piste — les liens Google News sont des redirections chiffrées qui ne se
 résolvent pas côté serveur. L'URL réelle doit être retrouvée sur le site du média
 avant publication.
@@ -31,8 +32,8 @@ pip install -r requirements.txt
 cp .env.example .env        # puis renseignez X_BEARER_TOKEN
 ```
 
-Toutes les commandes se lancent depuis `C:\politoscope` — la racine du projet,
-pas depuis le sous-dossier `politiscope/` qui est le package Python.
+Toutes les commandes se lancent depuis la racine du dépôt, pas depuis le
+sous-dossier `politiscope/` qui est le package Python.
 
 ## Voir l'interface
 
@@ -142,7 +143,8 @@ sur les données du 14 septembre 2026 :
 
 3. **Substance.** Vœux, hommages et résultats sportifs sont fortement dépréciés ;
    une citation sans thème politique identifiable l'est aussi. Le thème détecté
-   (`theme_suggere`) reprend les clés de `TOPIC_SHORT` et pré-remplit `DATA`.
+   (`theme_suggere`) reprend les thèmes reconnus par `quotes.py` et pré-remplit
+   `publish_draft.json` (voir *Publishing a citation on the site*).
 
 Le champ `verifie` distingue ce qui est publiable en l'état (tweets) de ce qui
 demande une vérification humaine (presse).
@@ -313,8 +315,21 @@ des policies `select`, et uniquement sur le contenu éditorial :
 
 | Table | Clé publishable |
 |---|---|
-| accounts, tweets, rss_items, candidates, publications | lecture seule |
-| ingest_state, ingest_runs, schema_migrations | aucun accès |
+| entries, topics, site_context, personnalites (vue) | lecture seule |
+| accounts, tweets, rss_items, candidates, publications, ingest_state, ingest_runs, schema_migrations | aucun accès |
+
+001 donnait par erreur un accès en lecture publique à accounts, tweets,
+rss_items, candidates et publications — la clé publishable étant exposée dans
+le bundle JS, n'importe qui pouvait lire des candidates jamais relues (pistes
+de presse non vérifiées) directement via PostgREST. **007** retire ces
+policies. `personnalites` (006) tourne désormais avec `security_invoker` pour
+la même raison : sans ça, la vue contournait RLS sur `entries` et ne comptait
+que sur son propre `where publie` pour ne pas fuiter d'entrée non publiée.
+
+**008** ajoute `site_context`, une table clé/valeur pour le texte du masthead
+(eyebrow, paragraphe de contexte) : modifiable sans déploiement, publique en
+lecture comme `entries`/`topics`. Le front-end s'y rabat sur les chaînes
+codées en dur si la table ou une clé manque — voir `web/README.md`.
 
 Vérifié : `INSERT` renvoie 401. `DELETE` renvoie 204 — trompeur, mais c'est
 PostgREST confirmant une suppression ayant porté sur **zéro ligne**, RLS ayant
@@ -326,9 +341,31 @@ interdit qu'une candidate marquée vérifiée existe sans URL.
 ## Déploiement du site
 
 Le dépôt est lié au projet Vercel : un push sur `main` reconstruit et met en
-ligne le site. La configuration du build est versionnée dans `vercel.json` à
-la racine — le Root Directory du projet Vercel doit rester vide, voir
-`web/README.md`.
+ligne le site, à **https://politiscope.app**. La configuration du build est
+versionnée dans `vercel.json` à la racine — le Root Directory du projet
+Vercel doit rester vide, voir `web/README.md`.
+
+`vercel.json` inclut aussi un rewrite SPA (tout chemin sans extension de
+fichier tombe sur `index.html`) : sans lui, les routes ci-dessous
+renverraient 404 en accès direct ou au rechargement.
+
+### Routes
+
+Le routage est fait à la main côté client (`web/src/hooks/useUrl.ts`, pas de
+dépendance router) :
+
+| Route | Ouvre |
+|---|---|
+| `/` | la page, vue Personnalités par défaut |
+| `/p/:figureId` | la fiche de cette personnalité (`figureId` = handle X ou nom) |
+| `/c/:entryId` | la même fiche, centrée sur cette citation précise |
+
+Les filtres actifs (famille, thème, recherche, vue, personnalité) se
+reflètent dans la query string, donc toute vue filtrée est une URL
+partageable ; retour/avance navigateur fonctionnent. Le bouton « Copier le
+lien » de chaque citation copie son URL `/c/:entryId` telle quelle, sans les
+filtres du moment — un lien partagé montre la citation quels que soient les
+filtres de la personne qui l'ouvre.
 
 ## Tests
 
