@@ -1,0 +1,55 @@
+name: DB Migrate
+
+# Applique migrations/*.sql, et rien d'autre — pas d'ingestion, pas d'appel
+# X. Existe pour appliquer une migration sans configuration locale : les
+# secrets DB sont déjà dans ce dépôt (voir Nightly Ingestion), alors qu'un
+# poste de dev peut ne pas avoir de .env à la racine.
+#
+# Déclenchement manuel uniquement : ce n'est pas une étape à rejouer chaque
+# nuit, une seule fois par migration suffit (db-migrate est idempotent —
+# schema_migrations retient ce qui est déjà appliqué — donc un second passage
+# accidentel ne fait rien).
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      # Le pooler, pas l'hôte direct : `db.<ref>.supabase.co` ne résout qu'en
+      # IPv6 et les runners GitHub sont IPv4.
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_POOLER_URL }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_REGION: eu-west-2
+      PYTHONIOENCODING: utf-8
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      # Même garde-fou que Nightly Ingestion : un environnement dans lequel
+      # les tests cassent n'est pas un environnement où toucher au schéma.
+      - name: Tests
+        run: python -m pytest tests/ -q
+
+      - name: Vérifier la configuration
+        run: |
+          test -n "$SUPABASE_DB_URL" || { echo "::error::secret SUPABASE_POOLER_URL manquant"; exit 1; }
+
+      - name: Migrer
+        run: |
+          echo "### Migration du $(date -u '+%d/%m/%Y %H:%M UTC')" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          python -m politiscope.cli db-migrate | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
