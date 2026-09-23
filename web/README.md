@@ -70,8 +70,9 @@ src/
   hooks/usePolitiscope.ts     chargement, filtrage, tri
   components/
     FilterBar.tsx             familles, thème, tri, recherche
-    BubbleField.tsx           les bulles
-    DetailModal.tsx           la fiche (Échap, clic extérieur, focus)
+    PersonGrid.tsx            la grille de cartes (vue Personnalités)
+    CitationsTable.tsx        le tableau (vue Citations)
+    PersonModal.tsx           la fiche (Échap, clic extérieur, focus)
     TopicGraph.tsx            graphe d3 à deux niveaux
   App.tsx
   index.css                   design system, thèmes clair et sombre

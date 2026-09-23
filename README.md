@@ -18,9 +18,11 @@ qu'une piste — les liens Google News sont des redirections chiffrées qui ne s
 résolvent pas côté serveur. L'URL réelle doit être retrouvée sur le site du média
 avant publication.
 
-> **Ce projet est en Python, pas en Node.** Il n'y a ni `package.json`, ni
-> `npm run dev`, ni étape de build : l'interface est un unique fichier HTML
-> autonome. L'équivalent le plus proche est `python -m politiscope.cli preview`.
+> **La pipeline d'ingestion (ce README) est en Python** : ni `package.json`,
+> ni `npm run dev`, ni étape de build ici — les commandes se lancent avec
+> `python -m politiscope.cli`. **Le site**, lui, est une application
+> React/Vite dans `web/` (build, `npm run dev`, tout le nécessaire) — voir
+> `web/README.md`.
 
 ## Installation
 
@@ -35,13 +37,16 @@ pas depuis le sous-dossier `politiscope/` qui est le package Python.
 ## Voir l'interface
 
 ```bash
-python -m politiscope.cli preview            # http://127.0.0.1:8000
-python -m politiscope.cli preview --port 8080 --no-open
+cd web && npm install && npm run dev   # http://localhost:5173
 ```
 
-Sert `politiscope.html` en local et l'ouvre dans le navigateur. Le fichier étant
-autonome, un double-clic fonctionne aussi — mais `http://` se comporte mieux que
-`file://` pour les polices Google et le chargement de d3 depuis le CDN.
+Le site (`web/`) lit directement Supabase — voir `web/README.md` pour la
+configuration (`.env.local`) et le déploiement.
+
+`python -m politiscope.cli preview` existe encore mais ne sert que
+`archive/politiscope.html`, la version d'origine (données codées en dur,
+remplacée par le site React) conservée pour référence — voir
+`archive/README.md`.
 
 ## Utilisation
 
@@ -413,6 +418,7 @@ politiscope/
   db.py        Postgres/Supabase : migrations, upserts, lectures
   cli.py       commandes
 migrations/       schéma SQL versionné
+web/              site React/Vite — voir web/README.md
+archive/          politiscope.html, la version d'origine, conservée pour référence
 x_accounts.json   les 26 comptes suivis
-politiscope.html  l'artifact publié
 ```
