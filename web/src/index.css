@@ -103,7 +103,11 @@ a { color: var(--accent); }
 /* ---------- Barre de filtres ---------- */
 .filterbar {
   position: sticky; top: 0; z-index: 20;
-  background: color-mix(in srgb, var(--page) 92%, transparent);
+  /* Opaque : en dessous de 92% le contenu qui défile (cartes, tableau)
+     transparaissait à travers la barre sticky. Le flou reste pour la
+     tranche de un pixel où l'anticrénelage laisse passer un souffle de
+     contenu, mais ne fait plus tout le travail. */
+  background: var(--page);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line); padding: 14px 0; margin-bottom: 26px;
   display: flex; flex-direction: column; gap: 10px;
@@ -318,6 +322,7 @@ input.control { min-width: 180px; }
   border-radius: 14px; width: 100%; height: 460px; margin-top: 16px; overflow: hidden;
 }
 .graph-container.is-compact { height: auto; max-height: 460px; overflow-y: auto; padding: 16px; }
+.graph-container.is-matrix { height: auto; max-height: 560px; overflow: auto; padding: 0; }
 .graph-svg { width: 100%; height: 100%; display: block; cursor: grab; }
 .graph-svg:active { cursor: grabbing; }
 .graph-node-topic circle { fill: var(--surface-raised); stroke: var(--topic-color); stroke-width: 2.5px; }
@@ -388,6 +393,46 @@ input.control { min-width: 180px; }
 }
 .topic-list-members button:hover { color: var(--accent); }
 .topic-list-members button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- Vue Matrice du graphe (personnalités x sujets) ---------- */
+.matrix-scroll { overflow: auto; max-height: 560px; }
+.matrix-table { border-collapse: collapse; font-size: 12.5px; white-space: nowrap; }
+.matrix-table th, .matrix-table td { padding: 6px 10px; text-align: center; border-bottom: 1px solid var(--line); }
+.matrix-table thead th {
+  position: sticky; top: 0; z-index: 2; background: var(--surface);
+  font-weight: 500; border-bottom: 1px solid var(--line); vertical-align: bottom;
+}
+/* Colonne des noms fixée : reste visible pendant le défilement horizontal. */
+.matrix-name-col {
+  position: sticky; left: 0; z-index: 1; background: var(--surface);
+  text-align: left; font-weight: 500; min-width: 160px;
+}
+.matrix-table thead .matrix-name-col { z-index: 3; }
+.matrix-name-btn {
+  font: inherit; font-weight: inherit; color: var(--ink); background: none; border: none; padding: 0;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-align: left;
+}
+.matrix-name-btn:hover { color: var(--accent); }
+.matrix-name-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.matrix-name-btn .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.matrix-col-btn {
+  font: inherit; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px;
+  font-weight: 600; color: var(--ink-soft); background: none; border: none; padding: 2px 4px;
+  cursor: pointer; white-space: normal; max-width: 76px; line-height: 1.3;
+}
+.matrix-col-btn:hover { color: var(--accent); }
+.matrix-col-btn[aria-pressed="true"] { color: var(--accent); }
+.matrix-col-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.matrix-cell { width: 64px; }
+.matrix-dot {
+  border-radius: 50%; border: none; padding: 0; cursor: pointer; display: inline-block;
+  transition: transform 0.1s ease;
+}
+.matrix-dot:hover, .matrix-dot:focus-visible { transform: scale(1.25); outline: none; }
+.matrix-total { font-family: "IBM Plex Mono", ui-monospace, monospace; color: var(--muted); }
+.matrix-table tfoot th, .matrix-table tfoot td {
+  border-bottom: none; border-top: 1px solid var(--line); font-weight: 600;
+}
 
 /* ---------- Vue Citations (tableau) ---------- */
 /* Le contenu large (citation, source) défile dans ce conteneur, jamais dans

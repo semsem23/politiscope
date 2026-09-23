@@ -13,9 +13,9 @@ import { select } from "d3-selection";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useContainerSize } from "../hooks/useContainerSize";
 import { initials } from "../hooks/usePolitiscope";
-import { familleOf, figureKeyOf, type Entry, type Topic } from "../types";
+import { FAMILLES, familleOf, figureKeyOf, type Entry, type FamilleId, type Topic } from "../types";
 
-type Mode = "pol" | "parti";
+type Mode = "pol" | "parti" | "matrice";
 
 interface GNode extends SimulationNodeDatum {
   id: string;
@@ -25,12 +25,16 @@ interface GNode extends SimulationNodeDatum {
   r: number;
   count?: number;
   famille?: Entry["famille"];
+  /** Nœud « sec » seulement : citation la plus récente — pour onSelect au clic. */
   ref?: Entry;
+  /** Toutes les citations regroupées sous ce nœud (une personne ou un parti). */
   members?: Entry[];
 }
 
 interface GLink extends SimulationLinkDatum<GNode> {
   ref: Entry;
+  /** Nombre de citations derrière ce lien (personne/parti, sujet) — épaissit le trait. */
+  count: number;
 }
 
 interface Props {
@@ -39,23 +43,15 @@ interface Props {
   onSelect: (e: Entry) => void;
   theme: string;
   onThemeChange: (theme: string) => void;
+  /** Pour la vue Matrice, qui respecte famille + recherche comme le reste de la page. */
+  familles: Record<FamilleId, boolean>;
+  search: string;
 }
 
 /** En dessous, le graphe de force devient inutilisable au doigt : repli en liste. */
 const COMPACT_BREAKPOINT = 600;
-const COLLIDE_PADDING = 6;
-
-/**
- * Clé de regroupement d'un nœud secondaire à travers les sujets : en mode
- * « pol », plusieurs citations de la même personne sous des sujets
- * différents sont des nœuds distincts (un par citation) — cette clé les
- * relie pour le survol/tap groupé. En mode « parti », chaque parti n'a déjà
- * qu'un seul nœud : la clé est simplement son id.
- */
-function personKeyOf(n: GNode, mode: Mode): string {
-  if (n.type === "sec" && mode === "pol" && n.ref) return `p:${figureKeyOf(n.ref)}`;
-  return n.id;
-}
+/** Marge de la détection de collision au-delà du rayon visuel de chaque nœud. */
+const COLLIDE_PADDING = 3;
 
 // --- repli liste / lecteur d'écran -----------------------------------------
 
@@ -88,15 +84,7 @@ function buildTopicGroups(entries: Entry[], topics: Topic[], mode: Mode): TopicG
   const groups: TopicGroup[] = [];
   for (const [themeName, list] of byTheme) {
     const items: TopicGroupItem[] = [];
-    if (mode === "pol") {
-      const byPerson = new Map<string, Entry>();
-      for (const e of list) {
-        const key = figureKeyOf(e);
-        const prev = byPerson.get(key);
-        if (!prev || (e.date_tri ?? "") > (prev.date_tri ?? "")) byPerson.set(key, e);
-      }
-      for (const [key, e] of byPerson) items.push({ key, label: e.nom, entry: e });
-    } else {
+    if (mode === "parti") {
       const seen = new Set<string>();
       for (const e of list) {
         const code = e.code_parti ?? e.parti;
@@ -104,6 +92,14 @@ function buildTopicGroups(entries: Entry[], topics: Topic[], mode: Mode): TopicG
         seen.add(code);
         items.push({ key: code, label: code });
       }
+    } else {
+      const byPerson = new Map<string, Entry>();
+      for (const e of list) {
+        const key = figureKeyOf(e);
+        const prev = byPerson.get(key);
+        if (!prev || (e.date_tri ?? "") > (prev.date_tri ?? "")) byPerson.set(key, e);
+      }
+      for (const [key, e] of byPerson) items.push({ key, label: e.nom, entry: e });
     }
     items.sort((a, b) => a.label.localeCompare(b.label, "fr"));
     groups.push({ theme: themeName, shortLabel: shortOf.get(themeName) ?? themeName, items });
@@ -125,8 +121,8 @@ interface TopicListProps {
 /**
  * Rendu textuel du graphe : sujet -> personnalités. Utilisé visible en repli
  * compact (< 600px, voir COMPACT_BREAKPOINT) et visuellement masqué comme
- * alternative accessible à côté du graphe SVG (voir role="img" retiré plus
- * bas — un graphe de force n'est de toute façon pas opérable au clavier).
+ * alternative accessible à côté du graphe SVG (voir aria-hidden plus bas —
+ * un graphe de force n'est de toute façon pas opérable au clavier).
  */
 function TopicList({ groups, theme, noun, onThemeChange, onSelect, visuallyHidden }: TopicListProps) {
   return (
@@ -163,7 +159,175 @@ function TopicList({ groups, theme, noun, onThemeChange, onSelect, visuallyHidde
   );
 }
 
-export function TopicGraph({ entries, topics, onSelect, theme, onThemeChange }: Props) {
+// --- vue Matrice -------------------------------------------------------------
+
+interface MatrixCell {
+  count: number;
+  latest: Entry;
+}
+
+interface MatrixRow {
+  key: string;
+  nom: string;
+  famille: FamilleId;
+  /** Citation la plus récente de cette personne, tous sujets confondus — pour le nom cliquable. */
+  latest: Entry;
+  cells: Map<string, MatrixCell>;
+  total: number;
+}
+
+function buildMatrix(entries: Entry[]): { rows: MatrixRow[]; colTotals: Map<string, number>; grandTotal: number } {
+  const byPerson = new Map<string, Entry[]>();
+  for (const e of entries) {
+    const key = figureKeyOf(e);
+    const list = byPerson.get(key);
+    if (list) list.push(e);
+    else byPerson.set(key, [e]);
+  }
+
+  const newer = (a: Entry, b: Entry) => (b.date_tri ?? "").localeCompare(a.date_tri ?? "") || b.id - a.id;
+  const famIndex = new Map(FAMILLES.map((f, i) => [f.id, i]));
+
+  const rows: MatrixRow[] = [];
+  for (const [key, list] of byPerson) {
+    const latest = [...list].sort(newer)[0];
+    const cells = new Map<string, MatrixCell>();
+    for (const e of list) {
+      const c = cells.get(e.theme);
+      if (c) {
+        c.count += 1;
+        if (newer(e, c.latest) < 0) c.latest = e;
+      } else {
+        cells.set(e.theme, { count: 1, latest: e });
+      }
+    }
+    rows.push({ key, nom: latest.nom, famille: latest.famille, latest, cells, total: list.length });
+  }
+
+  rows.sort(
+    (a, b) => (famIndex.get(a.famille) ?? 0) - (famIndex.get(b.famille) ?? 0) || a.nom.localeCompare(b.nom, "fr")
+  );
+
+  const colTotals = new Map<string, number>();
+  let grandTotal = 0;
+  for (const row of rows) {
+    for (const [th, cell] of row.cells) {
+      colTotals.set(th, (colTotals.get(th) ?? 0) + cell.count);
+      grandTotal += cell.count;
+    }
+  }
+
+  return { rows, colTotals, grandTotal };
+}
+
+interface MatrixViewProps {
+  entries: Entry[];
+  topics: Topic[];
+  theme: string;
+  onThemeChange: (theme: string) => void;
+  onSelect: (e: Entry) => void;
+}
+
+/**
+ * Personnalités x sujets, en grille HTML — pas de simulation de force ici,
+ * juste un tableau : une bulle vaut mieux qu'un graphe de force pour comparer
+ * tout le monde d'un coup d'œil. Scroll horizontal propre à son conteneur
+ * sous mobile, colonne des noms fixée (voir index.css .matrix-*).
+ */
+function MatrixView({ entries, topics, theme, onThemeChange, onSelect }: MatrixViewProps) {
+  const { rows, colTotals, grandTotal } = useMemo(() => buildMatrix(entries), [entries]);
+
+  if (rows.length === 0) {
+    return (
+      <div className="empty-state">
+        Aucune personnalité ne correspond à ces filtres. Élargissez les filtres ou cliquez sur
+        Réinitialiser.
+      </div>
+    );
+  }
+
+  let maxCell = 1;
+  for (const row of rows) for (const c of row.cells.values()) if (c.count > maxCell) maxCell = c.count;
+  const cellSize = scaleSqrt().domain([0, maxCell]).range([6, 32]);
+
+  return (
+    <div className="matrix-scroll">
+      <table className="matrix-table">
+        <thead>
+          <tr>
+            <th className="matrix-name-col" scope="col">
+              Personnalité
+            </th>
+            {topics.map((t) => (
+              <th key={t.theme} scope="col">
+                <button
+                  type="button"
+                  className="matrix-col-btn"
+                  aria-pressed={t.theme === theme}
+                  onClick={() => onThemeChange(t.theme)}
+                  title={t.theme}
+                >
+                  {t.libelle_court}
+                </button>
+              </th>
+            ))}
+            <th scope="col">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const fam = familleOf(row.famille);
+            return (
+              <tr key={row.key}>
+                <th className="matrix-name-col" scope="row">
+                  <button type="button" className="matrix-name-btn" onClick={() => onSelect(row.latest)}>
+                    <span className="dot" style={{ background: fam.color }} />
+                    {row.nom}
+                  </button>
+                </th>
+                {topics.map((t) => {
+                  const cell = row.cells.get(t.theme);
+                  const size = cell ? cellSize(cell.count) : 0;
+                  return (
+                    <td key={t.theme} className="matrix-cell">
+                      {cell && (
+                        <button
+                          type="button"
+                          className="matrix-dot"
+                          style={{ width: size, height: size, background: fam.color }}
+                          title={`${row.nom} · ${t.libelle_court} · ${cell.count} citation${cell.count > 1 ? "s" : ""}`}
+                          onClick={() => onSelect(cell.latest)}
+                        />
+                      )}
+                    </td>
+                  );
+                })}
+                <td className="matrix-total">{row.total}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th className="matrix-name-col" scope="row">
+              Total
+            </th>
+            {topics.map((t) => (
+              <td key={t.theme} className="matrix-total">
+                {colTotals.get(t.theme) || ""}
+              </td>
+            ))}
+            <td className="matrix-total">{grandTotal}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
+}
+
+// --- graphe de force ---------------------------------------------------------
+
+export function TopicGraph({ entries, topics, onSelect, theme, onThemeChange, familles, search }: Props) {
   const [mode, setMode] = useState<Mode>("pol");
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -174,67 +338,119 @@ export function TopicGraph({ entries, topics, onSelect, theme, onThemeChange }: 
   const { width, height } = useContainerSize(containerRef, 150);
   const compact = width != null && width < COMPACT_BREAKPOINT;
 
-  const groups = useMemo(() => buildTopicGroups(entries, topics, mode), [entries, topics, mode]);
+  // Le graphe de force suit uniquement le filtre Thème (comportement
+  // existant, affiché dans section-sub) ; `entries` reçu ici est donc la
+  // totalité, filtrée ici même pour ce seul usage.
+  const graphEntries = useMemo(
+    () => (theme === "all" ? entries : entries.filter((e) => e.theme === theme)),
+    [entries, theme]
+  );
+  const groups = useMemo(() => buildTopicGroups(graphEntries, topics, mode), [graphEntries, topics, mode]);
+
+  // La Matrice, elle, respecte famille + recherche comme le reste de la
+  // page (mais pas le thème : comparer tous les sujets à la fois est son
+  // intérêt même).
+  const matrixEntries = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return entries.filter((e) => {
+      if (!familles[e.famille]) return false;
+      if (!q) return true;
+      const hay = `${e.nom} ${e.parti} ${e.citation} ${e.theme}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [entries, familles, search]);
 
   useEffect(() => {
     const container = containerRef.current;
     const svgEl = svgRef.current;
     const tip = tipRef.current;
-    if (compact || !container || !svgEl || !tip || !width || !height || entries.length === 0) return;
+    if (mode === "matrice" || compact) return;
+    if (!container || !svgEl || !tip || !width || !height || graphEntries.length === 0) return;
 
     const shortOf = new Map(topics.map((t) => [t.theme, t.libelle_court]));
     const svg = select(svgEl);
     svg.selectAll("*").remove();
     svg.attr("viewBox", `0 0 ${width} ${height}`);
 
-    // --- construction des nœuds selon le niveau choisi ---------------------
+    // --- construction : un nœud par personne (ou parti), un lien par (elle, sujet) ---
+    const idFor = (d: Entry): string => (mode === "parti" ? `sec:${d.code_parti ?? d.parti}` : `sec:pol:${figureKeyOf(d)}`);
+
+    const secondaryOf = new Map<string, Entry[]>();
+    for (const d of graphEntries) {
+      const id = idFor(d);
+      const list = secondaryOf.get(id);
+      if (list) list.push(d);
+      else secondaryOf.set(id, [d]);
+    }
+
     let secondary: GNode[];
-    let links: GLink[];
     let labelMaxLen: number;
 
     if (mode === "parti") {
-      const famOf = new Map<string, Entry["famille"]>();
-      const membersOf = new Map<string, Entry[]>();
-      for (const d of entries) {
-        const code = d.code_parti ?? d.parti;
-        famOf.set(code, d.famille);
-        const list = membersOf.get(code);
-        if (list) list.push(d);
-        else membersOf.set(code, [d]);
-      }
-      secondary = [...membersOf].map(([code, members]) => ({
-        id: `sec:${code}`,
-        type: "sec" as const,
-        label: code,
-        fullName: code,
-        r: 16 + members.length * 6,
-        famille: famOf.get(code),
-        members,
-      }));
-      links = entries.map((d) => ({
-        source: `topic:${d.theme}`,
-        target: `sec:${d.code_parti ?? d.parti}`,
-        ref: d,
-      })) as unknown as GLink[];
+      secondary = [...secondaryOf].map(([id, members]) => {
+        const code = members[0].code_parti ?? members[0].parti;
+        return {
+          id,
+          type: "sec" as const,
+          label: code,
+          fullName: code,
+          r: 16 + members.length * 6,
+          famille: members[0].famille,
+          members,
+          count: members.length,
+        };
+      });
       labelMaxLen = 15;
     } else {
-      secondary = entries.map((d) => ({
-        id: `sec:pol:${d.id}`,
-        type: "sec" as const,
-        label: initials(d.nom),
-        fullName: d.nom,
-        r: 15,
-        famille: d.famille,
-        ref: d,
-      }));
-      links = entries.map((d) => ({
-        source: `topic:${d.theme}`,
-        target: `sec:pol:${d.id}`,
-        ref: d,
-      })) as unknown as GLink[];
+      // Rayon personne = racine du nombre total de ses citations : l'aire
+      // reste proportionnelle au compte, comme pour les bulles-sujet.
+      const maxPersonQuotes = Math.max(1, ...[...secondaryOf.values()].map((m) => m.length));
+      const personRadius = scaleSqrt().domain([0, maxPersonQuotes]).range([12, 24]);
+      secondary = [...secondaryOf].map(([id, members]) => {
+        const latest = [...members].sort(
+          (a, b) => (b.date_tri ?? "").localeCompare(a.date_tri ?? "") || b.id - a.id
+        )[0];
+        return {
+          id,
+          type: "sec" as const,
+          label: initials(latest.nom),
+          fullName: latest.nom,
+          r: personRadius(members.length),
+          famille: latest.famille,
+          ref: latest,
+          members,
+          count: members.length,
+        };
+      });
       labelMaxLen = 4;
     }
 
+    // Un lien par (nœud secondaire, sujet), pas par citation : le compte
+    // épaissit le trait plutôt que de dupliquer des arêtes qui, en mode
+    // « pol », faisaient aussi réapparaître le même nœud une fois par
+    // citation (le bug corrigé ici).
+    const linksBy = new Map<string, GLink>();
+    for (const d of graphEntries) {
+      const target = idFor(d);
+      const source = `topic:${d.theme}`;
+      const key = `${source}->${target}`;
+      const existing = linksBy.get(key);
+      if (existing) existing.count += 1;
+      else linksBy.set(key, { source, target, ref: d, count: 1 } as unknown as GLink);
+    }
+    const links = [...linksBy.values()];
+
+    // Compte de citations total par sujet (pas dédupliqué — pour le tooltip
+    // "M citations", distinct du nombre de personnalités N).
+    const topicQuoteTotal = new Map<string, number>();
+    for (const d of graphEntries) {
+      const tid = `topic:${d.theme}`;
+      topicQuoteTotal.set(tid, (topicQuoteTotal.get(tid) ?? 0) + 1);
+    }
+
+    // Degré = nombre de personnes/partis distincts par sujet, directement
+    // exact maintenant que les liens sont dédupliqués par (cible, sujet) —
+    // c'est ce que la légende appelle "nombre de personnalités".
     const degree = new Map<string, Set<string>>();
     for (const l of links) {
       const s = l.source as unknown as string;
@@ -243,40 +459,18 @@ export function TopicGraph({ entries, topics, onSelect, theme, onThemeChange }: 
       degree.get(s)!.add(t);
     }
 
-    // Nombre de personnalités (ou de partis) distincts par sujet — pas le
-    // nombre de citations : en mode « pol », une même personne peut avoir
-    // plusieurs citations sous un même sujet (plusieurs nœuds), et la taille
-    // de la bulle doit rester "qui en parle", pas "combien de fois".
-    const topicEntityCount = new Map<string, number>();
-    if (mode === "pol") {
-      const byTopic = new Map<string, Set<string>>();
-      for (const e of entries) {
-        const tid = `topic:${e.theme}`;
-        if (!byTopic.has(tid)) byTopic.set(tid, new Set());
-        byTopic.get(tid)!.add(figureKeyOf(e));
-      }
-      for (const [tid, set] of byTopic) topicEntityCount.set(tid, set.size);
-    } else {
-      for (const [tid, targets] of degree) topicEntityCount.set(tid, targets.size);
-    }
-
-    // Rayon des bulles-sujet proportionnel à la racine du compte : l'aire,
-    // donc la lecture visuelle, reste proportionnelle au nombre de
-    // personnalités (la légende l'annonce). Plage bornée : un sujet très
-    // suivi ne doit pas produire une bulle plus grande que le conteneur.
-    const maxEntityCount = Math.max(1, ...topicEntityCount.values());
+    const maxEntityCount = Math.max(1, ...[...degree.values()].map((s) => s.size));
     const topicRadius = scaleSqrt().domain([0, maxEntityCount]).range([18, 56]);
 
     const topicNodes: GNode[] = [...degree].map(([tid, targets]) => {
       const themeId = tid.replace("topic:", "");
-      const count = topicEntityCount.get(tid) ?? targets.size;
       return {
         id: tid,
         type: "topic",
         label: shortOf.get(themeId) ?? themeId,
         fullName: themeId,
-        count,
-        r: topicRadius(count),
+        count: targets.size,
+        r: topicRadius(targets.size),
       };
     });
 
@@ -300,12 +494,12 @@ export function TopicGraph({ entries, topics, onSelect, theme, onThemeChange }: 
       .data(links)
       .join("line")
       .attr("class", "graph-link")
-      .attr("stroke-width", 1.6)
+      .attr("stroke-width", (d) => Math.min(1 + 0.8 * d.count, 6))
       .attr("stroke", (d) => familleOf(d.ref.famille).color);
 
     let dragDistance = 0;
     let lastPointerType = "mouse";
-    let pinnedKey: string | null = null;
+    let pinnedId: string | null = null;
 
     const nodeSel = svg
       .append("g")
@@ -351,6 +545,33 @@ export function TopicGraph({ entries, topics, onSelect, theme, onThemeChange }: 
       .style("pointer-events", "none")
       .text((d) => d.label);
 
+    // --- contenu des infobulles ---------------------------------------------
+    const personTip = (d: GNode): string => {
+      const fam = familleOf(d.famille!);
+      const byTheme = new Map<string, number>();
+      for (const m of d.members!) byTheme.set(m.theme, (byTheme.get(m.theme) ?? 0) + 1);
+      const breakdown = [...byTheme].map(([th, n]) => `${shortOf.get(th) ?? th} ${n}`).join(" · ");
+      return (
+        `<strong>${d.fullName}</strong>${fam.label}<br>` +
+        `${d.members!.length} citation${d.members!.length > 1 ? "s" : ""}<br>` +
+        `<span style="opacity:.65">${breakdown}</span>`
+      );
+    };
+    const partyTip = (d: GNode): string => {
+      const th = [...new Set(d.members!.map((m) => shortOf.get(m.theme) ?? m.theme))];
+      return `<strong>${d.fullName}</strong>${d.members!.length} citation${d.members!.length > 1 ? "s" : ""} · ${th.join(", ")}`;
+    };
+    const topicTip = (d: GNode): string => {
+      const noun = mode === "parti" ? "parti" : "personnalité";
+      const total = topicQuoteTotal.get(d.id) ?? 0;
+      return (
+        `<strong>${d.label}</strong>${d.count} ${noun}${d.count! > 1 ? "s" : ""}<br>` +
+        `${total} citation${total > 1 ? "s" : ""}`
+      );
+    };
+    const tipFor = (d: GNode): string =>
+      d.type === "topic" ? topicTip(d) : mode === "parti" ? partyTip(d) : personTip(d);
+
     // --- interactions ------------------------------------------------------
     const positionTip = (x: number, y: number) => {
       tip.style.left = `${x}px`;
@@ -365,32 +586,29 @@ export function TopicGraph({ entries, topics, onSelect, theme, onThemeChange }: 
       tip.hidden = true;
     };
 
-    // Un ensemble de nœuds "source" (un seul en survol, potentiellement
-    // plusieurs pour un tap groupé — les citations d'une même personne sous
-    // plusieurs sujets) -> met en évidence ces nœuds, leurs sujets liés, et
-    // estompe le reste.
-    const highlightFrom = (selfIds: Set<string>) => {
-      const connected = new Set(selfIds);
+    // Met en évidence un nœud, ses liens, et les sujets/personnes à l'autre
+    // bout de ceux-ci ; estompe le reste. Chaque personne (ou parti) n'étant
+    // plus qu'un seul nœud, un seul id suffit désormais — plus besoin de
+    // regrouper plusieurs nœuds par personne comme quand chaque citation en
+    // créait un.
+    const highlightFrom = (id: string) => {
+      const connected = new Set([id]);
       for (const l of links) {
         const s = (l.source as GNode).id;
         const t = (l.target as GNode).id;
-        if (selfIds.has(s)) connected.add(t);
-        if (selfIds.has(t)) connected.add(s);
+        if (s === id) connected.add(t);
+        if (t === id) connected.add(s);
       }
       nodeSel.classed("is-dim", (n) => !connected.has(n.id));
       linkSel.classed("is-dim", (l) => {
         const s = (l.source as GNode).id;
         const t = (l.target as GNode).id;
-        return !(selfIds.has(s) || selfIds.has(t));
+        return s !== id && t !== id;
       });
     };
     const clearHighlight = () => {
       nodeSel.classed("is-dim", false);
       linkSel.classed("is-dim", false);
-    };
-    const selfIdsFor = (d: GNode): Set<string> => {
-      const key = personKeyOf(d, mode);
-      return new Set(nodes.filter((n) => n.type === "sec" && personKeyOf(n, mode) === key).map((n) => n.id));
     };
 
     nodeSel
@@ -400,28 +618,8 @@ export function TopicGraph({ entries, topics, onSelect, theme, onThemeChange }: 
       .on("mouseenter", (event: MouseEvent, d) => {
         if (lastPointerType === "touch") return; // le tap gère déjà son propre survol
         const rect = container.getBoundingClientRect();
-        if (d.type === "topic") {
-          const noun = mode === "parti" ? "parti" : "personnalité";
-          showTip(
-            `<strong>${d.label}</strong>${d.count} ${noun}${d.count! > 1 ? "s" : ""} en parlent`,
-            event.clientX - rect.left,
-            event.clientY - rect.top
-          );
-        } else if (mode === "parti") {
-          const th = [...new Set(d.members!.map((m) => shortOf.get(m.theme) ?? m.theme))];
-          showTip(
-            `<strong>${d.fullName}</strong>${d.members!.length} citation${d.members!.length > 1 ? "s" : ""} · ${th.join(", ")}`,
-            event.clientX - rect.left,
-            event.clientY - rect.top
-          );
-        } else {
-          showTip(
-            `<strong>${d.fullName}</strong>${shortOf.get(d.ref!.theme) ?? d.ref!.theme}<br><span style="opacity:.65">${d.ref!.date_texte}</span>`,
-            event.clientX - rect.left,
-            event.clientY - rect.top
-          );
-        }
-        highlightFrom(new Set([d.id]));
+        showTip(tipFor(d), event.clientX - rect.left, event.clientY - rect.top);
+        highlightFrom(d.id);
       })
       .on("mousemove", (event: MouseEvent) => {
         if (lastPointerType === "touch") return;
@@ -431,7 +629,7 @@ export function TopicGraph({ entries, topics, onSelect, theme, onThemeChange }: 
       .on("mouseleave", () => {
         if (lastPointerType === "touch") return;
         hideTip();
-        if (!pinnedKey) clearHighlight();
+        if (!pinnedId) clearHighlight();
       })
       .on("click", (_event, d) => {
         if (dragDistance > 4) return;
@@ -447,27 +645,25 @@ export function TopicGraph({ entries, topics, onSelect, theme, onThemeChange }: 
           return;
         }
 
-        // Tactile, pas de survol : un premier tap met en évidence toutes les
-        // citations de cette personne à travers les sujets et affiche son
-        // nom (repli tactile de ce que le survol montre côté souris) ; un
-        // second tap sur la même personne confirme (ouvre sa fiche).
-        const key = personKeyOf(d, mode);
-        if (pinnedKey === key) {
-          pinnedKey = null;
+        // Tactile, pas de survol : un premier tap met en évidence (comme le
+        // survol côté souris) ; un second tap sur le même nœud confirme
+        // (ouvre sa fiche, si ouvrable).
+        if (pinnedId === d.id) {
+          pinnedId = null;
           hideTip();
           clearHighlight();
           if (canOpen) onSelect(d.ref!);
           return;
         }
-        pinnedKey = key;
-        highlightFrom(selfIdsFor(d));
-        showTip(`<strong>${d.fullName}</strong>`, d.x ?? width / 2, (d.y ?? height / 2) - d.r - 10);
+        pinnedId = d.id;
+        highlightFrom(d.id);
+        showTip(tipFor(d), d.x ?? width / 2, (d.y ?? height / 2) - d.r - 10);
       });
 
     // Tap/clic sur le fond du graphe (pas sur un nœud) : efface l'épinglage.
     svg.on("click", (event: MouseEvent) => {
       if (event.target !== svgEl) return;
-      pinnedKey = null;
+      pinnedId = null;
       hideTip();
       clearHighlight();
     });
@@ -505,13 +701,25 @@ export function TopicGraph({ entries, topics, onSelect, theme, onThemeChange }: 
     };
     // `width`/`height` sont debounced par useContainerSize : un redimensionnement
     // relance donc entièrement la mise en page, sans la reconstruire à chaque frame.
-  }, [entries, topics, mode, onSelect, theme, onThemeChange, compact, width, height]);
+  }, [graphEntries, topics, mode, onSelect, theme, onThemeChange, compact, width, height]);
 
   const noun = mode === "parti" ? "parti" : "personnalité";
   const legend =
-    mode === "pol"
-      ? ["taille = nombre de personnalités qui en parlent", "anneau et lien = famille politique", "Personnalité"]
-      : ["taille = nombre de partis qui en parlent", "anneau et lien = famille politique", "Parti"];
+    mode === "parti"
+      ? ["taille = nombre de partis qui en parlent", "anneau et lien = famille politique", "Parti"]
+      : ["taille = nombre de personnalités qui en parlent", "anneau et lien = famille politique", "Personnalité"];
+
+  const subtitle =
+    mode === "matrice"
+      ? "Chaque bulle croise une personnalité et un sujet ; sa taille est le nombre de citations. Cliquez un nom pour ouvrir sa fiche, un sujet pour filtrer toute la page."
+      : compact
+        ? "Touchez un sujet pour filtrer toute la page, un nom pour ouvrir sa fiche."
+        : "Glissez un nœud, survolez (ou touchez) pour voir les liens. Suit uniquement le filtre" +
+          " Thème ci-dessus : cliquez un sujet pour filtrer toute la page, recliquez pour tout" +
+          " réafficher.";
+
+  const containerClass =
+    mode === "matrice" ? "graph-container is-matrix" : compact ? "graph-container is-compact" : "graph-container";
 
   return (
     <section className="topic-graph-section" aria-label="Carte des sujets">
@@ -519,17 +727,10 @@ export function TopicGraph({ entries, topics, onSelect, theme, onThemeChange }: 
         <div className="section-head-top">
           <div>
             <h2 className="section-title">Carte des sujets</h2>
-            <p className="section-sub">
-              Les grands sujets de la rentrée, reliés à ceux qui les portent.
-              {compact
-                ? " Touchez un sujet pour filtrer toute la page, un nom pour ouvrir sa fiche."
-                : " Glissez un nœud, survolez (ou touchez) pour voir les liens. Suit uniquement le" +
-                  " filtre Thème ci-dessus : cliquez un sujet pour filtrer toute la page, recliquez" +
-                  " pour tout réafficher."}
-            </p>
+            <p className="section-sub">Les grands sujets de la rentrée, reliés à ceux qui les portent. {subtitle}</p>
           </div>
           <div className="graph-toggle" role="tablist" aria-label="Niveau du graphe">
-            {(["pol", "parti"] as Mode[]).map((m) => (
+            {(["pol", "parti", "matrice"] as Mode[]).map((m) => (
               <button
                 key={m}
                 type="button"
@@ -538,15 +739,17 @@ export function TopicGraph({ entries, topics, onSelect, theme, onThemeChange }: 
                 aria-selected={mode === m}
                 onClick={() => setMode(m)}
               >
-                {m === "pol" ? "Personnalités" : "Partis"}
+                {m === "pol" ? "Personnalités" : m === "parti" ? "Partis" : "Matrice"}
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      <div className={compact ? "graph-container is-compact" : "graph-container"} ref={containerRef}>
-        {compact ? (
+      <div className={containerClass} ref={containerRef}>
+        {mode === "matrice" ? (
+          <MatrixView entries={matrixEntries} topics={topics} theme={theme} onThemeChange={onThemeChange} onSelect={onSelect} />
+        ) : compact ? (
           <TopicList groups={groups} theme={theme} noun={noun} onThemeChange={onThemeChange} onSelect={onSelect} />
         ) : (
           <>
@@ -559,7 +762,7 @@ export function TopicGraph({ entries, topics, onSelect, theme, onThemeChange }: 
         )}
       </div>
 
-      {!compact && (
+      {mode !== "matrice" && !compact && (
         <TopicList
           groups={groups}
           theme={theme}
@@ -571,14 +774,29 @@ export function TopicGraph({ entries, topics, onSelect, theme, onThemeChange }: 
       )}
 
       <div className="graph-legend">
-        <span className="legend-item">
-          <span className="node-swatch topic" />
-          Sujet <span style={{ opacity: 0.65 }}>— {legend[0]}</span>
-        </span>
-        <span className="legend-item">
-          <span className="node-swatch pol" />
-          {legend[2]} <span style={{ opacity: 0.65 }}>— {legend[1]}</span>
-        </span>
+        {mode === "matrice" ? (
+          <>
+            <span className="legend-item">
+              <span className="node-swatch pol" />
+              Bulle <span style={{ opacity: 0.65 }}>— taille = nombre de citations</span>
+            </span>
+            <span className="legend-item">
+              <span className="node-swatch pol" />
+              Couleur <span style={{ opacity: 0.65 }}>— famille politique</span>
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="legend-item">
+              <span className="node-swatch topic" />
+              Sujet <span style={{ opacity: 0.65 }}>— {legend[0]}</span>
+            </span>
+            <span className="legend-item">
+              <span className="node-swatch pol" />
+              {legend[2]} <span style={{ opacity: 0.65 }}>— {legend[1]}</span>
+            </span>
+          </>
+        )}
       </div>
     </section>
   );

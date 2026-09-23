@@ -110,10 +110,6 @@ export default function App() {
 
   const filteredEntries = useFilteredEntries(entries, filters);
   const filteredFigures = useFilteredFigures(entries, figures, filters);
-  const graphEntries = useMemo(
-    () => (filters.theme === "all" ? entries : entries.filter((e) => e.theme === filters.theme)),
-    [entries, filters.theme]
-  );
 
   const onReset = useCallback(() => setFilters(emptyFilters()), []);
   const closeModal = useCallback(() => {
@@ -240,11 +236,13 @@ export default function App() {
 
       {!loading && entries.length > 0 && (
         <TopicGraph
-          entries={graphEntries}
+          entries={entries}
           topics={topics}
           onSelect={onSelectFromGraph}
           theme={filters.theme}
           onThemeChange={onThemeChange}
+          familles={filters.familles}
+          search={filters.search}
         />
       )}
 
