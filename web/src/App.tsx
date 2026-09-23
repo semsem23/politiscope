@@ -1,9 +1,10 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CitationsTable } from "./components/CitationsTable";
 import { FilterBar, type View } from "./components/FilterBar";
 import { PersonGrid } from "./components/PersonGrid";
 import { PersonModal } from "./components/PersonModal";
 import { TopicGraph } from "./components/TopicGraph";
+import { parseLocation, useUrlSync, type ParsedRoute } from "./hooks/useUrl";
 import {
   useFilteredEntries,
   useFilteredFigures,
@@ -34,9 +35,71 @@ const VIEWS: { value: View; label: string }[] = [
 
 export default function App() {
   const { entries, topics, figures, loading, error } = usePolitiscopeData();
-  const [view, setView] = useState<View>("personnalites");
-  const [filters, setFilters] = useState<Filters>(emptyFilters);
-  const [personModalId, setPersonModalId] = useState<string | null>(null);
+
+  // Lue une seule fois : les initialisateurs paresseux ci-dessous n'utilisent
+  // cette valeur qu'au tout premier rendu.
+  const initialRoute = parseLocation();
+  const [view, setView] = useState<View>(() => initialRoute.view);
+  const [filters, setFilters] = useState<Filters>(() => initialRoute.filters);
+  const [personModalId, setPersonModalId] = useState<string | null>(() =>
+    initialRoute.target?.kind === "person" ? initialRoute.target.figureId : null
+  );
+  // Quelle citation faire défiler dans la fiche ouverte — non nul seulement
+  // quand la fiche vient d'un lien /c/:entryId (voir PersonModal).
+  const [scrollToEntryId, setScrollToEntryId] = useState<number | null>(null);
+  // /c/:entryId ne se résout en figure_id qu'une fois `entries` chargées ;
+  // en attendant, cet id reste à résoudre.
+  const [pendingCitationEntryId, setPendingCitationEntryId] = useState<number | null>(() =>
+    initialRoute.target?.kind === "citation" ? initialRoute.target.entryId : null
+  );
+
+  // Résout /c/:entryId dès que `entries` est chargé : ouvre la fiche de son
+  // auteur et retient la citation à faire défiler dedans.
+  useEffect(() => {
+    if (pendingCitationEntryId == null || entries.length === 0) return;
+    const entry = entries.find((e) => e.id === pendingCitationEntryId);
+    if (entry) {
+      setPersonModalId(figureKeyOf(entry));
+      setScrollToEntryId(pendingCitationEntryId);
+    }
+    setPendingCitationEntryId(null);
+  }, [entries, pendingCitationEntryId]);
+
+  const openPerson = useCallback((figureId: string) => {
+    setScrollToEntryId(null);
+    setPersonModalId(figureId);
+  }, []);
+
+  // Retour/avance navigateur : relit l'URL et réapplique l'état qu'elle décrit.
+  const onUrlNavigate = useCallback(
+    (route: ParsedRoute) => {
+      setView(route.view);
+      setFilters(route.filters);
+      if (route.target?.kind === "person") {
+        setScrollToEntryId(null);
+        setPersonModalId(route.target.figureId);
+      } else if (route.target?.kind === "citation") {
+        const targetEntryId = route.target.entryId;
+        const entry = entries.find((e) => e.id === targetEntryId);
+        if (entry) {
+          setPersonModalId(figureKeyOf(entry));
+          setScrollToEntryId(entry.id);
+          setPendingCitationEntryId(null);
+        } else {
+          // entries pas encore chargées à ce point (rare hors du premier rendu) :
+          // laisse l'effet ci-dessus reprendre la résolution une fois prêtes.
+          setPersonModalId(null);
+          setPendingCitationEntryId(targetEntryId);
+        }
+      } else {
+        setScrollToEntryId(null);
+        setPersonModalId(null);
+      }
+    },
+    [entries]
+  );
+
+  useUrlSync(view, filters, personModalId, onUrlNavigate, pendingCitationEntryId != null);
 
   const filteredEntries = useFilteredEntries(entries, filters);
   const filteredFigures = useFilteredFigures(entries, figures, filters);
@@ -46,20 +109,24 @@ export default function App() {
   );
 
   const onReset = useCallback(() => setFilters(emptyFilters()), []);
-  const closeModal = useCallback(() => setPersonModalId(null), []);
+  const closeModal = useCallback(() => {
+    setScrollToEntryId(null);
+    setPersonModalId(null);
+  }, []);
   const onThemeChange = useCallback((theme: string) => {
     setFilters((f) => ({ ...f, theme: f.theme === theme ? "all" : theme }));
   }, []);
   // Depuis le graphe : ouvre directement la fiche personnalité (mode « pol »).
-  const onSelectFromGraph = useCallback((e: Entry) => setPersonModalId(figureKeyOf(e)), []);
+  const onSelectFromGraph = useCallback((e: Entry) => openPerson(figureKeyOf(e)), [openPerson]);
   // Depuis le tableau, sur mobile : la ligne entière ouvre la fiche.
-  const onOpenPersonFromTable = useCallback((figureId: string) => setPersonModalId(figureId), []);
+  const onOpenPersonFromTable = useCallback((figureId: string) => openPerson(figureId), [openPerson]);
   // Cliquer un nom dans le tableau filtre sur cette personne, sans ouvrir la fiche.
   const onSelectPersonInTable = useCallback((figureId: string) => {
     setFilters((f) => ({ ...f, personId: figureId }));
   }, []);
   // « Voir dans le tableau » : ferme la fiche et bascule vers la vue Citations filtrée.
   const onViewInTable = useCallback((figureId: string) => {
+    setScrollToEntryId(null);
     setPersonModalId(null);
     setView("citations");
     setFilters((f) => ({ ...f, personId: figureId }));
@@ -149,7 +216,7 @@ export default function App() {
           ))}
         </section>
       ) : view === "personnalites" ? (
-        <PersonGrid figures={filteredFigures} onSelect={setPersonModalId} />
+        <PersonGrid figures={filteredFigures} onSelect={openPerson} />
       ) : (
         <CitationsTable
           entries={filteredEntries}
@@ -188,6 +255,7 @@ export default function App() {
       <PersonModal
         figureId={personModalId}
         entries={entries}
+        scrollToEntryId={scrollToEntryId}
         onClose={closeModal}
         onViewInTable={onViewInTable}
       />

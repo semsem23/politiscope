@@ -3,5 +3,8 @@
   "framework": "vite",
   "installCommand": "npm ci --prefix web",
   "buildCommand": "npm --prefix web run build",
-  "outputDirectory": "web/dist"
+  "outputDirectory": "web/dist",
+  "rewrites": [
+    { "source": "/((?!.*\\.[^/]+$).*)", "destination": "/index.html" }
+  ]
 }

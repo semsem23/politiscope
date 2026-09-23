@@ -1,10 +1,13 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { shareUrlForEntry } from "../hooks/useUrl";
 import { initials } from "../hooks/usePolitiscope";
 import { familleOf, figureKeyOf, type Entry } from "../types";
 
 interface Props {
   figureId: string | null;
   entries: Entry[];
+  /** Citation à faire défiler à l'ouverture — vient d'un lien /c/:entryId. */
+  scrollToEntryId: number | null;
   onClose: () => void;
   onViewInTable: (figureId: string) => void;
 }
@@ -21,8 +24,70 @@ function ts(e: Entry): number {
   return e.date_tri ? Date.parse(e.date_tri) : 0;
 }
 
-export function PersonModal({ figureId, entries, onClose, onViewInTable }: Props) {
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // Repli pour les contextes sans Clipboard API (rare, mais moins cassant
+    // qu'un bouton qui ne fait rien).
+    try {
+      const el = document.createElement("textarea");
+      el.value = text;
+      el.style.position = "fixed";
+      el.style.opacity = "0";
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
+interface CitationCardProps {
+  entry: Entry;
+  latest: boolean;
+  style: React.CSSProperties;
+  highlighted: boolean;
+  copied: boolean;
+  onCopy: () => void;
+  cardRef: (el: HTMLDivElement | null) => void;
+}
+
+function CitationCard({ entry, latest, style, highlighted, copied, onCopy, cardRef }: CitationCardProps) {
+  return (
+    <div
+      ref={cardRef}
+      className={
+        "citation-block" +
+        (latest ? " citation-block-latest" : "") +
+        (highlighted ? " citation-block-highlight" : "")
+      }
+    >
+      <p className="citation-theme">{entry.theme}</p>
+      <blockquote className="quote" style={style}>
+        « {entry.citation} »
+      </blockquote>
+      <div className="modal-footer">
+        <span>{entry.date_texte}</span>
+        <a href={entry.source} target="_blank" rel="noopener noreferrer">
+          Source : {domain(entry.source)} ↗
+        </a>
+        <button type="button" className="copy-link-btn" onClick={onCopy}>
+          {copied ? "Lien copié ✓" : "Copier le lien"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function PersonModal({ figureId, entries, scrollToEntryId, onClose, onViewInTable }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const cardRefs = useRef(new Map<number, HTMLElement>());
+  const [copiedId, setCopiedId] = useState<number | null>(null);
 
   // Échap pour fermer, focus sur le bouton, et blocage du défilement de fond.
   useEffect(() => {
@@ -40,6 +105,21 @@ export function PersonModal({ figureId, entries, onClose, onViewInTable }: Props
     };
   }, [figureId, onClose]);
 
+  // Lien /c/:entryId : fait défiler jusqu'à la citation visée à l'ouverture.
+  useEffect(() => {
+    if (!figureId || scrollToEntryId == null) return;
+    const el = cardRefs.current.get(scrollToEntryId);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [figureId, scrollToEntryId]);
+
+  const handleCopy = (entryId: number) => {
+    void copyToClipboard(shareUrlForEntry(entryId)).then((ok) => {
+      if (!ok) return;
+      setCopiedId(entryId);
+      setTimeout(() => setCopiedId((id) => (id === entryId ? null : id)), 1800);
+    });
+  };
+
   if (!figureId) return null;
 
   const personEntries = entries
@@ -50,6 +130,22 @@ export function PersonModal({ figureId, entries, onClose, onViewInTable }: Props
   const [latest, ...earlier] = personEntries;
   const fam = familleOf(latest.famille);
   const style = { "--fam-color": fam.color } as React.CSSProperties;
+
+  const card = (entry: Entry, isLatest: boolean) => (
+    <CitationCard
+      key={entry.id}
+      entry={entry}
+      latest={isLatest}
+      style={style}
+      highlighted={scrollToEntryId === entry.id}
+      copied={copiedId === entry.id}
+      onCopy={() => handleCopy(entry.id)}
+      cardRef={(el) => {
+        if (el) cardRefs.current.set(entry.id, el);
+        else cardRefs.current.delete(entry.id);
+      }}
+    />
+  );
 
   return (
     <div
@@ -86,36 +182,14 @@ export function PersonModal({ figureId, entries, onClose, onViewInTable }: Props
         </div>
 
         <p className="modal-section-label">Dernière citation</p>
-        <div className="citation-block citation-block-latest">
-          <p className="citation-theme">{latest.theme}</p>
-          <blockquote className="quote" style={style}>
-            « {latest.citation} »
-          </blockquote>
-          <div className="modal-footer">
-            <span>{latest.date_texte}</span>
-            <a href={latest.source} target="_blank" rel="noopener noreferrer">
-              Source : {domain(latest.source)} ↗
-            </a>
-          </div>
-        </div>
+        {card(latest, true)}
 
         {earlier.length > 0 && (
           <>
             <p className="modal-section-label">Citations précédentes</p>
             <ul className="citation-timeline">
               {earlier.map((e) => (
-                <li key={e.id} className="citation-block">
-                  <p className="citation-theme">{e.theme}</p>
-                  <blockquote className="quote" style={style}>
-                    « {e.citation} »
-                  </blockquote>
-                  <div className="modal-footer">
-                    <span>{e.date_texte}</span>
-                    <a href={e.source} target="_blank" rel="noopener noreferrer">
-                      Source : {domain(e.source)} ↗
-                    </a>
-                  </div>
-                </li>
+                <li key={e.id}>{card(e, false)}</li>
               ))}
             </ul>
           </>

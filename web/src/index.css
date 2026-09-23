@@ -247,17 +247,25 @@ input.control { min-width: 180px; }
 }
 .modal-footer a { font-weight: 600; text-decoration: none; }
 .modal-footer a:hover { text-decoration: underline; }
+.copy-link-btn {
+  font: inherit; font-size: inherit; font-weight: 600; color: var(--muted);
+  background: none; border: none; padding: 0; cursor: pointer; text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.copy-link-btn:hover { color: var(--accent); }
+.copy-link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .modal-count { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
 .citation-theme {
   font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px;
   text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 6px;
 }
-.citation-block { margin-bottom: 20px; }
+.citation-block { margin-bottom: 20px; border-radius: 12px; transition: box-shadow 0.3s ease; }
 .citation-block-latest {
   background: color-mix(in srgb, var(--fam-color, var(--muted)) 7%, var(--surface));
-  border-radius: 12px; padding: 14px 16px 4px;
+  padding: 14px 16px 4px;
 }
 .citation-block-latest .quote { font-size: 19px; }
+.citation-block-highlight { box-shadow: 0 0 0 2px var(--accent); }
 .citation-timeline { list-style: none; margin: 0 0 20px; padding: 0; }
 .citation-timeline .citation-block:last-child { margin-bottom: 0; }
 .view-in-table-btn {
