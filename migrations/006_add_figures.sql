@@ -27,7 +27,16 @@ create index if not exists entries_handle_idx on entries (handle);
 -- One row per figure: their most recent citation, plus how many they have.
 -- Powers the front end's Personnalités card grid so it doesn't need to
 -- de-duplicate citations by name itself.
-create or replace view personnalites as
+--
+-- security_invoker: without it the view runs with its owner's privileges
+-- and ignores RLS on `entries` -- the `where e.publie` below is then the
+-- only thing keeping unpublished entries out of it. With it, the view
+-- re-checks RLS on `entries` as the calling role too, so that WHERE clause
+-- stops being a single point of failure. (This only fixes fresh installs --
+-- see 007_restrict_public_read.sql for why an environment that already ran
+-- this migration needs the separate ALTER VIEW there instead.)
+create or replace view personnalites
+  with (security_invoker = true) as
 select distinct on (coalesce(e.handle, e.nom))
        coalesce(e.handle, e.nom) as figure_id,
        e.handle,
