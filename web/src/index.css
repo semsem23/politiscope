@@ -300,12 +300,21 @@ input.control { min-width: 180px; }
   position: relative; background: var(--surface); border: 1px solid var(--line);
   border-radius: 14px; width: 100%; height: 460px; margin-top: 16px; overflow: hidden;
 }
+.graph-container.is-compact { height: auto; max-height: 460px; overflow-y: auto; padding: 16px; }
 .graph-svg { width: 100%; height: 100%; display: block; cursor: grab; }
 .graph-svg:active { cursor: grabbing; }
 .graph-node-topic circle { fill: var(--surface-raised); stroke: var(--topic-color); stroke-width: 2.5px; }
-.graph-node-topic text { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 500; fill: var(--ink); }
+.graph-node-topic text {
+  font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 500; fill: var(--ink);
+  /* Halo : un nœud personnalité qui dérive contre la bulle-sujet ne doit pas
+     rendre son libellé illisible — le texte reste net par-dessus. */
+  paint-order: stroke fill; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round;
+}
 .graph-node-pol circle { stroke-width: 2.25px; }
-.graph-node-pol text { font-family: "Fraunces", Georgia, serif; font-weight: 600; fill: var(--ink); }
+.graph-node-pol text {
+  font-family: "Fraunces", Georgia, serif; font-weight: 600; fill: var(--ink);
+  paint-order: stroke fill; stroke: var(--surface-raised); stroke-width: 2px; stroke-linejoin: round;
+}
 .graph-link { stroke-opacity: 0.55; fill: none; }
 .graph-node.is-dim { opacity: 0.18; }
 .graph-link.is-dim { opacity: 0.08; }
@@ -325,6 +334,43 @@ input.control { min-width: 180px; }
 }
 .node-swatch.topic { background: var(--surface-raised); border-color: var(--topic-color); }
 .node-swatch.pol { background: var(--surface-raised); border-color: var(--muted); }
+
+/* Masqué visuellement mais lisible par un lecteur d'écran / atteignable au
+   clavier ; redevient visible au focus pour ne pas piéger le focus dans du
+   contenu invisible (voir TopicGraph, alternative textuelle au graphe). */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.sr-only:focus-within {
+  position: static; width: auto; height: auto; margin: 0; overflow: visible;
+  clip: auto; white-space: normal;
+}
+
+/* Sujet -> personnalités/partis, en repli sous 600px (visible) ou en
+   alternative accessible au graphe (sr-only, voir ci-dessus). */
+.topic-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.topic-list-group { display: flex; flex-direction: column; gap: 6px; }
+.topic-list-theme {
+  align-self: flex-start; font: inherit; font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--topic-color); background: color-mix(in srgb, var(--topic-color) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--topic-color) 35%, var(--line));
+  border-radius: 999px; padding: 5px 12px; cursor: pointer;
+}
+.topic-list-theme[aria-pressed="true"] { background: var(--topic-color); color: var(--surface); }
+.topic-list-theme:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.topic-list-count { opacity: 0.7; }
+.topic-list-members {
+  list-style: none; margin: 0; padding: 0 0 0 4px; display: flex; flex-wrap: wrap; gap: 6px 10px;
+  font-size: 13px; color: var(--ink-soft);
+}
+.topic-list-members button {
+  font: inherit; color: var(--ink); background: none; border: none; padding: 0;
+  cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+}
+.topic-list-members button:hover { color: var(--accent); }
+.topic-list-members button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ---------- Vue Citations (tableau) ---------- */
 /* Le contenu large (citation, source) défile dans ce conteneur, jamais dans
