@@ -1,32 +1,66 @@
-import { useState } from "react";
-import { buildMockMentions } from "../lib/fluxMock";
+import { useEffect, useState } from "react";
 import type { MediaMention } from "../lib/fluxScope";
+import { supabase, supabaseConfigError } from "../lib/supabase";
 
 export interface MediaMentionsData {
   /** Tout l'historique accumulé, du plus récent au plus ancien. */
   mentions: MediaMention[];
-  /** "mock" tant qu'aucune ingestion réelle n'alimente `media_mentions`. */
-  source: "mock" | "live";
+  loading: boolean;
+  /** Table absente (migration 009 pas appliquée) ou lecture impossible. */
+  error: string | null;
   /** Instant de référence des fenêtres 24h / 7j / 30j. */
   now: number;
 }
 
+/** PostgREST plafonne chaque réponse (1000 lignes par défaut) : on pagine. */
+const PAGE = 1000;
+const MAX_PAGES = 20;
+
 /**
- * Point d'entrée unique des données de la vue « Flux live ».
+ * Données de la vue « Flux live » : la table `media_mentions` entière.
  *
- * Aujourd'hui : données fictives (voir fluxMock.ts). Il n'existe ni table
- * `media_mentions`, ni ingestion des comptes médias — le workflow nocturne
- * ne lit que les timelines des personnalités de x_accounts.json.
- *
- * Quand l'ingestion existera (incrémentale via since_id, ajoutant chaque nuit
- * les dernières 24h aux mentions déjà accumulées), ce hook est le seul
- * endroit à changer : lire la table entière, renvoyer `source: "live"`. Le
- * filtrage par période reste côté client, sur l'historique accumulé.
+ * La collecte nocturne (`politiscope.cli fetch-media`) n'ajoute que les
+ * articles nouveaux ; la table est donc l'historique accumulé depuis le
+ * premier passage. Le filtrage par période se fait côté client sur cet
+ * historique — rien ici ne demande « les N derniers jours ».
  */
 export function useMediaMentions(): MediaMentionsData {
-  const [data] = useState<MediaMentionsData>(() => {
-    const now = Date.now();
-    return { mentions: buildMockMentions(now), source: "mock", now };
-  });
-  return data;
+  const [now] = useState(() => Date.now());
+  const [mentions, setMentions] = useState<MediaMention[]>([]);
+  const [loading, setLoading] = useState(() => supabase !== null);
+  const [error, setError] = useState<string | null>(() => supabaseConfigError);
+
+  useEffect(() => {
+    if (!supabase) return;
+    let cancelled = false;
+    const client = supabase;
+
+    (async () => {
+      const all: MediaMention[] = [];
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const { data, error: err } = await client
+          .from("media_mentions")
+          .select("id, outlet, published_at, titre, resume, article_url, theme, entities")
+          .order("published_at", { ascending: false })
+          .range(page * PAGE, (page + 1) * PAGE - 1);
+        if (cancelled) return;
+        if (err) {
+          console.warn("table `media_mentions` indisponible :", err.message);
+          setError(err.message);
+          setLoading(false);
+          return;
+        }
+        all.push(...((data ?? []) as MediaMention[]));
+        if (!data || data.length < PAGE) break;
+      }
+      setMentions(all);
+      setLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { mentions, loading, error, now };
 }

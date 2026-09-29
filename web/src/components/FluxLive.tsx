@@ -296,7 +296,7 @@ function DensityStrip({ mentions, activeOutlets, period, now }: StripProps) {
     const endDate = new Date(now);
     endDate.setHours(24, 0, 0, 0);
     let oldest = now;
-    for (const m of mentions) oldest = Math.min(oldest, Date.parse(m.created_at));
+    for (const m of mentions) oldest = Math.min(oldest, Date.parse(m.published_at));
     const startDate = new Date(oldest);
     startDate.setHours(0, 0, 0, 0);
 
@@ -307,7 +307,7 @@ function DensityStrip({ mentions, activeOutlets, period, now }: StripProps) {
     }
     const days = bounds.map((t) => ({ t, byOutlet: new Map<OutletId, number>(), total: 0 }));
     for (const m of mentions) {
-      const ts = Date.parse(m.created_at);
+      const ts = Date.parse(m.published_at);
       let i = bounds.length - 1;
       while (i > 0 && bounds[i] > ts) i--;
       const day = days[i];
@@ -375,7 +375,7 @@ function DensityStrip({ mentions, activeOutlets, period, now }: StripProps) {
 
 // --- panneau de détail -------------------------------------------------------------
 
-function MentionCard({ m, now, mock }: { m: MediaMention; now: number; mock: boolean }) {
+function MentionCard({ m, now }: { m: MediaMention; now: number }) {
   const outlet = outletOf(m.outlet);
   const names = m.entities.map((k) => entityOf(k)?.nom ?? k);
   return (
@@ -383,22 +383,15 @@ function MentionCard({ m, now, mock }: { m: MediaMention; now: number; mock: boo
       <p className="citation-theme">
         {subjectShort(m.theme)} · {names.join(", ")}
       </p>
-      <blockquote className="quote flux-excerpt">{m.texte}</blockquote>
+      <blockquote className="quote flux-excerpt">{m.titre}</blockquote>
+      {m.resume && <p className="flux-resume">{m.resume}</p>}
       <div className="modal-footer">
-        <span title={fullDate(m.created_at)}>
-          @{outlet.id} · {relativeTime(m.created_at, now)}
+        <span title={fullDate(m.published_at)}>
+          {outlet.label} · {relativeTime(m.published_at, now)}
         </span>
-        <a href={m.tweet_url} target="_blank" rel="noopener noreferrer">
-          Tweet{mock ? " (fictif)" : ""} ↗
+        <a href={m.article_url} target="_blank" rel="noopener noreferrer">
+          Lire l'article : {domain(m.article_url)} ↗
         </a>
-        {m.article_url ? (
-          <a href={m.article_url} target="_blank" rel="noopener noreferrer">
-            Article : {domain(m.article_url)}
-            {mock ? " (fictif)" : ""} ↗
-          </a>
-        ) : (
-          <span>Pas d'article lié</span>
-        )}
       </div>
     </div>
   );
@@ -408,13 +401,12 @@ interface DetailProps {
   selection: Selection;
   mentions: MediaMention[];
   now: number;
-  mock: boolean;
   periodLabel: string;
   onClose: () => void;
 }
 
 /** Même gabarit que la fiche personnalité (PersonModal) : backdrop, Échap, focus sur Fermer. */
-function FluxDetail({ selection, mentions, now, mock, periodLabel, onClose }: DetailProps) {
+function FluxDetail({ selection, mentions, now, periodLabel, onClose }: DetailProps) {
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -444,7 +436,7 @@ function FluxDetail({ selection, mentions, now, mock, periodLabel, onClose }: De
     if (!m) return null;
     const outlet = outletOf(m.outlet);
     title = outlet.label;
-    sub = `@${outlet.id} · ${fullDate(m.created_at)}`;
+    sub = `${subjectShort(m.theme)} · ${fullDate(m.published_at)}`;
     orb = (
       <span className="modal-orb" style={{ "--fam-color": outlet.color } as React.CSSProperties}>
         {initials(outlet.label)}
@@ -497,15 +489,13 @@ function FluxDetail({ selection, mentions, now, mock, periodLabel, onClose }: De
           </button>
         </div>
 
-        {mock && <p className="flux-mock-note">Données fictives : extraits et liens générés pour la maquette.</p>}
-
         {shown.length === 0 ? (
           <p className="empty-state">Aucune mention sur cette période.</p>
         ) : (
           <ul className="citation-timeline">
             {shown.map((m) => (
               <li key={m.id}>
-                <MentionCard m={m} now={now} mock={mock} />
+                <MentionCard m={m} now={now} />
               </li>
             ))}
           </ul>
@@ -521,8 +511,7 @@ function FluxDetail({ selection, mentions, now, mock, periodLabel, onClose }: De
 // --- vue -----------------------------------------------------------------------------
 
 export function FluxLive() {
-  const { mentions, source, now } = useMediaMentions();
-  const mock = source === "mock";
+  const { mentions, loading, error, now } = useMediaMentions();
   const [outlets, setOutlets] = useState<Record<OutletId, boolean>>(
     () => Object.fromEntries(OUTLETS.map((o) => [o.id, true])) as Record<OutletId, boolean>
   );
@@ -535,7 +524,7 @@ export function FluxLive() {
   const byOutlet = useMemo(() => mentions.filter((m) => outlets[m.outlet]), [mentions, outlets]);
   const inWindow = useMemo(() => {
     const from = now - PERIOD_MS[period];
-    return byOutlet.filter((m) => Date.parse(m.created_at) >= from);
+    return byOutlet.filter((m) => Date.parse(m.published_at) >= from);
   }, [byOutlet, period, now]);
 
   const periodLabel = period === "24h" ? "sur 24 h" : `sur ${period.replace("j", " jours")}`;
@@ -545,19 +534,13 @@ export function FluxLive() {
       <div className="section-head">
         <div className="section-head-top">
           <div>
-            <h2 className="section-title">
-              Flux live{" "}
-              {mock && (
-                <span className="flux-mock-badge" title="Aucune ingestion des comptes médias n'est encore branchée">
-                  Données fictives
-                </span>
-              )}
-            </h2>
+            <h2 className="section-title">Flux live</h2>
             <p className="section-sub">
-              L'exécutif français et les principaux dirigeants étrangers dans les tweets du Monde, du
-              Figaro et du Parisien. Chaque nuit, la collecte ajoute les tweets des dernières 24 h à
-              l'historique déjà accumulé ; la période ci-dessous filtre cet historique. Cliquez une
-              mention ou une bulle pour le détail.
+              L'exécutif français et les principaux dirigeants étrangers dans les articles du Monde,
+              du Figaro et du Parisien, d'après leurs flux RSS. Chaque nuit, la collecte ajoute les
+              nouveaux articles à l'historique déjà accumulé ; la période ci-dessous filtre cet
+              historique. Titres et chapôs sont ceux des rédactions ; cliquez une mention ou une
+              bulle pour le détail et le lien vers l'article.
             </p>
           </div>
         </div>
@@ -600,9 +583,13 @@ export function FluxLive() {
         <aside className="flux-feed" aria-label="Fil des mentions">
           <div className="flux-feed-head">
             <span className="flux-live-dot" aria-hidden="true" />
-            {plural(inWindow.length, "mention")} {periodLabel}
+            {loading ? "chargement…" : `${plural(inWindow.length, "mention")} ${periodLabel}`}
           </div>
-          {inWindow.length === 0 ? (
+          {loading ? null : error || mentions.length === 0 ? (
+            <p className="empty-state">
+              Aucun article collecté pour l'instant : la collecte des flux presse tourne chaque nuit.
+            </p>
+          ) : inWindow.length === 0 ? (
             <p className="empty-state">Aucune mention sur cette période pour ces médias.</p>
           ) : (
             <ol className="flux-feed-list">
@@ -619,11 +606,11 @@ export function FluxLive() {
                       <span className="flux-item-meta">
                         <span className="dot" style={{ background: outlet.color }} />
                         {outlet.label}
-                        <time dateTime={m.created_at} title={fullDate(m.created_at)}>
-                          {relativeTime(m.created_at, now)}
+                        <time dateTime={m.published_at} title={fullDate(m.published_at)}>
+                          {relativeTime(m.published_at, now)}
                         </time>
                       </span>
-                      <span className="flux-item-text">{m.texte}</span>
+                      <span className="flux-item-text">{m.titre}</span>
                       <span className="flux-item-tags">
                         <span className="flux-tag-subject">{subjectShort(m.theme)}</span>
                         {m.entities.map((k) => {
@@ -669,7 +656,6 @@ export function FluxLive() {
         selection={selection}
         mentions={inWindow}
         now={now}
-        mock={mock}
         periodLabel={periodLabel}
         onClose={closeDetail}
       />

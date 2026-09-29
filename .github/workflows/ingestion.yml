@@ -83,6 +83,13 @@ jobs:
           python -m politiscope.cli fetch-rss \
             --days "${{ github.event.inputs.rss_days || '2' }}"
 
+      # Gratuit aussi : flux RSS du Monde, du Figaro et du Parisien pour la
+      # vue Flux live. Écrit directement en base (media_mentions), n'ajoute
+      # que les articles absents. Une panne d'un flux ne doit pas bloquer X.
+      - name: Presse (Flux live)
+        continue-on-error: true
+        run: python -m politiscope.cli fetch-media
+
       - name: Timelines X
         if: github.event.inputs.skip_x != 'true'
         run: python -m politiscope.cli fetch-x

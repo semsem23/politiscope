@@ -343,16 +343,6 @@ input.control { min-width: 180px; }
 
 /* ---------- Flux live (fil + carte radiale + densité) ---------- */
 .flux-section { margin: 40px 0; }
-.flux-mock-badge {
-  display: inline-block; vertical-align: 0.35em; margin-left: 6px;
-  font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px; font-weight: 600;
-  letter-spacing: 0.06em; text-transform: uppercase; color: var(--outlet-parisien);
-  border: 1px dashed currentColor; border-radius: 999px; padding: 3px 9px;
-}
-.flux-mock-note {
-  font-size: 12px; color: var(--muted); border: 1px dashed var(--line); border-radius: 8px;
-  padding: 8px 10px; margin: 0 0 16px;
-}
 .flux-controls {
   display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
   gap: 10px 16px; margin-bottom: 14px;
@@ -475,6 +465,7 @@ input.control { min-width: 180px; }
   background: color-mix(in srgb, var(--topic-color) 10%, var(--surface-raised));
 }
 .flux-excerpt { font-size: 16px; }
+.flux-resume { margin: -8px 0 16px; font-size: 13.5px; line-height: 1.55; color: var(--ink-soft); }
 .flux-orb-country { border-radius: 10px; border-color: var(--ink); }
 .flux-orb-subject { border-color: var(--topic-color); color: var(--topic-color); }
 

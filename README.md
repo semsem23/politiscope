@@ -56,6 +56,7 @@ python -m politiscope.cli status                  # état, volumes, dépense
 python -m politiscope.cli verify-handles          # ⚠ à faire en premier
 python -m politiscope.cli fetch-rss --days 7      # gratuit
 python -m politiscope.cli fetch-x                 # payant, incrémental
+python -m politiscope.cli fetch-media --dry-run   # Flux live : presse RSS, gratuit
 python -m politiscope.cli candidates              # citations triées
 ```
 
@@ -330,6 +331,13 @@ que sur son propre `where publie` pour ne pas fuiter d'entrée non publiée.
 (eyebrow, paragraphe de contexte) : modifiable sans déploiement, publique en
 lecture comme `entries`/`topics`. Le front-end s'y rabat sur les chaînes
 codées en dur si la table ou une clé manque — voir `web/README.md`.
+
+**009** ajoute `media_mentions`, la matière de la vue Flux live : articles du
+Monde, du Figaro et du Parisien (flux RSS publics, gratuits) qui citent une
+entité du périmètre (`politiscope/media.py`). `fetch-media` tourne chaque nuit
+et n'ajoute que les articles absents ; le Parisien ne datant pas son flux, la
+date est lue sur la page de l'article (jamais inventée). Publique en lecture :
+ce sont des titres déjà publiés, avec leur lien.
 
 Vérifié : `INSERT` renvoie 401. `DELETE` renvoie 204 — trompeur, mais c'est
 PostgREST confirmant une suppression ayant porté sur **zéro ligne**, RLS ayant

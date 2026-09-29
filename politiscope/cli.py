@@ -217,6 +217,32 @@ def cmd_fetch_rss(args) -> int:
     return 0
 
 
+def cmd_fetch_media(args) -> int:
+    """Flux live : articles du Monde, du Figaro et du Parisien (RSS, gratuit)."""
+    from . import media
+
+    if args.dry_run:
+        mentions, seen = media.fetch()
+        for m in sorted(mentions, key=lambda m: m["published_at"], reverse=True):
+            print(f"  {m['published_at'][:16]}  {m['outlet']:<12} {m['theme']:<28} "
+                  f"{', '.join(m['entities'])}\n      {m['titre']}")
+        print(f"\n[DRY-RUN] {len(mentions)} mention(s) retenue(s) sur {seen} article(s) lu(s) "
+              "— rien écrit en base")
+        return 0
+
+    from . import db
+    with db.connect() as conn:
+        db.migrate(conn)
+        known = db.fetch_media_mention_ids(conn)
+        mentions, seen = media.fetch(known=known)
+        avant = len(known)
+        db.insert_media_mentions(conn, mentions)
+        apres = db.table_counts(conn, ("media_mentions",))["media_mentions"]
+    print(f"\n{apres - avant} mention(s) ajoutée(s) sur {len(mentions)} retenue(s) "
+          f"({seen} article(s) lu(s)) — {apres} en base — 0.00 USD")
+    return 0
+
+
 def _parse_iso(value: str | None) -> "datetime | None":
     """Date d'un tweet (ISO 8601, suffixe Z) -> datetime aware, ou None."""
     if not value:
@@ -500,6 +526,10 @@ def main(argv: list[str] | None = None) -> int:
     fr.add_argument("--days", type=int, default=7)
     fr.add_argument("--dry-run", action="store_true")
     fr.set_defaults(fn=cmd_fetch_rss)
+
+    fm = sub.add_parser("fetch-media", help="Flux live : articles presse RSS (gratuit)")
+    fm.add_argument("--dry-run", action="store_true", help="affiche sans écrire en base")
+    fm.set_defaults(fn=cmd_fetch_media)
 
     c = sub.add_parser("candidates", help="citations candidates triées")
     c.add_argument("--limit", type=int, default=25)

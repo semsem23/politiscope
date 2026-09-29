@@ -101,24 +101,25 @@ export const subjectShort = (theme: string): string =>
 // --- mentions -----------------------------------------------------------------
 
 /**
- * Un tweet d'un média suivi qui mentionne au moins une entité du périmètre.
- * Forme attendue d'une future table `media_mentions` — qui n'existe pas
- * encore : voir useMediaMentions.
+ * Un article d'un média suivi qui cite au moins une entité du périmètre —
+ * une ligne de la table `media_mentions` (migration 009), alimentée chaque
+ * nuit depuis les flux RSS des rédactions (politiscope/media.py, dont les
+ * clés d'entités et de sujets doivent rester celles de ce fichier).
  */
 export interface MediaMention {
-  /** Id du tweet. */
+  /** URL canonique de l'article. */
   id: string;
   outlet: OutletId;
   /** ISO 8601. */
-  created_at: string;
-  /** Extrait du tweet, tel que publié. */
-  texte: string;
-  tweet_url: string;
-  /** Lien de l'article relayé par le tweet, s'il y en a un. */
-  article_url: string | null;
+  published_at: string;
+  /** Titre, tel que publié par la rédaction. */
+  titre: string;
+  /** Chapô, tel que publié, s'il y en a un. */
+  resume: string | null;
+  article_url: string;
   /** Thème de SUBJECTS. */
   theme: string;
-  /** Clés d'ENTITIES mentionnées. */
+  /** Clés d'ENTITIES citées. */
   entities: string[];
 }
 

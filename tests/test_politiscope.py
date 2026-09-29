@@ -614,3 +614,67 @@ def test_toutes_les_dependances_sont_declarees():
         and alias.get(m, m).lower() not in declarees
     ]
     assert not manquants, f"imports non déclarés dans requirements.txt : {manquants}"
+
+
+# --- Flux live : étiquetage des articles presse (media.py) ---------------
+from types import SimpleNamespace
+
+from politiscope.media import canonical_url, mention_from_entry, page_meta, tag
+
+
+def test_media_etiquette_entites_et_sujet():
+    entities, theme = tag("Guerre en Ukraine : Zelensky demande à Moscou un cessez-le-feu")
+    assert entities == ["pays:ru", "Volodymyr Zelensky", "pays:ua"]
+    assert theme == "Guerre en Ukraine"
+
+
+def test_media_accents_et_apostrophe_typographique():
+    """« Nétanyahou » et « visite d’État » (apostrophe courbe) doivent correspondre."""
+    entities, theme = tag("Visite d’État : Macron reçoit Benjamin Nétanyahou")
+    assert "Benjamin Netanyahu" in entities and "EmmanuelMacron" in entities
+    assert theme == "Diplomatie"
+
+
+def test_media_frontieres_de_mot():
+    """« Prusse » n'est pas « russe », « Chinon » n'est pas « Chine »."""
+    entities, _ = tag("Histoire de la Prusse et du château de Chinon")
+    assert entities == []
+
+
+def test_media_article_hors_sujet_est_ecarte():
+    entry = SimpleNamespace(link="https://www.lemonde.fr/a.html", title="Macron à un match de rugby",
+                            summary="", published_parsed=(2026, 9, 29, 10, 0, 0, 0, 0, 0))
+    assert mention_from_entry("lemondefr", entry) is None
+
+
+def test_media_mention_garde_le_texte_de_la_redaction():
+    entry = SimpleNamespace(
+        link="https://www.lefigaro.fr/international/x.php?xtor=RSS-1#top",
+        title="Trump menace la Chine de nouveaux droits de douane",
+        summary="<p>Washington &amp; Pékin</p>",
+        published_parsed=(2026, 9, 29, 10, 0, 0, 0, 0, 0))
+    m = mention_from_entry("Le_Figaro", entry)
+    assert m["titre"] == "Trump menace la Chine de nouveaux droits de douane"
+    assert m["resume"] == "Washington & Pékin"
+    assert m["article_url"] == m["id"] == "https://www.lefigaro.fr/international/x.php"
+    assert m["theme"] == "Commerce / droits de douane"
+    assert m["published_at"] == "2026-09-29T10:00:00+00:00"
+
+
+def test_media_sans_date_dans_le_flux_reste_a_completer():
+    """Le Parisien ne date pas son flux : la mention attend la date de la page."""
+    entry = SimpleNamespace(link="https://www.leparisien.fr/a.php",
+                            title="Poutine intensifie l'effort de guerre en Ukraine")
+    m = mention_from_entry("le_Parisien", entry)
+    assert m is not None and m["published_at"] is None
+
+
+def test_media_date_lue_sur_la_page():
+    page = ('<meta property="article:published_time" content="2026-09-29T23:22:00+02:00"/>'
+            '<meta property="og:description" content="Un chap&ocirc;"/>')
+    assert page_meta(page) == ("2026-09-29T21:22:00+00:00", "Un chapô")
+    assert page_meta("<html></html>") == (None, None)
+
+
+def test_media_url_canonique():
+    assert canonical_url(" https://www.lemonde.fr/a/b.html?xtor=RSS#x ") == "https://www.lemonde.fr/a/b.html"
