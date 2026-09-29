@@ -14,10 +14,14 @@
 -- Lecture publique, contrairement à rss_items (007) : ce ne sont pas des
 -- pistes à vérifier mais des titres déjà publiés par les rédactions, avec
 -- le lien vers leur article — exactement ce que la vue affiche.
+--
+-- Nom : pas `media_mentions`, déjà pris en production par une table créée
+-- hors migrations (colonnes tweet_id / matched_via…, vide, lue par aucun
+-- code du dépôt). Elle n'est volontairement pas touchée ici.
 
 begin;
 
-create table if not exists media_mentions (
+create table if not exists press_mentions (
   id            text primary key,               -- URL canonique de l'article
   outlet        text        not null check (outlet in ('lemondefr', 'Le_Figaro', 'le_Parisien')),
   published_at  timestamptz not null,
@@ -28,16 +32,16 @@ create table if not exists media_mentions (
   entities      text[]      not null check (cardinality(entities) > 0),
   ingested_at   timestamptz not null default now()
 );
-create index if not exists media_mentions_published_idx on media_mentions (published_at desc);
+create index if not exists press_mentions_published_idx on press_mentions (published_at desc);
 
-comment on table media_mentions is
+comment on table press_mentions is
   'Articles de presse (RSS Le Monde / Le Figaro / Le Parisien) mentionnant une '
   'entité de la vue Flux live. Alimenté par `politiscope.cli fetch-media`.';
 
-alter table media_mentions enable row level security;
+alter table press_mentions enable row level security;
 
-drop policy if exists lecture_publique_media_mentions on media_mentions;
-create policy lecture_publique_media_mentions on media_mentions
+drop policy if exists lecture_publique_press_mentions on press_mentions;
+create policy lecture_publique_press_mentions on press_mentions
   for select to anon, authenticated using (true);
 
 commit;

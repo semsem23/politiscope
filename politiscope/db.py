@@ -171,16 +171,16 @@ def upsert_candidates(conn, cands: Iterable[dict], citation_key) -> int:
 
 def fetch_media_mention_ids(conn) -> set[str]:
     with conn.cursor() as cur:
-        cur.execute("select id from media_mentions")
+        cur.execute("select id from press_mentions")
         return {r[0] for r in cur.fetchall()}
 
 
-def insert_media_mentions(conn, mentions: Iterable[dict]) -> int:
+def insert_press_mentions(conn, mentions: Iterable[dict]) -> int:
     """Ajoute les articles absents ; un article déjà en base n'est jamais réécrit."""
     rows = [(m["id"], m["outlet"], m["published_at"], m["titre"], m.get("resume"),
              m["article_url"], m["theme"], list(m["entities"])) for m in mentions]
     return _executemany(conn, """
-        insert into media_mentions (id, outlet, published_at, titre, resume,
+        insert into press_mentions (id, outlet, published_at, titre, resume,
                                     article_url, theme, entities)
         values (%s, %s, %s, %s, %s, %s, %s, %s)
         on conflict (id) do nothing

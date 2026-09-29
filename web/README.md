@@ -71,7 +71,7 @@ src/
   types.ts                    modèle, familles
   lib/supabase.ts             client public
   lib/fluxScope.ts            périmètre de la vue Flux live (médias, figures, pays, sujets)
-  hooks/useMediaMentions.ts   lit `media_mentions` (presse RSS, collecte nocturne `fetch-media`)
+  hooks/useMediaMentions.ts   lit `press_mentions` (presse RSS, collecte nocturne `fetch-media`)
   hooks/usePolitiscope.ts     chargement, filtrage, tri
   components/
     FilterBar.tsx             familles, thème, tri, recherche

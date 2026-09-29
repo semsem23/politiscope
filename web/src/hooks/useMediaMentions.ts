@@ -17,7 +17,7 @@ const PAGE = 1000;
 const MAX_PAGES = 20;
 
 /**
- * Données de la vue « Flux live » : la table `media_mentions` entière.
+ * Données de la vue « Flux live » : la table `press_mentions` entière.
  *
  * La collecte nocturne (`politiscope.cli fetch-media`) n'ajoute que les
  * articles nouveaux ; la table est donc l'historique accumulé depuis le
@@ -39,13 +39,13 @@ export function useMediaMentions(): MediaMentionsData {
       const all: MediaMention[] = [];
       for (let page = 0; page < MAX_PAGES; page++) {
         const { data, error: err } = await client
-          .from("media_mentions")
+          .from("press_mentions")
           .select("id, outlet, published_at, titre, resume, article_url, theme, entities")
           .order("published_at", { ascending: false })
           .range(page * PAGE, (page + 1) * PAGE - 1);
         if (cancelled) return;
         if (err) {
-          console.warn("table `media_mentions` indisponible :", err.message);
+          console.warn("table `press_mentions` indisponible :", err.message);
           setError(err.message);
           setLoading(false);
           return;

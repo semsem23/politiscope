@@ -236,8 +236,8 @@ def cmd_fetch_media(args) -> int:
         known = db.fetch_media_mention_ids(conn)
         mentions, seen = media.fetch(known=known)
         avant = len(known)
-        db.insert_media_mentions(conn, mentions)
-        apres = db.table_counts(conn, ("media_mentions",))["media_mentions"]
+        db.insert_press_mentions(conn, mentions)
+        apres = db.table_counts(conn, ("press_mentions",))["press_mentions"]
     print(f"\n{apres - avant} mention(s) ajoutée(s) sur {len(mentions)} retenue(s) "
           f"({seen} article(s) lu(s)) — {apres} en base — 0.00 USD")
     return 0

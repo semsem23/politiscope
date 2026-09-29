@@ -102,7 +102,7 @@ export const subjectShort = (theme: string): string =>
 
 /**
  * Un article d'un média suivi qui cite au moins une entité du périmètre —
- * une ligne de la table `media_mentions` (migration 009), alimentée chaque
+ * une ligne de la table `press_mentions` (migration 009), alimentée chaque
  * nuit depuis les flux RSS des rédactions (politiscope/media.py, dont les
  * clés d'entités et de sujets doivent rester celles de ce fichier).
  */

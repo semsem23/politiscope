@@ -332,7 +332,7 @@ que sur son propre `where publie` pour ne pas fuiter d'entrée non publiée.
 lecture comme `entries`/`topics`. Le front-end s'y rabat sur les chaînes
 codées en dur si la table ou une clé manque — voir `web/README.md`.
 
-**009** ajoute `media_mentions`, la matière de la vue Flux live : articles du
+**009** ajoute `press_mentions`, la matière de la vue Flux live : articles du
 Monde, du Figaro et du Parisien (flux RSS publics, gratuits) qui citent une
 entité du périmètre (`politiscope/media.py`). `fetch-media` tourne chaque nuit
 et n'ajoute que les articles absents ; le Parisien ne datant pas son flux, la

@@ -48,7 +48,10 @@ jobs:
           test -n "$SUPABASE_DB_URL" || { echo "::error::secret SUPABASE_POOLER_URL manquant"; exit 1; }
 
       - name: Migrer
+        # pipefail : sans lui, le `| tee` masquait l'échec de db-migrate et le
+        # passage s'affichait vert alors que rien n'était appliqué.
         run: |
+          set -o pipefail
           echo "### Migration du $(date -u '+%d/%m/%Y %H:%M UTC')" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           python -m politiscope.cli db-migrate | tee -a "$GITHUB_STEP_SUMMARY"
