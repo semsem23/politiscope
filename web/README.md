@@ -70,13 +70,16 @@ anonyme renvoie 401.
 src/
   types.ts                    modèle, familles
   lib/supabase.ts             client public
+  lib/fluxScope.ts            périmètre de la vue Flux live (médias, figures, pays, sujets)
+  lib/fluxMock.ts             données FICTIVES du Flux live (pas d'ingestion médias)
+  hooks/useMediaMentions.ts   données du Flux live — seul point à brancher sur le réel
   hooks/usePolitiscope.ts     chargement, filtrage, tri
   components/
     FilterBar.tsx             familles, thème, tri, recherche
     PersonGrid.tsx            la grille de cartes (vue Personnalités)
     CitationsTable.tsx        le tableau (vue Citations)
     PersonModal.tsx           la fiche (Échap, clic extérieur, focus)
-    TopicGraph.tsx            graphe d3 à deux niveaux
+    FluxLive.tsx              fil + carte radiale + bande de densité
   App.tsx
   index.css                   design system, thèmes clair et sombre
 ```
@@ -98,6 +101,6 @@ passe quand même ; `engines` documente l'attendu.
 
 ## Poids
 
-`dist/` fait 494 Ko (145 Ko gzip), dont l'essentiel est d3 pour le graphe de
-forces. Si cela devient gênant, `TopicGraph` est le seul consommateur de d3 et
-se prête bien à un `React.lazy`.
+`dist/` fait 482 Ko (142 Ko gzip). `FluxLive` n'utilise plus que `d3-scale` ;
+`d3-force`, `d3-drag` et `d3-selection` ne servaient qu'à l'ancien graphe des
+sujets et peuvent être retirés de `package.json`.

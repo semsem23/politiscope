@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CitationsTable } from "./components/CitationsTable";
 import { FilterBar, type View } from "./components/FilterBar";
 import { PersonGrid } from "./components/PersonGrid";
+import { FluxLive } from "./components/FluxLive";
 import { PersonModal } from "./components/PersonModal";
-import { TopicGraph } from "./components/TopicGraph";
 import { parseLocation, useUrlSync, type ParsedRoute } from "./hooks/useUrl";
 import {
   DEFAULT_SITE_CONTEXT,
@@ -12,7 +12,7 @@ import {
   usePolitiscopeData,
   type Filters,
 } from "./hooks/usePolitiscope";
-import { FAMILLES, figureKeyOf, type Entry, type FamilleId } from "./types";
+import { FAMILLES, figureKeyOf, type FamilleId } from "./types";
 
 const emptyFilters = (): Filters => ({
   familles: Object.fromEntries(FAMILLES.map((f) => [f.id, true])) as Record<FamilleId, boolean>,
@@ -28,7 +28,7 @@ const VIEWS: { value: View; label: string }[] = [
 ];
 
 export default function App() {
-  const { entries, topics, figures, siteContext, loading, error } = usePolitiscopeData();
+  const { entries, figures, siteContext, loading, error } = usePolitiscopeData();
   const eyebrow = siteContext.eyebrow ?? DEFAULT_SITE_CONTEXT.eyebrow;
   const contexte = siteContext.contexte ?? DEFAULT_SITE_CONTEXT.contexte;
 
@@ -116,11 +116,6 @@ export default function App() {
     setScrollToEntryId(null);
     setPersonModalId(null);
   }, []);
-  const onThemeChange = useCallback((theme: string) => {
-    setFilters((f) => ({ ...f, theme: f.theme === theme ? "all" : theme }));
-  }, []);
-  // Depuis le graphe : ouvre directement la fiche personnalité (mode « pol »).
-  const onSelectFromGraph = useCallback((e: Entry) => openPerson(figureKeyOf(e)), [openPerson]);
   // Depuis le tableau, sur mobile : la ligne entière ouvre la fiche.
   const onOpenPersonFromTable = useCallback((figureId: string) => openPerson(figureId), [openPerson]);
   // Cliquer un nom dans le tableau filtre sur cette personne, sans ouvrir la fiche.
@@ -234,17 +229,9 @@ export default function App() {
         />
       )}
 
-      {!loading && entries.length > 0 && (
-        <TopicGraph
-          entries={entries}
-          topics={topics}
-          onSelect={onSelectFromGraph}
-          theme={filters.theme}
-          onThemeChange={onThemeChange}
-          familles={filters.familles}
-          search={filters.search}
-        />
-      )}
+      {/* Périmètre propre (médias x exécutif x international) et données
+          propres : ne dépend ni des filtres ci-dessus ni de `entries`. */}
+      <FluxLive />
 
       <footer className="page-footer">
         <div className="legend-row" aria-label="Légende des familles politiques">

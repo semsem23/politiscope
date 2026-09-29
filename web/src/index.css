@@ -17,6 +17,10 @@
   --fam-gauche-radicale: #eda100;
   --fam-gauche-social: #e87ba4;
   --topic-color: #4a3aa7;
+  --outlet-lemonde: #0e7c72;
+  --outlet-figaro: #b8323f;
+  --outlet-parisien: #c27c00;
+  --live: #d6293a;
 
   --shadow: 0 1px 2px rgba(11, 11, 11, 0.04), 0 8px 24px -12px rgba(11, 11, 11, 0.18);
 }
@@ -39,6 +43,10 @@
     --fam-gauche-radicale: #c98500;
     --fam-gauche-social: #d55181;
     --topic-color: #9085e9;
+    --outlet-lemonde: #2fb3a6;
+    --outlet-figaro: #e2626e;
+    --outlet-parisien: #e0a030;
+    --live: #f0505e;
 
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px -12px rgba(0, 0, 0, 0.55);
   }
@@ -60,6 +68,10 @@
   --fam-gauche-radicale: #c98500;
   --fam-gauche-social: #d55181;
   --topic-color: #9085e9;
+  --outlet-lemonde: #2fb3a6;
+  --outlet-figaro: #e2626e;
+  --outlet-parisien: #e0a030;
+  --live: #f0505e;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px -12px rgba(0, 0, 0, 0.55);
 }
 
@@ -297,7 +309,7 @@ input.control { min-width: 180px; }
 .view-in-table-btn:hover { border-color: var(--muted); background: var(--surface-raised); }
 .view-in-table-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-/* ---------- Graphe des sujets ---------- */
+/* ---------- En-têtes de section, bascules, légendes ---------- */
 .section-head { margin-bottom: 16px; }
 .section-head-top { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 14px 20px; }
 .section-title {
@@ -316,50 +328,10 @@ input.control { min-width: 180px; }
 }
 .toggle-btn[aria-selected="true"] { background: var(--surface-raised); color: var(--ink); box-shadow: var(--shadow); }
 .toggle-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.topic-graph-section { margin-bottom: 40px; }
-.graph-container {
-  position: relative; background: var(--surface); border: 1px solid var(--line);
-  border-radius: 14px; width: 100%; height: 460px; margin-top: 16px; overflow: hidden;
-}
-.graph-container.is-compact { height: auto; max-height: 460px; overflow-y: auto; padding: 16px; }
-.graph-container.is-matrix { height: auto; max-height: 560px; overflow: auto; padding: 0; }
-.graph-svg { width: 100%; height: 100%; display: block; cursor: grab; }
-.graph-svg:active { cursor: grabbing; }
-.graph-node-topic circle { fill: var(--surface-raised); stroke: var(--topic-color); stroke-width: 2.5px; }
-.graph-node-topic text {
-  font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 500; fill: var(--ink);
-  /* Halo : un nœud personnalité qui dérive contre la bulle-sujet ne doit pas
-     rendre son libellé illisible — le texte reste net par-dessus. */
-  paint-order: stroke fill; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round;
-}
-.graph-node-pol circle { stroke-width: 2.25px; }
-.graph-node-pol text {
-  font-family: "Fraunces Variable", Georgia, serif; font-weight: 600; fill: var(--ink);
-  paint-order: stroke fill; stroke: var(--surface-raised); stroke-width: 2px; stroke-linejoin: round;
-}
-.graph-link { stroke-opacity: 0.55; fill: none; }
-.graph-node.is-dim { opacity: 0.18; }
-.graph-link.is-dim { opacity: 0.08; }
-.graph-node-topic.is-selected circle { stroke: var(--accent); stroke-width: 3.5px; }
-.graph-node-topic.is-selected text { fill: var(--accent); }
-.graph-tooltip {
-  position: absolute; pointer-events: none; background: var(--surface-raised);
-  border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 8px;
-  padding: 7px 10px; font-size: 12px; line-height: 1.4; color: var(--ink);
-  max-width: 220px; z-index: 5; transform: translate(-50%, -100%); margin-top: -10px;
-}
-.graph-tooltip strong { display: block; font-size: 12.5px; margin-bottom: 2px; }
 .graph-legend { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 12px; font-size: 12px; color: var(--ink-soft); }
-.node-swatch {
-  width: 14px; height: 14px; border-radius: 50%; display: inline-block;
-  margin-right: 6px; vertical-align: -2px; border: 2px solid;
-}
-.node-swatch.topic { background: var(--surface-raised); border-color: var(--topic-color); }
-.node-swatch.pol { background: var(--surface-raised); border-color: var(--muted); }
-
 /* Masqué visuellement mais lisible par un lecteur d'écran / atteignable au
    clavier ; redevient visible au focus pour ne pas piéger le focus dans du
-   contenu invisible (voir TopicGraph, alternative textuelle au graphe). */
+   contenu invisible (voir PersonGrid). */
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
@@ -369,70 +341,142 @@ input.control { min-width: 180px; }
   clip: auto; white-space: normal;
 }
 
-/* Sujet -> personnalités/partis, en repli sous 600px (visible) ou en
-   alternative accessible au graphe (sr-only, voir ci-dessus). */
-.topic-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
-.topic-list-group { display: flex; flex-direction: column; gap: 6px; }
-.topic-list-theme {
-  align-self: flex-start; font: inherit; font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
-  color: var(--topic-color); background: color-mix(in srgb, var(--topic-color) 10%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--topic-color) 35%, var(--line));
-  border-radius: 999px; padding: 5px 12px; cursor: pointer;
+/* ---------- Flux live (fil + carte radiale + densité) ---------- */
+.flux-section { margin: 40px 0; }
+.flux-mock-badge {
+  display: inline-block; vertical-align: 0.35em; margin-left: 6px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--outlet-parisien);
+  border: 1px dashed currentColor; border-radius: 999px; padding: 3px 9px;
 }
-.topic-list-theme[aria-pressed="true"] { background: var(--topic-color); color: var(--surface); }
-.topic-list-theme:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.topic-list-count { opacity: 0.7; }
-.topic-list-members {
-  list-style: none; margin: 0; padding: 0 0 0 4px; display: flex; flex-wrap: wrap; gap: 6px 10px;
-  font-size: 13px; color: var(--ink-soft);
+.flux-mock-note {
+  font-size: 12px; color: var(--muted); border: 1px dashed var(--line); border-radius: 8px;
+  padding: 8px 10px; margin: 0 0 16px;
 }
-.topic-list-members button {
-  font: inherit; color: var(--ink); background: none; border: none; padding: 0;
-  cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+.flux-controls {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
+  gap: 10px 16px; margin-bottom: 14px;
 }
-.topic-list-members button:hover { color: var(--accent); }
-.topic-list-members button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.flux-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.flux-feed, .flux-map {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px; min-width: 0;
+}
+/* Sous 900px : la carte d'abord, le fil en dessous, à hauteur bornée. */
+.flux-feed { display: flex; flex-direction: column; max-height: 420px; order: 2; }
+.flux-map { order: 1; padding: 8px; }
+@media (min-width: 900px) {
+  .flux-layout { grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); }
+  .flux-feed { height: 580px; max-height: none; order: 0; }
+  .flux-map { order: 0; height: 580px; }
+}
+.flux-feed-head {
+  display: flex; align-items: center; gap: 8px; padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft);
+}
+.flux-live-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--live); flex: none;
+  animation: flux-pulse 2s ease-in-out infinite;
+}
+@keyframes flux-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--live) 55%, transparent); }
+  50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--live) 0%, transparent); }
+}
+.flux-feed-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+.flux-feed-list li + li { border-top: 1px solid var(--line); }
+.flux-item {
+  display: flex; flex-direction: column; gap: 5px; width: 100%; text-align: left;
+  font: inherit; color: inherit; background: none; border: none; cursor: pointer;
+  padding: 11px 14px 11px 12px; border-left: 3px solid var(--outlet-color, var(--line));
+}
+.flux-item:hover { background: var(--surface-raised); }
+.flux-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.flux-item-meta {
+  display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--ink-soft);
+}
+.flux-item-meta .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.flux-item-meta time {
+  margin-left: auto; font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-weight: 400; font-size: 10.5px; color: var(--muted);
+}
+.flux-item-text { font-size: 13px; line-height: 1.45; color: var(--ink); }
+.flux-item-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.flux-tag, .flux-tag-subject {
+  font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10px;
+  padding: 2px 7px; border: 1px solid var(--line); color: var(--ink-soft);
+}
+.flux-tag { border-radius: 999px; }
+.flux-tag-country { border-radius: 4px; }
+.flux-tag-subject {
+  border-radius: 999px; color: var(--topic-color);
+  border-color: color-mix(in srgb, var(--topic-color) 35%, var(--line));
+  background: color-mix(in srgb, var(--topic-color) 8%, var(--surface));
+}
 
-/* ---------- Vue Matrice du graphe (personnalités x sujets) ---------- */
-.matrix-scroll { overflow: auto; max-height: 560px; }
-.matrix-table { border-collapse: collapse; font-size: 12.5px; white-space: nowrap; }
-.matrix-table th, .matrix-table td { padding: 6px 10px; text-align: center; border-bottom: 1px solid var(--line); }
-.matrix-table thead th {
-  position: sticky; top: 0; z-index: 2; background: var(--surface);
-  font-weight: 500; border-bottom: 1px solid var(--line); vertical-align: bottom;
+/* Carte radiale : positions fixes (voir FluxLive), mise à l'échelle par viewBox. */
+.flux-map-svg { display: block; width: 100%; height: 100%; max-height: 564px; margin: 0 auto; aspect-ratio: 1; }
+.flux-ring { fill: none; stroke: var(--line); stroke-dasharray: 3 5; }
+.flux-link { stroke: var(--topic-color); stroke-opacity: 0.28; stroke-linecap: round; transition: opacity 0.15s ease; }
+.flux-link.is-dim { opacity: 0.1; }
+.flux-node { cursor: pointer; transition: opacity 0.15s ease; }
+.flux-node:focus { outline: none; }
+.flux-node:focus-visible .flux-shape { stroke: var(--accent); stroke-width: 3.5px; }
+.flux-node.is-empty { opacity: 0.4; }
+.flux-node.is-dim { opacity: 0.2; }
+.flux-node.is-empty.is-dim { opacity: 0.15; }
+.flux-shape { stroke-width: 2.25px; transition: stroke 0.15s ease; }
+.flux-node:hover .flux-shape { stroke-width: 3px; }
+.flux-figure .flux-shape { fill: var(--surface-raised); stroke: var(--ink-soft); }
+.flux-figure-fr .flux-shape {
+  stroke: var(--fam-majorite); fill: color-mix(in srgb, var(--fam-majorite) 12%, var(--surface-raised));
 }
-/* Colonne des noms fixée : reste visible pendant le défilement horizontal. */
-.matrix-name-col {
-  position: sticky; left: 0; z-index: 1; background: var(--surface);
-  text-align: left; font-weight: 500; min-width: 160px;
+.flux-country .flux-shape { fill: color-mix(in srgb, var(--ink) 9%, var(--surface-raised)); stroke: var(--ink); }
+.flux-subject .flux-shape {
+  fill: color-mix(in srgb, var(--topic-color) 10%, var(--surface-raised)); stroke: var(--topic-color); stroke-width: 1.5px;
 }
-.matrix-table thead .matrix-name-col { z-index: 3; }
-.matrix-name-btn {
-  font: inherit; font-weight: inherit; color: var(--ink); background: none; border: none; padding: 0;
-  cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-align: left;
+.flux-subject text {
+  font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11px; font-weight: 600; fill: var(--topic-color);
 }
-.matrix-name-btn:hover { color: var(--accent); }
-.matrix-name-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.matrix-name-btn .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-.matrix-col-btn {
-  font: inherit; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px;
-  font-weight: 600; color: var(--ink-soft); background: none; border: none; padding: 2px 4px;
-  cursor: pointer; white-space: normal; max-width: 76px; line-height: 1.3;
+.flux-initials {
+  font-family: "Fraunces Variable", Georgia, serif; font-weight: 600; font-size: 11.5px;
+  fill: var(--ink); pointer-events: none;
 }
-.matrix-col-btn:hover { color: var(--accent); }
-.matrix-col-btn[aria-pressed="true"] { color: var(--accent); }
-.matrix-col-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.matrix-cell { width: 64px; }
-.matrix-dot {
-  border-radius: 50%; border: none; padding: 0; cursor: pointer; display: inline-block;
-  transition: transform 0.1s ease;
+.flux-label {
+  font-size: 11.5px; font-weight: 600; fill: var(--ink); pointer-events: none;
+  paint-order: stroke fill; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round;
 }
-.matrix-dot:hover, .matrix-dot:focus-visible { transform: scale(1.25); outline: none; }
-.matrix-total { font-family: "IBM Plex Mono", ui-monospace, monospace; color: var(--muted); }
-.matrix-table tfoot th, .matrix-table tfoot td {
-  border-bottom: none; border-top: 1px solid var(--line); font-weight: 600;
+.flux-count { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 400; fill: var(--muted); }
+.flux-subject .flux-count { fill: var(--topic-color); opacity: 0.7; }
+
+/* Bande de densité : tout l'historique accumulé, la période active surlignée. */
+.flux-strip {
+  margin-top: 14px; padding: 12px 14px 10px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
 }
+.flux-strip-head {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px;
+  font-size: 12px; color: var(--muted); margin-bottom: 8px;
+}
+.flux-strip-svg { display: block; width: 100%; height: 44px; }
+.flux-strip-window { fill: color-mix(in srgb, var(--accent) 10%, transparent); }
+.flux-strip-axis {
+  display: flex; justify-content: space-between; margin-top: 4px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px; color: var(--muted);
+}
+
+.flux-swatch { width: 14px; height: 14px; display: inline-block; border: 2px solid; flex: none; }
+.flux-swatch-figure { border-radius: 50%; border-color: var(--ink-soft); background: var(--surface-raised); }
+.flux-swatch-country {
+  border-radius: 4px; border-color: var(--ink); background: color-mix(in srgb, var(--ink) 9%, var(--surface-raised));
+}
+.flux-swatch-subject {
+  width: 22px; border-radius: 999px; border-width: 1.5px; border-color: var(--topic-color);
+  background: color-mix(in srgb, var(--topic-color) 10%, var(--surface-raised));
+}
+.flux-excerpt { font-size: 16px; }
+.flux-orb-country { border-radius: 10px; border-color: var(--ink); }
+.flux-orb-subject { border-color: var(--topic-color); color: var(--topic-color); }
 
 /* ---------- Vue Citations (tableau) ---------- */
 /* Le contenu large (citation, source) défile dans ce conteneur, jamais dans
@@ -522,7 +566,6 @@ input.control { min-width: 180px; }
 
 @media (max-width: 560px) {
   .orb { width: 84px; height: 84px; }
-  .graph-container { height: 380px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
