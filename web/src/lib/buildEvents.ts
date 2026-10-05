@@ -1,0 +1,407 @@
+import { entityOf, shortName, type MediaMention, type OutletId, type Period } from "./fluxScope";
+
+/**
+ * Dérive des « événements » reliés à partir des articles de `press_mentions`.
+ *
+ * La base ne connaît pas la notion d'événement : elle n'a que des articles
+ * avec un thème et des entités (voir fluxScope.ts). Ce module la fabrique
+ * côté client, par heuristique :
+ *
+ * 1. deux articles proches dans le temps qui partagent des entités **et**
+ *    des mots significatifs de titre racontent le même fait -> un seul
+ *    événement ;
+ * 2. deux événements distincts dont les titres se recoupent encore
+ *    nettement sont liés de façon « établie » (même fait, suite directe) ;
+ * 3. deux événements qui ne partagent que des entités et une proximité
+ *    temporelle sont liés de façon « suggérée » — à confirmer, donc en
+ *    pointillés dans la frise.
+ *
+ * Tout est pur et sans état : `buildTimeline` est la seule porte d'entrée de
+ * la vue. C'est le point de remplacement prévu pour un vrai pipeline
+ * (clustering sur embeddings calculés en base) — la forme de sortie
+ * (`Timeline`) est le contrat à préserver, pas la façon de l'obtenir.
+ */
+
+// --- couloirs thématiques ---------------------------------------------------
+
+export interface Lane {
+  id: string;
+  /** Nom affiché à gauche du couloir. */
+  label: string;
+  /** Thèmes de SUBJECTS qui tombent dans ce couloir. */
+  themes: string[];
+}
+
+/**
+ * Un couloir par sujet du périmètre, dans l'ordre où ils se lisent : les
+ * libellés sont ceux des pôles de la frise, les thèmes ceux de `SUBJECTS`.
+ * `autres` récupère un thème inconnu (nouveau sujet côté ingestion) plutôt
+ * que de le faire disparaître ; il ne s'affiche que s'il est peuplé.
+ */
+export const LANES: Lane[] = [
+  { id: "diplomatie", label: "Diplomatie", themes: ["Diplomatie"] },
+  { id: "ukraine", label: "Ukraine-Russie", themes: ["Guerre en Ukraine"] },
+  { id: "proche-orient", label: "Proche-Orient", themes: ["Gaza / Proche-Orient"] },
+  { id: "us-otan", label: "États-Unis / Otan", themes: ["Défense / Otan"] },
+  { id: "commerce", label: "Commerce / douanes", themes: ["Commerce / droits de douane"] },
+  { id: "europe", label: "Europe", themes: ["Europe & souveraineté"] },
+  { id: "autres", label: "Autres", themes: [] },
+];
+
+const LANE_OF_THEME = new Map<string, string>(
+  LANES.flatMap((l) => l.themes.map((t) => [t, l.id] as const))
+);
+
+export const laneIdOf = (theme: string): string => LANE_OF_THEME.get(theme) ?? "autres";
+
+export const laneOf = (id: string): Lane => LANES.find((l) => l.id === id) ?? LANES[LANES.length - 1];
+
+// --- mots significatifs ------------------------------------------------------
+
+/**
+ * Mots vides du français, plus le vocabulaire de titre de presse qui revient
+ * partout et ne distingue donc aucun fait (« annonce », « ministre »…).
+ */
+const STOP = new Set([
+  "alors", "apres", "attendant", "aucun", "aussi", "autre", "autres", "avant", "avec", "avoir",
+  "beaucoup", "cela", "celle", "celles", "celui", "cette", "ceux", "chaque", "comme", "comment",
+  "contre", "dans", "depuis", "deux", "devant", "doit", "donc", "dont", "elle", "elles", "encore",
+  "entre", "etre", "fait", "faire", "fois", "hier", "jour", "jours", "leur", "leurs", "mais",
+  "meme", "moins", "nous", "plus", "pour", "pourquoi", "pres", "quand", "quel", "quelle",
+  "quelles", "quels", "sans", "selon", "sera", "seront", "soit", "sont", "sous", "sur",
+  "tous", "tout", "toute", "toutes", "trois", "trop", "vers", "veut", "vous",
+  // vocabulaire de titre, trop fréquent pour identifier un fait
+  "annonce", "annoncent", "articles", "chef", "declaration", "declarations", "direct",
+  "entretien", "gouvernement", "ministre", "ministres", "president", "presidente",
+  "premier", "recit", "reportage", "tribune", "video", "live", "analyse", "decryptage",
+  "france", "francais", "francaise", "paris",
+]);
+
+/** Minuscules, sans accents, mots de 4 lettres ou plus, hors mots vides. */
+export function significantWords(text: string): Set<string> {
+  const out = new Set<string>();
+  const flat = text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, " ");
+  for (const w of flat.split(" ")) {
+    if (w.length < 4 || STOP.has(w) || /^\d+$/.test(w)) continue;
+    out.add(w);
+  }
+  return out;
+}
+
+function sharedCount<T>(a: Set<T> | readonly T[], b: Set<T>): number {
+  let n = 0;
+  for (const v of a) if (b.has(v)) n += 1;
+  return n;
+}
+
+// --- événements ---------------------------------------------------------------
+
+export interface TimelineEvent {
+  /** Stable d'un rendu à l'autre : l'URL de l'article de tête. */
+  id: string;
+  laneId: string;
+  /** Instant du premier article du groupe. */
+  t: number;
+  /** Titre court, tiré du titre de presse le plus concis du groupe. */
+  title: string;
+  /** Entités citées, en libellés courts. */
+  subtitle: string;
+  /** Média de l'article de tête — la pastille de couleur du point. */
+  outlet: OutletId;
+  /** Tous les médias du groupe, dans l'ordre de première parution. */
+  outlets: OutletId[];
+  /** Articles du groupe, du plus ancien au plus récent. */
+  mentions: MediaMention[];
+  entities: string[];
+  /** Mots significatifs de l'article de tête — base des liens. */
+  words: Set<string>;
+}
+
+/** Au-delà, deux articles ne racontent plus le même fait mais sa suite. */
+const MERGE_GAP_MS = 30 * 3600 * 1000;
+
+/** Le groupe est comparé à son article fondateur, pas à l'union : sinon il absorbe de proche en proche. */
+function sameFact(m: MediaMention, seedWords: Set<string>, seedEntities: string[]): boolean {
+  const words = sharedCount(significantWords(m.titre), seedWords);
+  if (words === 0) return false;
+  return words >= 3 || (words >= 2 && sharedCount(m.entities, new Set(seedEntities)) >= 1);
+}
+
+const TRUNCATE = 54;
+
+const shorten = (s: string): string => {
+  const clean = s.replace(/\s+/g, " ").trim();
+  if (clean.length <= TRUNCATE) return clean;
+  const cut = clean.slice(0, TRUNCATE);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > TRUNCATE * 0.6 ? cut.slice(0, space) : cut).replace(/[,;:]$/, "")}…`;
+};
+
+const entityLabels = (keys: string[]): string =>
+  keys
+    .map((k) => {
+      const e = entityOf(k);
+      return e ? shortName(e) : k;
+    })
+    .join(", ");
+
+/**
+ * Regroupe les articles en événements. Pur, indépendant de la période
+ * affichée : c'est la fonction qu'un vrai pipeline remplacerait.
+ */
+export function buildEvents(mentions: MediaMention[]): TimelineEvent[] {
+  const chrono = [...mentions].sort(
+    (a, b) => Date.parse(a.published_at) - Date.parse(b.published_at)
+  );
+
+  interface Cluster {
+    laneId: string;
+    seed: MediaMention;
+    seedWords: Set<string>;
+    lastT: number;
+    items: MediaMention[];
+  }
+  const openByLane = new Map<string, Cluster[]>();
+  const all: Cluster[] = [];
+
+  for (const m of chrono) {
+    const t = Date.parse(m.published_at);
+    if (!Number.isFinite(t)) continue;
+    const laneId = laneIdOf(m.theme);
+    const open = openByLane.get(laneId) ?? [];
+
+    // Le groupe le plus récent qui tient encore gagne : à mots égaux, c'est
+    // toujours le fait le plus proche dans le temps.
+    let host: Cluster | null = null;
+    for (let i = open.length - 1; i >= 0; i--) {
+      const c = open[i];
+      if (t - c.lastT > MERGE_GAP_MS) {
+        open.splice(i, 1); // trop vieux : ne pourra plus rien accueillir
+        continue;
+      }
+      if (!host && sameFact(m, c.seedWords, c.seed.entities)) host = c;
+    }
+
+    if (host) {
+      host.items.push(m);
+      host.lastT = t;
+    } else {
+      const c: Cluster = {
+        laneId,
+        seed: m,
+        seedWords: significantWords(m.titre),
+        lastT: t,
+        items: [m],
+      };
+      open.push(c);
+      all.push(c);
+    }
+    openByLane.set(laneId, open);
+  }
+
+  return all.map((c) => {
+    const entities = [...new Set(c.items.flatMap((m) => m.entities))];
+    return {
+      id: c.seed.id,
+      laneId: c.laneId,
+      t: Date.parse(c.seed.published_at),
+      // Le titre le plus court du groupe : moins de chapô recopié, plus de fait.
+      title: shorten(c.items.map((m) => m.titre).reduce((a, b) => (b.length < a.length ? b : a))),
+      subtitle: entityLabels(entities.slice(0, 3)),
+      outlet: c.seed.outlet,
+      outlets: [...new Set(c.items.map((m) => m.outlet))],
+      mentions: c.items,
+      entities,
+      words: c.seedWords,
+    };
+  });
+}
+
+// --- liens -------------------------------------------------------------------
+
+export type LinkKind = "established" | "suggested";
+
+export interface TimelineLink {
+  /** Nœud amont (le plus ancien) : la flèche suit le temps. */
+  source: string;
+  target: string;
+  kind: LinkKind;
+}
+
+/** Fenêtre de rapprochement, plus large quand la période est longue. */
+const LINK_GAP_MS: Record<Period, number> = {
+  "24h": 18 * 3600 * 1000,
+  "7j": 60 * 3600 * 1000,
+  "30j": 96 * 3600 * 1000,
+};
+
+/** Garde-fou anti-pelote : un événement ne tire qu'un petit nombre de liens. */
+const MAX_DEGREE: Record<LinkKind, number> = { established: 3, suggested: 2 };
+
+function buildLinks(events: TimelineEvent[], gap: number): TimelineLink[] {
+  const byTime = [...events].sort((a, b) => a.t - b.t || a.id.localeCompare(b.id));
+  const candidates: { link: TimelineLink; score: number }[] = [];
+
+  for (let i = 0; i < byTime.length; i++) {
+    const a = byTime[i];
+    const aEntities = new Set(a.entities);
+    for (let j = i + 1; j < byTime.length; j++) {
+      const b = byTime[j];
+      if (b.t - a.t > gap) break; // trié : les suivants sont encore plus loin
+      const words = sharedCount(b.words, a.words);
+      const ents = sharedCount(b.entities, aEntities);
+      let kind: LinkKind | null = null;
+      if (words >= 2) kind = "established";
+      else if (ents >= 1) kind = "suggested";
+      if (!kind) continue;
+      candidates.push({ link: { source: a.id, target: b.id, kind }, score: words * 2 + ents });
+    }
+  }
+
+  // Les liens les plus étayés passent d'abord, les autres seulement s'il
+  // reste de la place : un événement sans voisin crédible reste isolé.
+  candidates.sort(
+    (x, y) =>
+      Number(y.link.kind === "established") - Number(x.link.kind === "established") ||
+      y.score - x.score ||
+      x.link.source.localeCompare(y.link.source)
+  );
+
+  const degree = new Map<string, number>();
+  const out: TimelineLink[] = [];
+  for (const { link } of candidates) {
+    const cap = MAX_DEGREE[link.kind];
+    const ks = `${link.kind}|${link.source}`;
+    const kt = `${link.kind}|${link.target}`;
+    if ((degree.get(ks) ?? 0) >= cap || (degree.get(kt) ?? 0) >= cap) continue;
+    degree.set(ks, (degree.get(ks) ?? 0) + 1);
+    degree.set(kt, (degree.get(kt) ?? 0) + 1);
+    out.push(link);
+  }
+  return out;
+}
+
+// --- regroupement par journée ------------------------------------------------
+
+export interface TimelineNode {
+  id: string;
+  laneId: string;
+  /** Abscisse temporelle du point (midi de la journée quand elle est regroupée). */
+  t: number;
+  /** Événement de tête : son titre et son sous-titre étiquettent le point. */
+  lead: TimelineEvent;
+  events: TimelineEvent[];
+  /** Nombre d'événements regroupés — le compteur affiché quand il dépasse 1. */
+  count: number;
+  articleCount: number;
+  outlets: OutletId[];
+  /** Articles du point, pour le panneau de détail. */
+  mentionIds: string[];
+  /** Bornes réelles des événements regroupés. */
+  from: number;
+  to: number;
+}
+
+const nodeOf = (id: string, t: number, events: TimelineEvent[]): TimelineNode => {
+  const sorted = [...events].sort((a, b) => a.t - b.t);
+  // Le plus gros événement de la journée mène : c'est lui qu'on veut lire.
+  const lead = [...sorted].sort((a, b) => b.mentions.length - a.mentions.length || a.t - b.t)[0];
+  return {
+    id,
+    laneId: lead.laneId,
+    t,
+    lead,
+    events: sorted,
+    count: sorted.length,
+    articleCount: sorted.reduce((n, e) => n + e.mentions.length, 0),
+    outlets: [...new Set(sorted.flatMap((e) => e.outlets))],
+    mentionIds: sorted.flatMap((e) => e.mentions.map((m) => m.id)),
+    from: sorted[0].t,
+    to: Math.max(...sorted.map((e) => e.t)),
+  };
+};
+
+/** Clé de journée locale — `toISOString` basculerait de jour en soirée. */
+const dayKey = (t: number): string => {
+  const d = new Date(t);
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+};
+
+const dayMidpoint = (t: number): number => {
+  const d = new Date(t);
+  d.setHours(12, 0, 0, 0);
+  return d.getTime();
+};
+
+// --- sortie ------------------------------------------------------------------
+
+export interface Timeline {
+  /** Couloirs à afficher, dans l'ordre, « Autres » seulement s'il est peuplé. */
+  lanes: Lane[];
+  nodes: TimelineNode[];
+  links: TimelineLink[];
+  /** Vrai sur 7j et 30j : un point = une journée, d'où le compteur. */
+  grouped: boolean;
+  eventCount: number;
+}
+
+/**
+ * Seule porte d'entrée de la frise : articles déjà filtrés (médias +
+ * période) en entrée, couloirs / points / liens en sortie.
+ *
+ * Sur 7j et 30j, les événements d'une même journée et d'un même couloir
+ * fusionnent en un point compteur, sinon ils se chevauchent ; les liens
+ * suivent la fusion et les doublons tombent.
+ */
+export function buildTimeline(mentions: MediaMention[], period: Period): Timeline {
+  const events = buildEvents(mentions);
+  const eventLinks = buildLinks(events, LINK_GAP_MS[period]);
+  const grouped = period !== "24h";
+
+  const nodeOfEvent = new Map<string, string>();
+  let nodes: TimelineNode[];
+
+  if (!grouped) {
+    nodes = events.map((e) => nodeOf(e.id, e.t, [e]));
+    for (const e of events) nodeOfEvent.set(e.id, e.id);
+  } else {
+    const buckets = new Map<string, TimelineEvent[]>();
+    for (const e of events) {
+      const key = `${e.laneId}|${dayKey(e.t)}`;
+      const list = buckets.get(key);
+      if (list) list.push(e);
+      else buckets.set(key, [e]);
+    }
+    nodes = [...buckets].map(([key, list]) => {
+      const node = nodeOf(key, dayMidpoint(list[0].t), list);
+      for (const e of list) nodeOfEvent.set(e.id, key);
+      return node;
+    });
+  }
+
+  // Un lien dont les deux bouts ont atterri dans le même point disparaît ;
+  // un doublon garde la qualification la plus forte.
+  const merged = new Map<string, TimelineLink>();
+  for (const l of eventLinks) {
+    const source = nodeOfEvent.get(l.source);
+    const target = nodeOfEvent.get(l.target);
+    if (!source || !target || source === target) continue;
+    const key = `${source}->${target}`;
+    const prev = merged.get(key);
+    if (prev && (prev.kind === "established" || l.kind === "suggested")) continue;
+    merged.set(key, { source, target, kind: l.kind });
+  }
+
+  const usedLanes = new Set(nodes.map((n) => n.laneId));
+  return {
+    lanes: LANES.filter((l) => l.id !== "autres" || usedLanes.has("autres")),
+    nodes: nodes.sort((a, b) => a.t - b.t || a.id.localeCompare(b.id)),
+    links: [...merged.values()],
+    grouped,
+    eventCount: events.length,
+  };
+}

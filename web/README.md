@@ -71,6 +71,7 @@ src/
   types.ts                    modèle, familles
   lib/supabase.ts             client public
   lib/fluxScope.ts            périmètre de la vue Flux live (médias, figures, pays, sujets)
+  lib/buildEvents.ts          dérive les événements reliés des articles (heuristique, remplaçable)
   hooks/useMediaMentions.ts   lit `press_mentions` (presse RSS, collecte nocturne `fetch-media`)
   hooks/usePolitiscope.ts     chargement, filtrage, tri
   components/
@@ -78,7 +79,9 @@ src/
     PersonGrid.tsx            la grille de cartes (vue Personnalités)
     CitationsTable.tsx        le tableau (vue Citations)
     PersonModal.tsx           la fiche (Échap, clic extérieur, focus)
-    FluxLive.tsx              fil + carte radiale + bande de densité
+    FluxLive.tsx              fil + frise chronologique + bande de densité
+    EventTimeline.tsx         la frise des événements reliés (SVG fait main)
+    RadialMap.tsx             ancienne carte radiale, désactivée (conservée pour revenir en arrière)
   App.tsx
   index.css                   design system, thèmes clair et sombre
 ```
@@ -100,6 +103,8 @@ passe quand même ; `engines` documente l'attendu.
 
 ## Poids
 
-`dist/` fait 482 Ko (142 Ko gzip). `FluxLive` n'utilise plus que `d3-scale` ;
-`d3-force`, `d3-drag` et `d3-selection` ne servaient qu'à l'ancien graphe des
-sujets et peuvent être retirés de `package.json`.
+`dist/` fait 471 Ko (136 Ko gzip). La frise est en SVG écrit à la main : plus
+aucun module `d3` n'est chargé par le bundle. `d3-scale` reste listé pour
+`RadialMap.tsx` (désactivée) ; `d3-force`, `d3-drag` et `d3-selection` ne
+servaient qu'à l'ancien graphe des sujets et peuvent être retirés de
+`package.json`.

@@ -130,3 +130,13 @@ export const PERIOD_MS: Record<Period, number> = {
   "7j": 7 * 24 * 3600 * 1000,
   "30j": 30 * 24 * 3600 * 1000,
 };
+
+// --- libellés courts ------------------------------------------------------------
+
+/**
+ * Libellé d'entité pour les étiquettes où la place manque (tags du fil,
+ * couloirs de la frise, nœuds de la carte) : le nom entier pour un pays, le
+ * nom de famille pour une personnalité.
+ */
+export const shortName = (e: ScopeEntity): string =>
+  e.kind === "country" ? e.nom : e.nom === "Xi Jinping" ? "Xi" : e.nom.split(" ").slice(-1)[0];

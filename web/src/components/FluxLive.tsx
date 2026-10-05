@@ -1,27 +1,24 @@
-import { scaleSqrt } from "d3-scale";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMediaMentions } from "../hooks/useMediaMentions";
 import { initials } from "../hooks/usePolitiscope";
 import {
-  ENTITIES,
   OUTLETS,
   PERIOD_MS,
-  SUBJECTS,
   entityOf,
   outletOf,
+  shortName,
   subjectShort,
   type MediaMention,
   type OutletId,
   type Period,
-  type Pole,
-  type ScopeEntity,
 } from "../lib/fluxScope";
+import { EventTimeline, type EventSelection } from "./EventTimeline";
 
 /**
- * « Flux live » — à la liveuamap : fil des mentions à gauche, carte radiale
- * au centre, bande de densité en bas. Périmètre étroit (voir fluxScope.ts),
- * indépendant des filtres du reste de la page : seuls les médias et la
- * période s'appliquent ici.
+ * « Flux live » — à la liveuamap : fil des mentions à gauche, frise
+ * chronologique des événements à droite, bande de densité en bas. Périmètre
+ * étroit (voir fluxScope.ts), indépendant des filtres du reste de la page :
+ * seuls les médias et la période s'appliquent ici.
  *
  * La période filtre côté client l'historique déjà accumulé — elle ne décrit
  * pas ce qui est collecté (l'ingestion ajoute chaque nuit les dernières 24 h).
@@ -34,60 +31,9 @@ type Selection =
   | { kind: "mention"; id: string }
   | { kind: "entity"; key: string }
   | { kind: "subject"; theme: string }
+  // Émise par la frise : porte déjà ses libellés et la liste de ses articles.
+  | EventSelection
   | null;
-
-// --- mise en page de la carte radiale ---------------------------------------
-// Positions fixes, pas de simulation : la carte doit rester lisible d'un
-// passage à l'autre, chaque entité toujours au même endroit.
-
-const VB = 640;
-const C = VB / 2;
-/** Exécutif français au centre, sujets en anneau, pays et dirigeants étrangers autour. */
-const R_FR = 58;
-const R_SUBJECT = 170;
-const R_OUTER = 250;
-
-/** Angles (degrés, 0 = droite, sens horaire) — chaque sujet près des pays qui le portent. */
-const POLE_ANGLE: Record<Exclude<Pole, "fr">, number> = { us: -90, ru: -18, ua: 54, cn: 126, il: 198 };
-const SUBJECT_ANGLE: Record<string, number> = {
-  "Commerce / droits de douane": -90,
-  "Défense / Otan": -30,
-  "Guerre en Ukraine": 30,
-  "Europe & souveraineté": 90,
-  Diplomatie: 150,
-  "Gaza / Proche-Orient": 210,
-};
-
-interface Point {
-  x: number;
-  y: number;
-  /** Direction depuis le centre, pour placer le libellé vers l'extérieur. */
-  angle: number;
-}
-
-function polar(angleDeg: number, r: number): Point {
-  const a = (angleDeg * Math.PI) / 180;
-  return { x: C + r * Math.cos(a), y: C + r * Math.sin(a), angle: angleDeg };
-}
-
-const ENTITY_POS: Map<string, Point> = (() => {
-  const out = new Map<string, Point>();
-  const fr = ENTITIES.filter((e) => e.pole === "fr");
-  fr.forEach((e, i) => out.set(e.key, polar(-90 + i * 120, R_FR)));
-  for (const e of ENTITIES) {
-    if (e.pole === "fr") continue;
-    // Dirigeant et pays côte à côte, de part et d'autre de l'angle du pays.
-    out.set(e.key, polar(POLE_ANGLE[e.pole] + (e.kind === "figure" ? -10 : 10), R_OUTER));
-  }
-  return out;
-})();
-
-const SUBJECT_POS: Map<string, Point> = new Map(
-  SUBJECTS.map((s) => [s.theme, polar(SUBJECT_ANGLE[s.theme] ?? 0, R_SUBJECT)])
-);
-
-const shortName = (e: ScopeEntity): string =>
-  e.kind === "country" ? e.nom : e.nom === "Xi Jinping" ? "Xi" : e.nom.split(" ").slice(-1)[0];
 
 // --- utilitaires --------------------------------------------------------------
 
@@ -112,174 +58,6 @@ const fullDate = (iso: string): string =>
   new Date(iso).toLocaleString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
 
 const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? "s" : ""}`;
-
-// --- carte radiale -------------------------------------------------------------
-
-interface MapProps {
-  mentions: MediaMention[];
-  onSelect: (s: Selection) => void;
-}
-
-function RadialMap({ mentions, onSelect }: MapProps) {
-  const [hover, setHover] = useState<string | null>(null);
-
-  const { entityCount, subjectCount, links } = useMemo(() => {
-    const entityCount = new Map<string, number>();
-    const subjectCount = new Map<string, number>();
-    const linkCount = new Map<string, { entity: string; theme: string; count: number }>();
-    for (const m of mentions) {
-      subjectCount.set(m.theme, (subjectCount.get(m.theme) ?? 0) + 1);
-      for (const k of m.entities) {
-        entityCount.set(k, (entityCount.get(k) ?? 0) + 1);
-        const id = `${k}|${m.theme}`;
-        const l = linkCount.get(id);
-        if (l) l.count += 1;
-        else linkCount.set(id, { entity: k, theme: m.theme, count: 1 });
-      }
-    }
-    return { entityCount, subjectCount, links: [...linkCount.values()] };
-  }, [mentions]);
-
-  const maxCount = Math.max(1, ...entityCount.values());
-  const radius = scaleSqrt().domain([0, maxCount]).range([9, 26]);
-
-  // Survol : l'entité (ou le sujet) et tout ce qui y est relié restent nets.
-  const connected = useMemo(() => {
-    if (!hover) return null;
-    const set = new Set([hover]);
-    for (const l of links) {
-      if (l.entity === hover || `sujet:${l.theme}` === hover) {
-        set.add(l.entity);
-        set.add(`sujet:${l.theme}`);
-      }
-    }
-    return set;
-  }, [hover, links]);
-  const dimmed = (id: string) => connected !== null && !connected.has(id);
-
-  const keyActivate = (e: React.KeyboardEvent, s: Selection) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onSelect(s);
-    }
-  };
-
-  const labelAnchor = (angle: number): "start" | "middle" | "end" => {
-    const cos = Math.cos((angle * Math.PI) / 180);
-    return cos > 0.35 ? "start" : cos < -0.35 ? "end" : "middle";
-  };
-
-  return (
-    <svg
-      className="flux-map-svg"
-      viewBox={`0 0 ${VB} ${VB}`}
-      role="group"
-      aria-label="Carte radiale des mentions : exécutif français au centre, sujets en anneau, dirigeants et pays étrangers autour"
-    >
-      <circle className="flux-ring" cx={C} cy={C} r={R_SUBJECT} />
-      <circle className="flux-ring" cx={C} cy={C} r={R_OUTER} />
-
-      <g aria-hidden="true">
-        {links.map((l) => {
-          const a = ENTITY_POS.get(l.entity);
-          const b = SUBJECT_POS.get(l.theme);
-          if (!a || !b) return null;
-          const isDim = connected !== null && !(connected.has(l.entity) && connected.has(`sujet:${l.theme}`));
-          return (
-            <line
-              key={`${l.entity}|${l.theme}`}
-              className={isDim ? "flux-link is-dim" : "flux-link"}
-              x1={a.x}
-              y1={a.y}
-              x2={b.x}
-              y2={b.y}
-              strokeWidth={Math.min(0.8 + l.count * 0.45, 6)}
-            />
-          );
-        })}
-      </g>
-
-      {SUBJECTS.map((s) => {
-        const p = SUBJECT_POS.get(s.theme)!;
-        const id = `sujet:${s.theme}`;
-        const n = subjectCount.get(s.theme) ?? 0;
-        const label = `${s.libelle_court} ${n}`;
-        const w = label.length * 6.6 + 18;
-        return (
-          <g
-            key={s.theme}
-            className={"flux-node flux-subject" + (dimmed(id) ? " is-dim" : "") + (n === 0 ? " is-empty" : "")}
-            transform={`translate(${p.x},${p.y})`}
-            tabIndex={0}
-            role="button"
-            aria-label={`${s.libelle_court} : ${plural(n, "mention")}`}
-            onMouseEnter={() => setHover(id)}
-            onMouseLeave={() => setHover(null)}
-            onFocus={() => setHover(id)}
-            onBlur={() => setHover(null)}
-            onClick={() => onSelect({ kind: "subject", theme: s.theme })}
-            onKeyDown={(e) => keyActivate(e, { kind: "subject", theme: s.theme })}
-          >
-            <rect className="flux-shape" x={-w / 2} y={-12} width={w} height={24} rx={12} />
-            <text textAnchor="middle" dy="0.35em">
-              {s.libelle_court} <tspan className="flux-count">{n}</tspan>
-            </text>
-          </g>
-        );
-      })}
-
-      {ENTITIES.map((e) => {
-        const p = ENTITY_POS.get(e.key)!;
-        const n = entityCount.get(e.key) ?? 0;
-        const r = n > 0 ? radius(n) : 8;
-        const cls =
-          "flux-node " +
-          (e.kind === "country" ? "flux-country" : e.pole === "fr" ? "flux-figure flux-figure-fr" : "flux-figure") +
-          (dimmed(e.key) ? " is-dim" : "") +
-          (n === 0 ? " is-empty" : "");
-        const a = (p.angle * Math.PI) / 180;
-        const lx = Math.cos(a) * (r + 8);
-        const ly = Math.sin(a) * (r + 8);
-        return (
-          <g
-            key={e.key}
-            className={cls}
-            transform={`translate(${p.x},${p.y})`}
-            tabIndex={0}
-            role="button"
-            aria-label={`${e.nom}${e.role ? `, ${e.role}` : ""} : ${plural(n, "mention")}`}
-            onMouseEnter={() => setHover(e.key)}
-            onMouseLeave={() => setHover(null)}
-            onFocus={() => setHover(e.key)}
-            onBlur={() => setHover(null)}
-            onClick={() => onSelect({ kind: "entity", key: e.key })}
-            onKeyDown={(ev) => keyActivate(ev, { kind: "entity", key: e.key })}
-          >
-            {e.kind === "country" ? (
-              <rect className="flux-shape" x={-r} y={-r} width={r * 2} height={r * 2} rx={Math.max(3, r * 0.28)} />
-            ) : (
-              <circle className="flux-shape" r={r} />
-            )}
-            {e.kind === "figure" && r >= 14 && (
-              <text className="flux-initials" textAnchor="middle" dy="0.35em">
-                {initials(e.nom)}
-              </text>
-            )}
-            <text
-              className="flux-label"
-              x={lx}
-              y={ly}
-              textAnchor={labelAnchor(p.angle)}
-              dy={Math.sin(a) > 0.35 ? "0.9em" : Math.sin(a) < -0.35 ? "-0.2em" : "0.35em"}
-            >
-              {shortName(e)} <tspan className="flux-count">{n}</tspan>
-            </text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
 
 // --- bande de densité ------------------------------------------------------------
 
@@ -454,11 +232,19 @@ function FluxDetail({ selection, mentions, now, periodLabel, onClose }: DetailPr
         {e.kind === "country" ? e.nom.slice(0, 2).toUpperCase() : initials(e.nom)}
       </span>
     );
-  } else {
+  } else if (selection.kind === "subject") {
     list = mentions.filter((m) => m.theme === selection.theme);
     title = subjectShort(selection.theme);
     sub = `Sujet · ${plural(list.length, "mention")} ${periodLabel}`;
     orb = <span className="modal-orb flux-orb-subject">#</span>;
+  } else {
+    // La frise a déjà résolu son groupe d'articles : on ne refait pas le
+    // regroupement ici, on garde seulement l'ordre du fil (plus récent d'abord).
+    const ids = new Set(selection.mentionIds);
+    list = mentions.filter((m) => ids.has(m.id));
+    title = selection.title;
+    sub = selection.sub;
+    orb = <span className="modal-orb flux-orb-event">◆</span>;
   }
 
   const shown = list.slice(0, 30);
@@ -539,8 +325,10 @@ export function FluxLive() {
               L'exécutif français et les principaux dirigeants étrangers dans les articles du Monde,
               du Figaro et du Parisien, d'après leurs flux RSS. Chaque nuit, la collecte ajoute les
               nouveaux articles à l'historique déjà accumulé ; la période ci-dessous filtre cet
-              historique. Titres et chapôs sont ceux des rédactions ; cliquez une mention ou une
-              bulle pour le détail et le lien vers l'article.
+              historique. Titres et chapôs sont ceux des rédactions ; cliquez une mention ou un
+              événement de la frise pour le détail et le lien vers l'article. Les événements et
+              leurs liens sont reconstitués à la lecture des titres, pas fournis par les
+              rédactions.
             </p>
           </div>
         </div>
@@ -630,25 +418,41 @@ export function FluxLive() {
           )}
         </aside>
 
-        <div className="flux-map">
-          <RadialMap mentions={inWindow} onSelect={setSelection} />
+        {/* Frise chronologique. L'ancienne carte radiale est conservée
+            désactivée dans RadialMap.tsx : la remonter ici suffit à revenir
+            en arrière. */}
+        <div className="flux-map flux-map-frise">
+          <EventTimeline mentions={inWindow} period={period} now={now} onSelect={setSelection} />
         </div>
       </div>
 
       <DensityStrip mentions={byOutlet} activeOutlets={activeOutlets} period={period} now={now} />
 
       <div className="graph-legend">
+        {OUTLETS.map((o) => (
+          <span className="legend-item" key={o.id}>
+            <span className="dot" style={{ background: o.color }} />
+            {o.label}
+          </span>
+        ))}
         <span className="legend-item">
-          <span className="flux-swatch flux-swatch-figure" />
-          Personnalité
+          {/* Pointe dessinée en dur : la légende ne dépend pas des <defs> de la frise. */}
+          <svg className="frise-key" viewBox="0 0 34 8" aria-hidden="true">
+            <path className="frise-link" d="M1,4 H25" />
+            <path className="frise-head-solid" d="M24,1.2 L31,4 L24,6.8 Z" />
+          </svg>
+          Lien établi <span style={{ opacity: 0.65 }}>— même fait</span>
         </span>
         <span className="legend-item">
-          <span className="flux-swatch flux-swatch-country" />
-          Pays
+          <svg className="frise-key" viewBox="0 0 34 8" aria-hidden="true">
+            <path className="frise-link is-suggested" d="M1,4 H25" />
+            <path className="frise-head-dashed" d="M24,1.2 L31,4 L24,6.8 Z" />
+          </svg>
+          Lien suggéré <span style={{ opacity: 0.65 }}>— entités et dates proches, à confirmer</span>
         </span>
         <span className="legend-item">
-          <span className="flux-swatch flux-swatch-subject" />
-          Sujet <span style={{ opacity: 0.65 }}>— taille et trait = nombre de mentions sur la période</span>
+          <span className="frise-swatch-count">3</span>
+          {period === "24h" ? "Événements groupés" : "Événements d'une même journée"}
         </span>
       </div>
 
