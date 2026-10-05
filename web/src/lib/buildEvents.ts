@@ -1,4 +1,11 @@
-import { entityOf, shortName, type MediaMention, type OutletId, type Period } from "./fluxScope";
+import {
+  ENTITIES,
+  entityOf,
+  shortName,
+  type MediaMention,
+  type OutletId,
+  type Period,
+} from "./fluxScope";
 
 /**
  * Dérive des « événements » reliés à partir des articles de `press_mentions`.
@@ -77,16 +84,29 @@ const STOP = new Set([
   "france", "francais", "francaise", "paris",
 ]);
 
-/** Minuscules, sans accents, mots de 4 lettres ou plus, hors mots vides. */
-export function significantWords(text: string): Set<string> {
-  const out = new Set<string>();
-  const flat = text
+const fold = (s: string): string =>
+  s
     .toLowerCase()
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, " ");
-  for (const w of flat.split(" ")) {
-    if (w.length < 4 || STOP.has(w) || /^\d+$/.test(w)) continue;
+
+/**
+ * Mots qui ne sont que le nom d'une entité du périmètre (« donald », « trump »,
+ * « russie »…). Les écarter du vocabulaire de titre évite de compter deux fois
+ * le même indice : les entités ont déjà leur propre signal, et sans ça
+ * « Donald Trump » pèse à lui seul deux mots partagés — assez, dans la version
+ * précédente, pour déclarer deux articles sans rapport « même fait ».
+ */
+const ENTITY_WORDS: Set<string> = new Set(
+  ENTITIES.flatMap((e) => fold(e.nom).split(" ")).filter((w) => w.length >= 4)
+);
+
+/** Minuscules, sans accents, mots de 4 lettres ou plus, hors mots vides et noms d'entités. */
+export function significantWords(text: string): Set<string> {
+  const out = new Set<string>();
+  for (const w of fold(text).split(" ")) {
+    if (w.length < 4 || STOP.has(w) || ENTITY_WORDS.has(w) || /^\d+$/.test(w)) continue;
     out.add(w);
   }
   return out;
@@ -97,6 +117,45 @@ function sharedCount<T>(a: Set<T> | readonly T[], b: Set<T>): number {
   for (const v of a) if (b.has(v)) n += 1;
   return n;
 }
+
+// --- ce qui distingue, dans cette fenêtre -------------------------------------
+
+/**
+ * Un indice ne vaut que par sa rareté. Sur une semaine de fil presse,
+ * « ukraine » apparaît dans un titre sur trois et l'entité Ukraine dans plus
+ * d'un article sur trois : les compter comme preuve de parenté agglomère toute
+ * la couverture d'une guerre en un seul événement. On ne retient donc que les
+ * mots et les entités peu répandus *dans la fenêtre affichée* — ce qui s'ajuste
+ * tout seul quand l'actualité change de sujet.
+ */
+export interface Vocabulary {
+  distinctiveWord(w: string): boolean;
+  distinctiveEntity(key: string): boolean;
+}
+
+/** Au-delà de cette part des articles de la fenêtre, un indice ne distingue plus rien. */
+const UBIQUITY = 0.15;
+
+export function vocabularyOf(mentions: MediaMention[]): Vocabulary {
+  const words = new Map<string, number>();
+  const entities = new Map<string, number>();
+  for (const m of mentions) {
+    for (const w of significantWords(m.titre)) words.set(w, (words.get(w) ?? 0) + 1);
+    for (const k of m.entities) entities.set(k, (entities.get(k) ?? 0) + 1);
+  }
+  // Plancher à 2 : sur une poignée d'articles, tout paraîtrait ubiquitaire.
+  const cap = Math.max(2, Math.ceil(mentions.length * UBIQUITY));
+  return {
+    distinctiveWord: (w) => (words.get(w) ?? 0) <= cap,
+    distinctiveEntity: (k) => (entities.get(k) ?? 0) <= cap,
+  };
+}
+
+const sharedDistinctive = (a: Set<string>, b: Set<string>, keep: (v: string) => boolean): number => {
+  let n = 0;
+  for (const v of a) if (b.has(v) && keep(v)) n += 1;
+  return n;
+};
 
 // --- événements ---------------------------------------------------------------
 
@@ -124,11 +183,21 @@ export interface TimelineEvent {
 /** Au-delà, deux articles ne racontent plus le même fait mais sa suite. */
 const MERGE_GAP_MS = 30 * 3600 * 1000;
 
-/** Le groupe est comparé à son article fondateur, pas à l'union : sinon il absorbe de proche en proche. */
-function sameFact(m: MediaMention, seedWords: Set<string>, seedEntities: string[]): boolean {
-  const words = sharedCount(significantWords(m.titre), seedWords);
-  if (words === 0) return false;
-  return words >= 3 || (words >= 2 && sharedCount(m.entities, new Set(seedEntities)) >= 1);
+/**
+ * Le groupe est comparé à son article fondateur, pas à l'union : sinon il
+ * absorbe de proche en proche. Seuls les indices distinctifs comptent (voir
+ * `vocabularyOf`) : trois mots rares en commun, ou deux plus une entité rare.
+ */
+function sameFact(
+  m: MediaMention,
+  seedWords: Set<string>,
+  seedEntities: Set<string>,
+  vocab: Vocabulary
+): boolean {
+  const words = sharedDistinctive(significantWords(m.titre), seedWords, vocab.distinctiveWord);
+  if (words < 2) return false;
+  if (words >= 3) return true;
+  return sharedDistinctive(new Set(m.entities), seedEntities, vocab.distinctiveEntity) >= 1;
 }
 
 const TRUNCATE = 54;
@@ -153,7 +222,7 @@ const entityLabels = (keys: string[]): string =>
  * Regroupe les articles en événements. Pur, indépendant de la période
  * affichée : c'est la fonction qu'un vrai pipeline remplacerait.
  */
-export function buildEvents(mentions: MediaMention[]): TimelineEvent[] {
+export function buildEvents(mentions: MediaMention[], vocab = vocabularyOf(mentions)): TimelineEvent[] {
   const chrono = [...mentions].sort(
     (a, b) => Date.parse(a.published_at) - Date.parse(b.published_at)
   );
@@ -162,6 +231,7 @@ export function buildEvents(mentions: MediaMention[]): TimelineEvent[] {
     laneId: string;
     seed: MediaMention;
     seedWords: Set<string>;
+    seedEntities: Set<string>;
     lastT: number;
     items: MediaMention[];
   }
@@ -183,7 +253,7 @@ export function buildEvents(mentions: MediaMention[]): TimelineEvent[] {
         open.splice(i, 1); // trop vieux : ne pourra plus rien accueillir
         continue;
       }
-      if (!host && sameFact(m, c.seedWords, c.seed.entities)) host = c;
+      if (!host && sameFact(m, c.seedWords, c.seedEntities, vocab)) host = c;
     }
 
     if (host) {
@@ -194,6 +264,7 @@ export function buildEvents(mentions: MediaMention[]): TimelineEvent[] {
         laneId,
         seed: m,
         seedWords: significantWords(m.titre),
+        seedEntities: new Set(m.entities),
         lastT: t,
         items: [m],
       };
@@ -242,7 +313,12 @@ const LINK_GAP_MS: Record<Period, number> = {
 /** Garde-fou anti-pelote : un événement ne tire qu'un petit nombre de liens. */
 const MAX_DEGREE: Record<LinkKind, number> = { established: 3, suggested: 2 };
 
-function buildLinks(events: TimelineEvent[], gap: number): TimelineLink[] {
+/**
+ * Exporté pour pouvoir être inspecté et testé au niveau événement : une fois
+ * les événements regroupés par journée, un lien ne désigne plus les titres
+ * qui l'ont justifié, ce qui rend tout diagnostic trompeur.
+ */
+export function buildLinks(events: TimelineEvent[], gap: number, vocab: Vocabulary): TimelineLink[] {
   const byTime = [...events].sort((a, b) => a.t - b.t || a.id.localeCompare(b.id));
   const candidates: { link: TimelineLink; score: number }[] = [];
 
@@ -252,13 +328,29 @@ function buildLinks(events: TimelineEvent[], gap: number): TimelineLink[] {
     for (let j = i + 1; j < byTime.length; j++) {
       const b = byTime[j];
       if (b.t - a.t > gap) break; // trié : les suivants sont encore plus loin
-      const words = sharedCount(b.words, a.words);
+      const bEntities = new Set(b.entities);
+      const words = sharedDistinctive(b.words, a.words, vocab.distinctiveWord);
+      const rareEnts = sharedDistinctive(bEntities, aEntities, vocab.distinctiveEntity);
       const ents = sharedCount(b.entities, aEntities);
+      // Un lien exige une preuve dans le titre. Mesuré sur le fil réel, le
+      // partage d'entités seul relie « l'Iran appelle les Américains » à
+      // « l'Estonie forme ses enfants aux drones » et « Trump et Xi sur l'IA »
+      // à « sept morts à Gaza » : sur vingt liens ainsi obtenus, un seul
+      // tenait. Deux articles qui citent Trump ne parlent pas du même fait.
+      // Les entités ne servent donc plus qu'à renforcer un recoupement de
+      // titre existant, jamais à créer un lien.
+      // La règle tient en une phrase : trois mots rares en commun désignent le
+      // même fait, deux une parenté plausible, moins ne lie rien. Un seul mot
+      // partagé suffisait, et reliait « le manichéisme de Javier Milei » aux
+      // « priorités de l'aide américaine » par le mot « europe ».
       let kind: LinkKind | null = null;
-      if (words >= 2) kind = "established";
-      else if (ents >= 1) kind = "suggested";
+      if (words >= 3) kind = "established";
+      else if (words >= 2) kind = "suggested";
       if (!kind) continue;
-      candidates.push({ link: { source: a.id, target: b.id, kind }, score: words * 2 + ents });
+      candidates.push({
+        link: { source: a.id, target: b.id, kind },
+        score: words * 3 + rareEnts * 2 + ents,
+      });
     }
   }
 
@@ -358,8 +450,11 @@ export interface Timeline {
  * suivent la fusion et les doublons tombent.
  */
 export function buildTimeline(mentions: MediaMention[], period: Period): Timeline {
-  const events = buildEvents(mentions);
-  const eventLinks = buildLinks(events, LINK_GAP_MS[period]);
+  // Le vocabulaire se mesure sur la fenêtre affichée, pas sur tout
+  // l'historique : ce qui distingue un fait dépend de ce qui l'entoure.
+  const vocab = vocabularyOf(mentions);
+  const events = buildEvents(mentions, vocab);
+  const eventLinks = buildLinks(events, LINK_GAP_MS[period], vocab);
   const grouped = period !== "24h";
 
   const nodeOfEvent = new Map<string, string>();
