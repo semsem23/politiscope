@@ -1,10 +1,10 @@
 import type { Topic } from "../types";
 
 /**
- * Périmètre volontairement étroit de la vue « Flux live » : trois médias,
- * quelques figures de l'exécutif et de la scène internationale, leurs pays,
- * six sujets. Le reste de l'appli couvre tout le spectre politique ; cette
- * vue non.
+ * Périmètre volontairement étroit de la vue « Flux » : deux médias, quelques
+ * figures de l'exécutif et de la scène internationale, leurs pays, six
+ * sujets. Le reste de l'appli couvre tout le spectre politique ; cette vue
+ * non.
  *
  * Réutilise le vocabulaire existant là où il existe :
  * - les clés de personnalité suivent `figureKeyOf` (handle si connu, sinon
@@ -19,7 +19,7 @@ import type { Topic } from "../types";
 
 // --- médias -----------------------------------------------------------------
 
-export type OutletId = "lemondefr" | "Le_Figaro" | "le_Parisien";
+export type OutletId = "lemondefr" | "Le_Figaro";
 
 export interface Outlet {
   /** Handle X, sans l'arobase. */
@@ -28,10 +28,15 @@ export interface Outlet {
   color: string;
 }
 
+/**
+ * Le Parisien a été retiré de la vue : son flux RSS ne date pas ses entrées
+ * et n'avait rien rapporté en base. L'ingestion le liste toujours
+ * (politiscope/media.py) ; le remettre ici suffit à le réafficher, la
+ * variable de couleur `--outlet-parisien` étant conservée.
+ */
 export const OUTLETS: Outlet[] = [
   { id: "lemondefr", label: "Le Monde", color: "var(--outlet-lemonde)" },
   { id: "Le_Figaro", label: "Le Figaro", color: "var(--outlet-figaro)" },
-  { id: "le_Parisien", label: "Le Parisien", color: "var(--outlet-parisien)" },
 ];
 
 export const outletOf = (id: OutletId): Outlet => OUTLETS.find((o) => o.id === id) ?? OUTLETS[0];

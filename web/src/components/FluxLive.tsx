@@ -316,14 +316,14 @@ export function FluxLive() {
   const periodLabel = period === "24h" ? "sur 24 h" : `sur ${period.replace("j", " jours")}`;
 
   return (
-    <section className="flux-section" aria-label="Flux live">
+    <section className="flux-section" aria-label="Flux">
       <div className="section-head">
         <div className="section-head-top">
           <div>
-            <h2 className="section-title">Flux live</h2>
+            <h2 className="section-title">Flux</h2>
             <p className="section-sub">
-              L'exécutif français et les principaux dirigeants étrangers dans les articles du Monde,
-              du Figaro et du Parisien, d'après leurs flux RSS. Chaque nuit, la collecte ajoute les
+              L'exécutif français et les principaux dirigeants étrangers dans les articles du Monde
+              et du Figaro, d'après leurs flux RSS. Chaque nuit, la collecte ajoute les
               nouveaux articles à l'historique déjà accumulé ; la période ci-dessous filtre cet
               historique. Titres et chapôs sont ceux des rédactions ; cliquez une mention ou un
               événement de la frise pour le détail et le lien vers l'article. Les événements et

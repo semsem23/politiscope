@@ -233,23 +233,6 @@ export default function App() {
           propres : ne dépend ni des filtres ci-dessus ni de `entries`. */}
       <FluxLive />
 
-      <footer className="page-footer">
-        <div className="legend-row" aria-label="Légende des familles politiques">
-          {FAMILLES.map((f) => (
-            <span className="legend-item" key={f.id}>
-              <span className="dot" style={{ background: f.color }} />
-              {f.label}
-            </span>
-          ))}
-        </div>
-        <p className="footer-note">
-          Les familles politiques regroupent des partis distincts à des fins de lisibilité visuelle
-          et ne reflètent pas les couleurs officielles des partis. Sélection non exhaustive et non
-          partisane ; toutes les citations sont sourcées et vérifiables via le lien fourni sur
-          chaque fiche.
-        </p>
-      </footer>
-
       <PersonModal
         figureId={personModalId}
         entries={entries}
