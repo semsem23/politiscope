@@ -1,12 +1,9 @@
-import { scaleSqrt } from "d3-scale";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMediaMentions } from "../hooks/useMediaMentions";
 import { initials } from "../hooks/usePolitiscope";
 import {
   PERIOD_MS,
   PUBLISHER_GROUPS,
-  SUBJECTS,
-  TERM_SUBJECT,
   groupInfo,
   publisherColor,
   publisherGroup,
@@ -15,12 +12,13 @@ import {
   type Period,
   type PublisherGroup,
 } from "../lib/fluxScope";
+import { EventTimeline, type EventSelection } from "./EventTimeline";
 
 /**
- * « Flux live » — à la liveuamap : fil des mentions à gauche, carte radiale
- * au centre, bande de densité en bas. Périmètre étroit (voir fluxScope.ts),
- * indépendant des filtres du reste de la page : seuls les éditeurs et la
- * période s'appliquent ici.
+ * « Flux live » — à la liveuamap : fil des mentions à gauche, frise
+ * chronologique des événements à droite, bande de densité en bas. Périmètre
+ * étroit (voir fluxScope.ts), indépendant des filtres du reste de la page :
+ * seuls les éditeurs et la période s'appliquent ici.
  *
  * La période filtre côté client l'historique déjà accumulé — elle ne décrit
  * pas ce qui est collecté (l'ingestion ajoute chaque nuit les derniers articles).
@@ -31,47 +29,10 @@ const DAY_MS = 86_400_000;
 
 type Selection =
   | { kind: "mention"; id: string }
-  | { kind: "term"; term: string }
   | { kind: "subject"; theme: string }
+  // Émise par la frise : porte déjà ses libellés et la liste de ses articles.
+  | EventSelection
   | null;
-
-// --- mise en page de la carte radiale ---------------------------------------
-// Sujets à positions fixes sur l'anneau intérieur, dans l'ordre du lexique ;
-// autour de chacun, ses termes les plus cités sur la période. Pas de
-// simulation : un sujet est toujours au même endroit d'un passage à l'autre.
-
-const VB = 700;
-const C = VB / 2;
-const R_SUBJECT = 150;
-/** Termes en quinconce sur deux rayons, pour que leurs libellés ne se chevauchent pas. */
-const R_TERM = [210, 240];
-const TERMS_PER_SUBJECT = 3;
-/** Écart angulaire (degrés) entre deux termes d'un même sujet. */
-const TERM_SPREAD = 15;
-/** Au-delà, le libellé est tronqué sur la carte (le nom complet reste dans l'infobulle). */
-const LABEL_MAX = 12;
-
-interface Point {
-  x: number;
-  y: number;
-  /** Direction depuis le centre, pour placer le libellé vers l'extérieur. */
-  angle: number;
-}
-
-function polar(angleDeg: number, r: number): Point {
-  const a = (angleDeg * Math.PI) / 180;
-  return { x: C + r * Math.cos(a), y: C + r * Math.sin(a), angle: angleDeg };
-}
-
-const SUBJECT_ANGLE: Map<string, number> = new Map(
-  SUBJECTS.map((s, i) => [s.theme, -90 + (i * 360) / SUBJECTS.length])
-);
-
-const SUBJECT_POS: Map<string, Point> = new Map(
-  SUBJECTS.map((s) => [s.theme, polar(SUBJECT_ANGLE.get(s.theme)!, R_SUBJECT)])
-);
-
-const truncate = (t: string): string => (t.length > LABEL_MAX ? `${t.slice(0, LABEL_MAX - 1)}…` : t);
 
 // --- utilitaires --------------------------------------------------------------
 
@@ -96,177 +57,6 @@ const fullDate = (iso: string): string =>
   new Date(iso).toLocaleString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
 
 const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? "s" : ""}`;
-
-// --- carte radiale -------------------------------------------------------------
-
-interface MapProps {
-  mentions: MediaMention[];
-  onSelect: (s: Selection) => void;
-}
-
-function RadialMap({ mentions, onSelect }: MapProps) {
-  const [hover, setHover] = useState<string | null>(null);
-
-  const { termCount, subjectCount, links, termPos } = useMemo(() => {
-    const termCount = new Map<string, number>();
-    const subjectCount = new Map<string, number>();
-    const linkCount = new Map<string, { term: string; theme: string; count: number }>();
-    for (const m of mentions) {
-      subjectCount.set(m.theme, (subjectCount.get(m.theme) ?? 0) + 1);
-      for (const t of m.matched_terms) {
-        termCount.set(t, (termCount.get(t) ?? 0) + 1);
-        const id = `${t}|${m.theme}`;
-        const l = linkCount.get(id);
-        if (l) l.count += 1;
-        else linkCount.set(id, { term: t, theme: m.theme, count: 1 });
-      }
-    }
-    // Les termes les plus cités de chaque sujet, placés autour de lui.
-    const termPos = new Map<string, Point>();
-    for (const s of SUBJECTS) {
-      const top = [...termCount]
-        .filter(([t]) => TERM_SUBJECT.get(t) === s.theme)
-        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "fr"))
-        .slice(0, TERMS_PER_SUBJECT);
-      const base = SUBJECT_ANGLE.get(s.theme)!;
-      top.forEach(([t], j) => {
-        termPos.set(t, polar(base + (j - (top.length - 1) / 2) * TERM_SPREAD, R_TERM[j % 2]));
-      });
-    }
-    return {
-      termCount,
-      subjectCount,
-      links: [...linkCount.values()].filter((l) => termPos.has(l.term)),
-      termPos,
-    };
-  }, [mentions]);
-
-  const maxCount = Math.max(1, ...termCount.values());
-  const radius = scaleSqrt().domain([0, maxCount]).range([7, 20]);
-
-  // Survol : le terme (ou le sujet) et tout ce qui y est relié restent nets.
-  const connected = useMemo(() => {
-    if (!hover) return null;
-    const set = new Set([hover]);
-    for (const l of links) {
-      if (l.term === hover || `sujet:${l.theme}` === hover) {
-        set.add(l.term);
-        set.add(`sujet:${l.theme}`);
-      }
-    }
-    return set;
-  }, [hover, links]);
-  const dimmed = (id: string) => connected !== null && !connected.has(id);
-
-  const keyActivate = (e: React.KeyboardEvent, s: Selection) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onSelect(s);
-    }
-  };
-
-  const labelAnchor = (angle: number): "start" | "middle" | "end" => {
-    const cos = Math.cos((angle * Math.PI) / 180);
-    return cos > 0.35 ? "start" : cos < -0.35 ? "end" : "middle";
-  };
-
-  return (
-    <svg
-      className="flux-map-svg"
-      viewBox={`0 0 ${VB} ${VB}`}
-      role="group"
-      aria-label="Carte radiale des mentions : sujets en anneau, leurs termes les plus cités autour"
-    >
-      <circle className="flux-ring" cx={C} cy={C} r={R_SUBJECT} />
-      <circle className="flux-ring" cx={C} cy={C} r={R_TERM[0]} />
-
-      <g aria-hidden="true">
-        {links.map((l) => {
-          const a = termPos.get(l.term);
-          const b = SUBJECT_POS.get(l.theme);
-          if (!a || !b) return null;
-          const isDim = connected !== null && !(connected.has(l.term) && connected.has(`sujet:${l.theme}`));
-          return (
-            <line
-              key={`${l.term}|${l.theme}`}
-              className={isDim ? "flux-link is-dim" : "flux-link"}
-              x1={a.x}
-              y1={a.y}
-              x2={b.x}
-              y2={b.y}
-              strokeWidth={Math.min(0.8 + l.count * 0.35, 6)}
-            />
-          );
-        })}
-      </g>
-
-      {SUBJECTS.map((s) => {
-        const p = SUBJECT_POS.get(s.theme)!;
-        const id = `sujet:${s.theme}`;
-        const n = subjectCount.get(s.theme) ?? 0;
-        const label = `${s.libelle_court} ${n}`;
-        const w = label.length * 6.6 + 18;
-        return (
-          <g
-            key={s.theme}
-            className={"flux-node flux-subject" + (dimmed(id) ? " is-dim" : "") + (n === 0 ? " is-empty" : "")}
-            transform={`translate(${p.x},${p.y})`}
-            tabIndex={0}
-            role="button"
-            aria-label={`${s.libelle_court} : ${plural(n, "mention")}`}
-            onMouseEnter={() => setHover(id)}
-            onMouseLeave={() => setHover(null)}
-            onFocus={() => setHover(id)}
-            onBlur={() => setHover(null)}
-            onClick={() => onSelect({ kind: "subject", theme: s.theme })}
-            onKeyDown={(e) => keyActivate(e, { kind: "subject", theme: s.theme })}
-          >
-            <rect className="flux-shape" x={-w / 2} y={-12} width={w} height={24} rx={12} />
-            <text textAnchor="middle" dy="0.35em">
-              {s.libelle_court} <tspan className="flux-count">{n}</tspan>
-            </text>
-          </g>
-        );
-      })}
-
-      {[...termPos].map(([t, p]) => {
-        const n = termCount.get(t) ?? 0;
-        const r = radius(n);
-        const a = (p.angle * Math.PI) / 180;
-        const lx = Math.cos(a) * (r + 6);
-        const ly = Math.sin(a) * (r + 6);
-        return (
-          <g
-            key={t}
-            className={"flux-node flux-figure" + (dimmed(t) ? " is-dim" : "")}
-            transform={`translate(${p.x},${p.y})`}
-            tabIndex={0}
-            role="button"
-            aria-label={`${t} (${TERM_SUBJECT.get(t)}) : ${plural(n, "mention")}`}
-            onMouseEnter={() => setHover(t)}
-            onMouseLeave={() => setHover(null)}
-            onFocus={() => setHover(t)}
-            onBlur={() => setHover(null)}
-            onClick={() => onSelect({ kind: "term", term: t })}
-            onKeyDown={(ev) => keyActivate(ev, { kind: "term", term: t })}
-          >
-            <title>{t}</title>
-            <circle className="flux-shape" r={r} />
-            <text
-              className="flux-label"
-              x={lx}
-              y={ly}
-              textAnchor={labelAnchor(p.angle)}
-              dy={Math.sin(a) > 0.35 ? "0.9em" : Math.sin(a) < -0.35 ? "-0.2em" : "0.35em"}
-            >
-              {truncate(t)} <tspan className="flux-count">{n}</tspan>
-            </text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
 
 // --- bande de densité ------------------------------------------------------------
 
@@ -429,17 +219,19 @@ function FluxDetail({ selection, mentions, now, periodLabel, onClose }: DetailPr
       </span>
     );
     list = [m];
-  } else if (selection.kind === "term") {
-    const t = selection.term;
-    list = mentions.filter((m) => m.matched_terms.includes(t));
-    title = t;
-    sub = `${TERM_SUBJECT.get(t) ?? "Terme"} · ${plural(list.length, "mention")} ${periodLabel}`;
-    orb = <span className="modal-orb">{initials(t)}</span>;
-  } else {
+  } else if (selection.kind === "subject") {
     list = mentions.filter((m) => m.theme === selection.theme);
     title = subjectShort(selection.theme);
     sub = `Sujet · ${plural(list.length, "mention")} ${periodLabel}`;
     orb = <span className="modal-orb flux-orb-subject">#</span>;
+  } else {
+    // La frise a déjà résolu son groupe d'articles : on ne refait pas le
+    // regroupement ici, on garde seulement l'ordre du fil (plus récent d'abord).
+    const ids = new Set(selection.mentionIds);
+    list = mentions.filter((m) => ids.has(m.id));
+    title = selection.title;
+    sub = selection.sub;
+    orb = <span className="modal-orb flux-orb-event">◆</span>;
   }
 
   const shown = list.slice(0, 30);
@@ -511,17 +303,18 @@ export function FluxLive() {
   const periodLabel = period === "24h" ? "sur 24 h" : `sur ${period.replace("j", " jours")}`;
 
   return (
-    <section className="flux-section" aria-label="Flux live">
+    <section className="flux-section" aria-label="Flux">
       <div className="section-head">
         <div className="section-head-top">
           <div>
-            <h2 className="section-title">Flux live</h2>
+            <h2 className="section-title">Flux</h2>
             <p className="section-sub">
               Les titres de la rubrique « France » de Google Actualités, classés en sept sujets d'après
               les personnalités, partis, pays et dossiers qu'ils citent. Chaque nuit, la collecte ajoute
               les nouveaux articles à l'historique déjà accumulé ; la période ci-dessous filtre cet
-              historique. Les titres sont ceux des rédactions ; cliquez une mention ou une bulle pour le
-              détail et le lien vers l'article.
+              historique. Les titres sont ceux des rédactions ; cliquez une mention ou un événement de
+              la frise pour le détail et le lien vers l'article. Les événements et leurs liens sont
+              reconstitués à la lecture des titres, pas fournis par les rédactions.
             </p>
           </div>
         </div>
@@ -608,21 +401,38 @@ export function FluxLive() {
           )}
         </aside>
 
-        <div className="flux-map">
-          <RadialMap mentions={inWindow} onSelect={setSelection} />
+        <div className="flux-map flux-map-frise">
+          <EventTimeline mentions={inWindow} period={period} now={now} onSelect={setSelection} />
         </div>
       </div>
 
       <DensityStrip mentions={byGroup} activeGroups={activeGroups} period={period} now={now} />
 
       <div className="graph-legend">
+        {PUBLISHER_GROUPS.map((g) => (
+          <span className="legend-item" key={g.id}>
+            <span className="dot" style={{ background: g.color }} />
+            {g.label}
+          </span>
+        ))}
         <span className="legend-item">
-          <span className="flux-swatch flux-swatch-figure" />
-          Terme cité (personnalité, parti, pays, dossier)
+          {/* Pointe dessinée en dur : la légende ne dépend pas des <defs> de la frise. */}
+          <svg className="frise-key" viewBox="0 0 34 8" aria-hidden="true">
+            <path className="frise-link" d="M1,4 H25" />
+            <path className="frise-head-solid" d="M24,1.2 L31,4 L24,6.8 Z" />
+          </svg>
+          Lien établi <span style={{ opacity: 0.65 }}>— même fait</span>
         </span>
         <span className="legend-item">
-          <span className="flux-swatch flux-swatch-subject" />
-          Sujet <span style={{ opacity: 0.65 }}>— taille et trait = nombre de mentions sur la période</span>
+          <svg className="frise-key" viewBox="0 0 34 8" aria-hidden="true">
+            <path className="frise-link is-suggested" d="M1,4 H25" />
+            <path className="frise-head-dashed" d="M24,1.2 L31,4 L24,6.8 Z" />
+          </svg>
+          Lien suggéré <span style={{ opacity: 0.65 }}>— titres proches, à confirmer</span>
+        </span>
+        <span className="legend-item">
+          <span className="frise-swatch-count">3</span>
+          {period === "24h" ? "Événements groupés" : "Événements d'une même journée"}
         </span>
       </div>
 

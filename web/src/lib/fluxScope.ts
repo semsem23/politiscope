@@ -2,8 +2,8 @@ import type { Topic } from "../types";
 import subjects from "./subjects.json";
 
 /**
- * Périmètre de la vue « Flux live » : les articles de la rubrique « France »
- * de Google Actualités qui relèvent d'un des sept sujets du lexique.
+ * Périmètre de la vue « Flux » : les articles de la rubrique « France » de
+ * Google Actualités qui relèvent d'un des sept sujets du lexique.
  *
  * Les sujets et leurs termes viennent de `subjects.json`, généré depuis
  * `SUBJECT_LEXICON` (politiscope/media.py) par `scripts/export_subjects.py` :
@@ -43,7 +43,7 @@ export const groupInfo = (id: PublisherGroup): PublisherGroupInfo =>
 
 export const publisherColor = (publisher: string): string => groupInfo(publisherGroup(publisher)).color;
 
-// --- sujets et termes ---------------------------------------------------------------
+// --- sujets et termes -----------------------------------------------------------
 
 /** Sujets dans l'ordre du lexique (qui départage aussi les égalités au tagging). */
 export const SUBJECTS: Topic[] = subjects.map((s, i) => ({ theme: s.theme, libelle_court: s.theme, ordre: i + 1 }));
