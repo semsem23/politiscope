@@ -621,23 +621,70 @@ from politiscope.media import (canonical_url, dedupe, mentions_from_cluster, par
                                strip_publisher, tag)
 
 
-def test_media_etiquette_entites_et_sujet():
-    entities, theme = tag("Guerre en Ukraine : Zelensky demande à Moscou un cessez-le-feu")
-    assert entities == ["pays:ru", "Volodymyr Zelensky", "pays:ua"]
-    assert theme == "Guerre en Ukraine"
+def test_media_sujet_et_termes_en_libelles_du_lexique():
+    theme, terms = tag("Guerre : Zelensky demande à Moscou un cessez-le-feu en Ukraine")
+    assert theme == "Ukraine-Russie"
+    assert terms == ["Ukraine", "Volodymyr Zelensky", "Moscou"]
 
 
-def test_media_accents_et_apostrophe_typographique():
-    """« Nétanyahou » et « visite d’État » (apostrophe courbe) doivent correspondre."""
-    entities, theme = tag("Visite d’État : Macron reçoit Benjamin Nétanyahou")
-    assert "Benjamin Netanyahu" in entities and "EmmanuelMacron" in entities
-    assert theme == "Diplomatie"
+def test_media_formes_de_presse_rendues_par_le_libelle():
+    """Nom seul, graphie française, gentilé, tiret/espace : stockés sous le libellé."""
+    # Tous les termes, ceux du sujet retenu en tête.
+    assert tag("Macron reçoit Nétanyahou") == ("Proche-Orient", ["Benjamin Netanyahu", "Emmanuel Macron"])
+    assert tag("La Maison Blanche répond aux Canadiens")[1] == ["Canada", "La Maison Blanche"]
+    assert tag("Les Israéliennes manifestent à Tel Aviv")[1] == ["Israël", "Tel-Aviv"]
+    assert tag("Kim Jong un reçoit un émissaire sud-coréen")[1] == ["Corée du Sud", "Kim Jong-un"]
 
 
-def test_media_frontieres_de_mot():
-    """« Prusse » n'est pas « russe », « Chinon » n'est pas « Chine »."""
-    entities, _ = tag("Histoire de la Prusse et du château de Chinon")
-    assert entities == []
+def test_media_plus_de_termes_distincts_puis_ordre_du_dict():
+    # 1 terme France contre 1 terme Proche-Orient : égalité, le premier du dict gagne.
+    assert tag("Visite d’État : Macron reçoit Benjamin Nétanyahou")[0] == "Proche-Orient"
+    # 2 termes France (Lecornu, budget) contre 1 Europe : France.
+    assert tag("Lecornu défend le budget face à l'Allemagne")[0] == "France"
+    # Un même terme répété ne compte qu'une fois.
+    assert tag("Trump, Trump et encore Trump ; Macron et Lecornu")[0] == "France"
+
+
+def test_media_frontieres_de_mot_et_faux_amis():
+    for titre in ("Histoire de la Prusse et du château de Chinon",
+                  "Bernard Tapie, le retour",                    # RN
+                  "Un candidat indépendant à Lyon",               # Inde
+                  "Le vin d'Irancy primé",                        # Iran
+                  "Le Canada Dry, boisson culte",
+                  "Cyclone dans l'océan Indien",
+                  "Une star latino-américaine en concert"):
+        theme, terms = tag(titre)
+        # « Canada Dry » contient bien « Canada » : seul cas assumé.
+        assert theme is None or terms == ["Canada"], (titre, terms)
+
+
+def test_media_rn_seul_et_washington_dc():
+    assert tag("Le RN en tête des sondages") == ("France", ["RN"])
+    assert tag("Arrivée à Washington D.C. ce matin") == ("USA-Amérique", ["Washington D.C."])
+
+
+def test_media_article_5_seulement_avec_l_otan():
+    assert tag("L'article 5 de la Constitution invoqué") == (None, [])
+    assert tag("L'Otan invoque l'article 5")[1] == ["Otan", "Article 5"]
+
+
+def test_media_sans_terme_pas_de_sujet():
+    assert tag("Rugby : le XV de France s'impose") == (None, [])
+
+
+def test_media_dette():
+    assert tag("La dette publique atteint un record") == ("France", ["Dette"])
+
+
+def test_media_subjects_json_a_jour():
+    """Le front lit web/src/lib/subjects.json : il doit refléter le lexique."""
+    import importlib.util
+    racine = Path(__file__).parent.parent
+    spec = importlib.util.spec_from_file_location("export_subjects", racine / "scripts" / "export_subjects.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    actuel = (racine / "web" / "src" / "lib" / "subjects.json").read_text(encoding="utf-8")
+    assert actuel == mod.render(), "lancez python scripts/export_subjects.py"
 
 
 def test_media_url_canonique():
@@ -650,9 +697,9 @@ def test_media_url_canonique():
 # dans <font>. Le lien du 2e article contient un « & » non échappé.
 GN = "https://news.google.com/rss/articles/"
 _GN_FEED = f"""<?xml version="1.0" encoding="UTF-8"?><rss><channel>
-<item><title>Trump menace la Chine de nouveaux droits de douane - Le Monde.fr</title>
+<item><title>Trump menace le Canada de nouveaux droits de douane - Le Monde.fr</title>
 <link>{GN}A1?oc=5</link><pubDate>Wed, 07 Oct 2026 17:10:23 GMT</pubDate>
-<description>&lt;ol&gt;&lt;li&gt;&lt;a href="{GN}A1?oc=5" target="_blank"&gt;Trump menace la Chine de nouveaux droits de douane&lt;/a&gt;&amp;nbsp;&amp;nbsp;&lt;font color="#6f6f6f"&gt;Le Monde.fr&lt;/font&gt;&lt;/li&gt;&lt;li&gt;&lt;a href="{GN}A2?oc=5&hl=fr" target="_blank"&gt;Pékin réplique à Washington&lt;/a&gt;&amp;nbsp;&amp;nbsp;&lt;font color="#6f6f6f"&gt;BFM&lt;/font&gt;&lt;/li&gt;&lt;li&gt;&lt;a href="{GN}A3?oc=5" target="_blank"&gt;Ce que l'on sait de l'annonce de Trump&lt;/a&gt;&amp;nbsp;&amp;nbsp;&lt;font color="#6f6f6f"&gt;Le Figaro&lt;/font&gt;&lt;/li&gt;&lt;/ol&gt;</description>
+<description>&lt;ol&gt;&lt;li&gt;&lt;a href="{GN}A1?oc=5" target="_blank"&gt;Trump menace le Canada de nouveaux droits de douane&lt;/a&gt;&amp;nbsp;&amp;nbsp;&lt;font color="#6f6f6f"&gt;Le Monde.fr&lt;/font&gt;&lt;/li&gt;&lt;li&gt;&lt;a href="{GN}A2?oc=5&hl=fr" target="_blank"&gt;Ottawa réplique aux surtaxes&lt;/a&gt;&amp;nbsp;&amp;nbsp;&lt;font color="#6f6f6f"&gt;BFM&lt;/font&gt;&lt;/li&gt;&lt;li&gt;&lt;a href="{GN}A3?oc=5" target="_blank"&gt;Ce que l'on sait de l'annonce&lt;/a&gt;&amp;nbsp;&amp;nbsp;&lt;font color="#6f6f6f"&gt;Le Figaro&lt;/font&gt;&lt;/li&gt;&lt;/ol&gt;</description>
 <source url="https://www.lemonde.fr">Le Monde.fr</source></item>
 <item><title>Rugby - Le XV de France - Ouest-France</title><link>{GN}B1?oc=5</link>
 <pubDate>Wed, 07 Oct 2026 08:00:00 GMT</pubDate><description>sans liste</description>
@@ -666,7 +713,7 @@ def test_media_flux_google_clusters():
     a = clusters[0]["articles"]
     # Le principal n'est compté qu'une fois ; le « & » brut du lien est conservé.
     assert [x["publisher"] for x in a] == ["Le Monde.fr", "BFM", "Le Figaro"]
-    assert a[0]["titre"] == "Trump menace la Chine de nouveaux droits de douane"
+    assert a[0]["titre"] == "Trump menace le Canada de nouveaux droits de douane"
     assert a[1]["url"] == f"{GN}A2?oc=5&hl=fr"
     assert clusters[0]["published_at"] == "2026-10-07T17:10:23+00:00"
     # Item sans liste : un cluster d'un seul article.
@@ -679,11 +726,14 @@ def test_media_suffixe_editeur_retire_seulement_s_il_correspond():
 
 
 def test_media_cluster_mono_sujet_herite_du_titre_principal():
-    """« Ce que l'on sait de l'annonce de Trump » n'a pas de sujet à lui seul :
-    dans un cluster mono-sujet, il prend celui du titre principal."""
+    """« Ce que l'on sait de l'annonce » n'a pas de sujet à lui seul : dans un
+    cluster mono-sujet, il prend celui du titre principal, sans terme."""
     ms = mentions_from_cluster(parse_feed(_GN_FEED)[0])
     by_pub = {m["publisher"]: m for m in ms}
-    assert by_pub["Le Figaro"]["theme"] == "Commerce / droits de douane"
+    assert by_pub["Le Monde.fr"]["matched_terms"] == ["Donald Trump", "Canada"]
+    assert by_pub["BFM"]["matched_terms"] == ["Ottawa"]
+    assert by_pub["Le Figaro"]["theme"] == "USA-Amérique"
+    assert by_pub["Le Figaro"]["matched_terms"] == []
     assert all(m["cluster_id"] == f"{GN}A1" for m in ms)
     assert all(m["via"] == "Google Actualités" and m["outlet"] == "google_news" for m in ms)
     assert by_pub["Le Monde.fr"]["id"] == f"{GN}A1"
@@ -694,10 +744,11 @@ def test_media_cluster_multi_sujets_pas_d_heritage():
     cluster = {"published_at": "2026-10-07T10:00:00+00:00", "articles": [
         {"url": f"{GN}C1", "titre": "Trump menace la Chine de droits de douane", "publisher": "A"},
         {"url": f"{GN}C2", "titre": "Zelensky et l'Ukraine face à l'hiver", "publisher": "B"},
-        {"url": f"{GN}C3", "titre": "Trump, l'annonce du jour", "publisher": "C"},
+        {"url": f"{GN}C3", "titre": "Ce qu'il faut retenir", "publisher": "C"},
     ]}
     themes = {m["publisher"]: m["theme"] for m in mentions_from_cluster(cluster)}
-    assert themes == {"A": "Commerce / droits de douane", "B": "Guerre en Ukraine"}
+    # Trump (USA) et Chine (Asie) à égalité : Asie, avant dans le dict.
+    assert themes == {"A": "Asie", "B": "Ukraine-Russie", "C": None}
 
 
 def test_media_dedoublonnage_url_puis_titre_editeur_jour():

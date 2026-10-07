@@ -228,11 +228,12 @@ def cmd_fetch_media(args) -> int:
 
     if args.dry_run:
         mentions, seen = media.fetch()
-        for m in sorted(mentions, key=lambda m: m["published_at"], reverse=True):
-            print(f"  {m['published_at'][:16]}  {m['publisher'][:18]:<18} {m['theme']:<28} "
-                  f"{', '.join(m['entities'])}\n      {m['titre']}")
-        print(f"\n[DRY-RUN] {len(mentions)} mention(s) retenue(s) sur {seen} article(s) lu(s) "
-              "— rien écrit en base")
+        kept = [m for m in mentions if m["theme"]]
+        for m in sorted(kept, key=lambda m: m["published_at"], reverse=True):
+            print(f"  {m['published_at'][:16]}  {m['publisher'][:18]:<18} {m['theme']:<15} "
+                  f"{', '.join(m['matched_terms']) or '(cluster)'}\n      {m['titre']}")
+        print(f"\n[DRY-RUN] {len(kept)} mention(s) retenue(s) sur {len(mentions)} article(s) "
+              f"unique(s) ({seen} lu(s)) — rien écrit en base")
         return 0
 
     from . import db
@@ -243,7 +244,8 @@ def cmd_fetch_media(args) -> int:
         avant = len(known)
         db.insert_press_mentions(conn, mentions)
         apres = db.table_counts(conn, ("press_mentions",))["press_mentions"]
-    print(f"\n{apres - avant} mention(s) ajoutée(s) sur {len(mentions)} retenue(s) "
+    kept = sum(1 for m in mentions if m["theme"])
+    print(f"\n{apres - avant} article(s) ajouté(s), dont {kept} avec un sujet "
           f"({seen} article(s) lu(s)) — {apres} en base — 0.00 USD")
     return 0
 

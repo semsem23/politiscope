@@ -1,0 +1,129 @@
+[
+  {
+    "theme": "Proche-Orient",
+    "terms": [
+      "Gaza",
+      "Israël",
+      "Cisjordanie",
+      "Liban",
+      "Syrie",
+      "Palestine",
+      "Jérusalem",
+      "Damas",
+      "Iran",
+      "Téhéran",
+      "Yémen",
+      "Houthis",
+      "Benjamin Netanyahu",
+      "Ayatollah",
+      "Le Guide suprême",
+      "Knesset",
+      "Tel-Aviv"
+    ]
+  },
+  {
+    "theme": "Ukraine-Russie",
+    "terms": [
+      "Russie",
+      "Ukraine",
+      "Vladimir Poutine",
+      "Volodymyr Zelensky",
+      "Kiev",
+      "Moscou",
+      "Kremlin",
+      "Donbass",
+      "Mer Noire"
+    ]
+  },
+  {
+    "theme": "Otan",
+    "terms": [
+      "Otan",
+      "Article 5",
+      "Mark Rutte",
+      "Bruxelles"
+    ]
+  },
+  {
+    "theme": "Europe",
+    "terms": [
+      "Allemagne",
+      "Espagne",
+      "Portugal",
+      "Pays-Bas",
+      "Belgique",
+      "Luxembourg",
+      "Royaume-Uni",
+      "Pologne",
+      "Estonie",
+      "Lituanie",
+      "Lettonie",
+      "Roumanie",
+      "Bulgarie",
+      "Friedrich Merz"
+    ]
+  },
+  {
+    "theme": "Asie",
+    "terms": [
+      "Chine",
+      "Inde",
+      "Japon",
+      "Corée du Nord",
+      "Corée du Sud",
+      "Pékin",
+      "Séoul",
+      "Pyongyang",
+      "Kim Jong-un",
+      "Xi Jinping",
+      "Mer de Chine",
+      "Tokyo"
+    ]
+  },
+  {
+    "theme": "USA-Amérique",
+    "terms": [
+      "Donald Trump",
+      "États-Unis",
+      "Washington D.C.",
+      "Canada",
+      "Ottawa",
+      "Mexique",
+      "Venezuela",
+      "Colombie",
+      "Caracas",
+      "Argentine",
+      "Brésil",
+      "La Maison Blanche",
+      "Buenos Aires",
+      "Marco Rubio"
+    ]
+  },
+  {
+    "theme": "France",
+    "terms": [
+      "Emmanuel Macron",
+      "Sébastien Lecornu",
+      "Jean-Noël Barrot",
+      "LFI",
+      "RN",
+      "PCF",
+      "Jean-Luc Mélenchon",
+      "Marine Le Pen",
+      "Jordan Bardella",
+      "Dette",
+      "Crise des lycées",
+      "Budget 2027",
+      "Édouard Philippe",
+      "Marine Tondelier",
+      "Fabien Roussel",
+      "Gabriel Attal",
+      "Bruno Retailleau",
+      "Raphaël Glucksmann",
+      "Olivier Faure",
+      "Ségolène Royal",
+      "Élection présidentielle 2027",
+      "Mouvement des Gilets jaunes"
+    ]
+  }
+]

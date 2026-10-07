@@ -346,6 +346,19 @@ mention, avec son éditeur réel (`publisher`), le canal (`via` = « Google
 Actualités ») et l'article principal du cluster (`cluster_id`). Le CHECK sur
 `outlet` est recréé `NOT VALID` pour ne pas buter sur l'historique.
 
+**012** retient un article sur son sujet seul. Les entités disparaissent :
+personnalités, partis et pays sont des termes du lexique de sept sujets
+(`SUBJECT_LEXICON` dans `politiscope/media.py`, ses variantes de presse dans
+`TERM_FORMS`). `matched_terms` garde les libellés trouvés dans le titre ;
+`theme` devient nullable, les articles sans sujet étant stockés pour un
+re-tag futur. Après toute modification du lexique :
+
+```bash
+python scripts/export_subjects.py              # noms de sujets du front (test de cohérence)
+python scripts/retag_media.py --sample 20      # simulation : diff par sujet
+python scripts/retag_media.py --apply          # écrit en base
+```
+
 > **Conditions d'usage.** Le flux Google Actualités est destiné à un usage
 > personnel et non commercial. La collecte est donc derrière le flag
 > `GOOGLE_NEWS_ENABLED`, désactivé par défaut : `fetch-media` ne fait rien

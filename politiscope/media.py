@@ -3,9 +3,10 @@
 Une seule source : la rubrique « France – Dernières infos » de Google
 Actualités. Chaque <item> du flux est un cluster (un article principal et
 ses articles liés, chacun avec son éditeur réel) ; chaque article compte pour
-une mention. Les titres sont étiquetés par simple correspondance de mots :
-entités citées (personnalités, pays) et sujet dominant. Seuls ceux qui citent
-au moins une entité ET relèvent d'un sujet sont gardés.
+une mention. Chaque titre est étiqueté par simple correspondance de mots avec
+SUBJECT_LEXICON : un article est retenu dès qu'il relève d'un sujet. Les
+autres sont stockés aussi, sans sujet (theme null), pour pouvoir être
+re-tagués quand le lexique évolue (scripts/retag_media.py).
 
 Le texte conservé est le titre publié, jamais reformulé. Les liens pointent
 vers news.google.com, qui redirige vers l'article : l'URL de l'éditeur ne se
@@ -15,8 +16,8 @@ Conditions d'usage : ce flux est destiné à un usage personnel et non
 commercial. La collecte est donc derrière GOOGLE_NEWS_ENABLED (config.py),
 désactivée par défaut.
 
-Les clés d'entités et de sujets doivent rester identiques à celles de
-web/src/lib/fluxScope.ts, qui les affiche.
+Les noms de sujets sont repris par le front (web/src/lib/subjects.json,
+généré par scripts/export_subjects.py ; un test vérifie qu'il est à jour).
 """
 from __future__ import annotations
 
@@ -29,7 +30,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import requests
 
-from .quotes import THEME_LEXICON, _strip_accents, normalise
+from .quotes import _strip_accents, normalise
 from .rss import UA
 
 log = logging.getLogger("politiscope.media")
@@ -39,71 +40,179 @@ GOOGLE_NEWS_FRANCE_URL = "https://news.google.com/rss/headlines/section/geo/Fran
 OUTLET = "google_news"
 VIA = "Google Actualités"
 
-# Clé d'entité -> motifs (regex, sur texte minuscule sans accents). Les
-# fonctions seules (« Premier ministre », « chef de l'État ») sont exclues :
-# elles désignent aussi des dirigeants étrangers.
-ENTITY_ALIASES: dict[str, tuple[str, ...]] = {
-    "EmmanuelMacron": (r"macron",),
-    "SebLecornu": (r"lecornu",),
-    "Jean-Noël Barrot": (r"jean-noel barrot", r"barrot"),
-    "Donald Trump": (r"trump",),
-    "pays:us": (r"etats-unis", r"americaine?s?", r"washington", r"maison-blanche", r"maison blanche"),
-    "Vladimir Poutine": (r"poutine",),
-    "pays:ru": (r"russie", r"russes?", r"kremlin", r"moscou"),
-    "Volodymyr Zelensky": (r"zelensky", r"zelenskyy", r"zelenski"),
-    "pays:ua": (r"ukraine", r"ukrainien(ne)?s?", r"kiev", r"kyiv"),
-    "Xi Jinping": (r"xi jinping",),
-    "pays:cn": (r"chine", r"chinois(es?)?", r"pekin"),
-    "Benjamin Netanyahu": (r"netanyahou", r"netanyahu"),
-    "pays:il": (r"israel", r"israelien(ne)?s?", r"tsahal"),
-}
+# --- lexique ----------------------------------------------------------------
 
-# Sujet -> motifs. L'ordre départage les égalités : du plus spécifique au plus
-# générique. « Europe & souveraineté » reprend le lexique existant de quotes.py.
+# Sujet -> termes. Les termes sont les libellés affichés et stockés
+# (`matched_terms`). L'ordre du dict départage les égalités : le sujet qui a
+# le plus de termes distincts trouvés gagne ; à égalité, le premier du dict.
 SUBJECT_LEXICON: dict[str, tuple[str, ...]] = {
-    "Gaza / Proche-Orient": (
-        r"gaza", r"hamas", r"hezbollah", r"cisjordanie", r"proche-orient", r"moyen-orient",
-        r"palestin\w*", r"liban", r"beyrouth", r"iran", r"otages?", r"jerusalem"),
-    "Guerre en Ukraine": (
-        r"ukraine", r"ukrainien(ne)?s?", r"kiev", r"kyiv", r"donbass", r"crimee",
-        r"zaporijia", r"kharkiv", r"odessa"),
-    "Commerce / droits de douane": (
-        r"douanes?", r"droits de douane", r"douaniers?", r"surtaxes?", r"tarifs?",
-        r"guerre commerciale", r"commerce", r"commerciale?s?", r"exportations?",
-        r"importations?", r"mercosur"),
-    "Défense / Otan": (
-        r"otan", r"defense", r"armees?", r"militaires?", r"missiles?", r"drones?",
-        r"armements?", r"dissuasion", r"frappes?", r"soldats?", r"troupes?"),
-    "Europe & souveraineté": tuple(
-        re.escape(_strip_accents(w)) for w in THEME_LEXICON["Europe & souveraineté"]
-    ) + (r"commission europeenne", r"vingt-sept"),
-    "Diplomatie": (
-        r"diplomat\w*", r"sommet", r"ambassad\w*", r"affaires etrangeres", r"quai d'orsay",
-        r"onu", r"g7", r"g20", r"visite d'etat", r"negociations?", r"pourparlers",
-        r"accord de paix"),
+    "Proche-Orient": (
+        "Gaza", "Israël", "Cisjordanie", "Liban", "Syrie", "Palestine", "Jérusalem", "Damas",
+        "Iran", "Téhéran", "Yémen", "Houthis", "Benjamin Netanyahu", "Ayatollah",
+        "Le Guide suprême", "Knesset", "Tel-Aviv"),
+    "Ukraine-Russie": (
+        "Russie", "Ukraine", "Vladimir Poutine", "Volodymyr Zelensky", "Kiev", "Moscou",
+        "Kremlin", "Donbass", "Mer Noire"),
+    "Otan": ("Otan", "Article 5", "Mark Rutte", "Bruxelles"),
+    "Europe": (
+        "Allemagne", "Espagne", "Portugal", "Pays-Bas", "Belgique", "Luxembourg",
+        "Royaume-Uni", "Pologne", "Estonie", "Lituanie", "Lettonie", "Roumanie", "Bulgarie",
+        "Friedrich Merz"),
+    "Asie": (
+        "Chine", "Inde", "Japon", "Corée du Nord", "Corée du Sud", "Pékin", "Séoul",
+        "Pyongyang", "Kim Jong-un", "Xi Jinping", "Mer de Chine", "Tokyo"),
+    "USA-Amérique": (
+        "Donald Trump", "États-Unis", "Washington D.C.", "Canada", "Ottawa", "Mexique",
+        "Venezuela", "Colombie", "Caracas", "Argentine", "Brésil", "La Maison Blanche",
+        "Buenos Aires", "Marco Rubio"),
+    "France": (
+        "Emmanuel Macron", "Sébastien Lecornu", "Jean-Noël Barrot", "LFI", "RN", "PCF",
+        "Jean-Luc Mélenchon", "Marine Le Pen", "Jordan Bardella", "Dette", "Crise des lycées",
+        "Budget 2027", "Édouard Philippe", "Marine Tondelier", "Fabien Roussel",
+        "Gabriel Attal", "Bruno Retailleau", "Raphaël Glucksmann", "Olivier Faure",
+        "Ségolène Royal", "Élection présidentielle 2027", "Mouvement des Gilets jaunes"),
 }
 
+# Terme -> autres formes écrites dans les titres : nom seul, graphie de la
+# presse française, gentilés, formulation courante. Motifs regex, sur texte
+# minuscule sans accents. Le libellé lui-même est toujours cherché, tiret et
+# espace interchangeables (« Maison-Blanche » = « Maison Blanche »).
+TERM_FORMS: dict[str, tuple[str, ...]] = {
+    # Proche-Orient
+    "Israël": (r"israelien(ne)?s?",),
+    "Palestine": (r"palestinien(ne)?s?",),
+    "Liban": (r"libanais(es?)?",),
+    "Syrie": (r"syrien(ne)?s?",),
+    "Iran": (r"iranien(ne)?s?",),
+    "Yémen": (r"yemenites?",),
+    "Houthis": (r"houthi", r"houthistes?"),
+    "Benjamin Netanyahu": (r"netanyahu", r"netanyahou"),
+    "Ayatollah": (r"ayatollahs",),
+    "Le Guide suprême": (r"guide supreme",),
+    # Ukraine-Russie
+    "Russie": (r"russes?",),
+    "Ukraine": (r"ukrainien(ne)?s?",),
+    "Vladimir Poutine": (r"poutine",),
+    "Volodymyr Zelensky": (r"zelensky", r"zelenskyy", r"zelenski"),
+    "Kiev": (r"kyiv",),
+    # Otan
+    "Mark Rutte": (r"rutte",),
+    # Europe
+    "Allemagne": (r"allemand(e)?s?",),
+    "Espagne": (r"espagnol(e)?s?",),
+    "Portugal": (r"portugais(es?)?",),
+    "Pays-Bas": (r"neerlandais(es?)?",),
+    "Belgique": (r"belges?",),
+    "Luxembourg": (r"luxembourgeois(es?)?",),
+    "Royaume-Uni": (r"britanniques?",),
+    "Pologne": (r"polonais(es?)?",),
+    "Estonie": (r"estonien(ne)?s?",),
+    "Lituanie": (r"lituanien(ne)?s?",),
+    "Lettonie": (r"letton(ne)?s?",),
+    "Roumanie": (r"roumain(e)?s?",),
+    "Bulgarie": (r"bulgares?",),
+    "Friedrich Merz": (r"merz",),
+    # Asie — « océan Indien » (La Réunion, Mayotte) n'est pas l'Inde.
+    "Chine": (r"chinois(es?)?",),
+    "Inde": (r"(?<!ocean )indien(ne)?s?",),
+    "Japon": (r"japonais(es?)?",),
+    "Corée du Nord": (r"nord[- ]coreen(ne)?s?",),
+    "Corée du Sud": (r"sud[- ]coreen(ne)?s?",),
+    # USA-Amérique — « latino-américain » n'est pas les États-Unis.
+    "Donald Trump": (r"trump",),
+    "États-Unis": (r"(?<!-)americain(e)?s?",),
+    "Washington D.C.": (r"washington",),
+    "La Maison Blanche": (r"maison[- ]blanche",),
+    "Canada": (r"canadien(ne)?s?",),
+    "Mexique": (r"mexicain(e)?s?",),
+    "Venezuela": (r"venezuelien(ne)?s?",),
+    "Colombie": (r"colombien(ne)?s?",),
+    "Argentine": (r"argentin(e)?s?",),
+    "Brésil": (r"bresilien(ne)?s?",),
+    "Marco Rubio": (r"rubio",),
+    # France
+    "Emmanuel Macron": (r"macron",),
+    "Sébastien Lecornu": (r"lecornu",),
+    "Jean-Noël Barrot": (r"barrot",),
+    "LFI": (r"la france insoumise", r"insoumis(es?)?"),
+    "RN": (r"rassemblement national",),
+    "PCF": (r"parti communiste",),
+    "Jean-Luc Mélenchon": (r"melenchon",),
+    "Marine Le Pen": (r"le pen",),
+    "Jordan Bardella": (r"bardella",),
+    "Crise des lycées": (r"blocus des lycees", r"lycees? bloques?", r"lyceen(ne)?s?"),
+    "Budget 2027": (r"budget", r"loi de finances"),
+    "Marine Tondelier": (r"tondelier",),
+    "Fabien Roussel": (r"roussel",),
+    "Gabriel Attal": (r"attal",),
+    "Bruno Retailleau": (r"retailleau",),
+    "Raphaël Glucksmann": (r"glucksmann",),
+    "Olivier Faure": (r"faure",),
+    "Élection présidentielle 2027": (r"presidentielles?",),
+    "Mouvement des Gilets jaunes": (r"gilets? jaunes?",),
+}
 
-def _compile(patterns: tuple[str, ...]) -> re.Pattern:
-    # Frontières de mot : sans elles, « russe » trouverait « Prusse ».
+# Termes trop génériques seuls : comptés seulement si un autre terme du
+# même sujet est aussi trouvé (« l'article 5 de la Constitution » n'est
+# pas l'Otan).
+REQUIRES: dict[str, str] = {"Article 5": "Otan"}
+
+
+def _norm(text: str) -> str:
+    return _strip_accents(text.lower()).replace("’", "'")
+
+
+def _label_pattern(label: str) -> str:
+    return re.escape(_norm(label)).replace(r"\-", "[- ]").replace(r"\ ", "[- ]")
+
+
+def _compile(patterns: list[str]) -> re.Pattern:
+    # Frontières de mot par lookarounds plutôt que \b : « D.C. » finit par un
+    # point. Sans elles, « russe » trouverait « Prusse », « RN » « Bernard ».
     return re.compile(r"(?<!\w)(?:" + "|".join(patterns) + r")(?!\w)")
 
 
-_ENTITY_RE = {k: _compile(v) for k, v in ENTITY_ALIASES.items()}
-_SUBJECT_RE = {k: _compile(v) for k, v in SUBJECT_LEXICON.items()}
+_TERM_RE: dict[str, dict[str, re.Pattern]] = {
+    subject: {t: _compile([_label_pattern(t), *TERM_FORMS.get(t, ())]) for t in terms}
+    for subject, terms in SUBJECT_LEXICON.items()
+}
 _TAGS = re.compile(r"<[^>]+>")
 
 
-def tag(text: str) -> tuple[list[str], str | None]:
-    """(entités citées, sujet dominant ou None) pour un titre."""
-    low = _strip_accents(text.lower()).replace("’", "'")
-    entities = [k for k, rx in _ENTITY_RE.items() if rx.search(low)]
-    best, best_n = None, 0
-    for theme, rx in _SUBJECT_RE.items():
-        n = len(rx.findall(low))
-        if n > best_n:
-            best, best_n = theme, n
-    return entities, best
+def tag(text: str) -> tuple[str | None, list[str]]:
+    """(sujet, termes trouvés) pour un titre. Les termes sont les libellés du
+    lexique — « Macron » est rendu « Emmanuel Macron » — tous sujets
+    confondus, ceux du sujet retenu en tête. Sujet None si aucun terme :
+    l'article n'est pas retenu."""
+    low = _norm(text)
+    found: dict[str, list[str]] = {}
+    for subject, terms in _TERM_RE.items():
+        hits = [t for t, rx in terms.items() if rx.search(low)]
+        hits = [t for t in hits if REQUIRES.get(t, t) in hits]
+        if hits:
+            found[subject] = hits
+    if not found:
+        return None, []
+    # max() garde le premier en cas d'égalité : l'ordre du dict départage.
+    best = max(found, key=lambda s: len(found[s]))
+    return best, found[best] + [t for s, hits in found.items() if s != best for t in hits]
+
+
+def tag_cluster(titres: list[str]) -> list[tuple[str | None, list[str]]]:
+    """Tague les titres d'un cluster (le principal en tête).
+
+    Si le cluster est mono-sujet — le titre principal a un sujet et aucun
+    autre titre n'en a un différent — les articles liés restés sans sujet
+    prennent celui du principal : ils traitent de la même actualité. Leurs
+    termes restent vides, aucun n'a été trouvé dans leur titre.
+    """
+    tagged = [tag(t) for t in titres]
+    if not tagged:
+        return []
+    main = tagged[0][0]
+    if main and {s for s, _ in tagged if s} == {main}:
+        tagged = [(s or main, terms) for s, terms in tagged]
+    return tagged
 
 
 def canonical_url(url: str) -> str:
@@ -181,42 +290,28 @@ def parse_feed(xml: str) -> list[dict]:
 
 
 def mentions_from_cluster(cluster: dict) -> list[dict]:
-    """Une mention par article du cluster, chacune avec son éditeur réel.
-
-    Les articles liés n'ont pas de date propre : ils prennent celle du
-    cluster. Chaque titre est tagué seul ; si le cluster est mono-sujet — le
-    titre principal a un sujet et aucun autre titre n'en a un différent — les
-    articles liés restés sans sujet prennent celui du principal : ils traitent
-    de la même actualité.
-    """
+    """Une mention par article du cluster, chacune avec son éditeur réel —
+    y compris celles sans sujet (theme None), stockées pour un re-tag futur.
+    Les articles liés n'ont pas de date propre : ils prennent celle du cluster."""
     published = cluster["published_at"]
     articles = cluster["articles"]
     if not published or not articles:
         return []
     cluster_id = canonical_url(articles[0]["url"])
-    tagged = [(a, *tag(a["titre"])) for a in articles]
-    main_theme = tagged[0][2]
-    inherit = main_theme if {t for _, _, t in tagged if t} == {main_theme} else None
-
-    out = []
-    for a, entities, theme in tagged:
-        theme = theme or inherit
-        if not entities or not theme:
-            continue
-        out.append({
-            "id": canonical_url(a["url"]),
-            "outlet": OUTLET,
-            "publisher": a["publisher"],
-            "via": VIA,
-            "cluster_id": cluster_id,
-            "published_at": published,
-            "titre": a["titre"],
-            "resume": None,                # le flux ne donne pas de chapô
-            "article_url": a["url"],
-            "theme": theme,
-            "entities": entities,
-        })
-    return out
+    tagged = tag_cluster([a["titre"] for a in articles])
+    return [{
+        "id": canonical_url(a["url"]),
+        "outlet": OUTLET,
+        "publisher": a["publisher"],
+        "via": VIA,
+        "cluster_id": cluster_id,
+        "published_at": published,
+        "titre": a["titre"],
+        "resume": None,                # le flux ne donne pas de chapô
+        "article_url": a["url"],
+        "theme": theme,
+        "matched_terms": terms,
+    } for a, (theme, terms) in zip(articles, tagged)]
 
 
 def dedupe(mentions: list[dict], known: set[str] | frozenset[str] = frozenset()) -> list[dict]:
@@ -236,7 +331,7 @@ def dedupe(mentions: list[dict], known: set[str] | frozenset[str] = frozenset())
 
 def fetch(session: requests.Session | None = None,
           known: set[str] | frozenset[str] = frozenset()) -> tuple[list[dict], int]:
-    """(nouvelles mentions retenues, articles lus)."""
+    """(nouvelles mentions, retenues ou non, articles lus)."""
     s = session or requests.Session()
     s.headers.update({"User-Agent": UA, "Accept": "application/rss+xml,application/xml"})
     try:
@@ -248,6 +343,7 @@ def fetch(session: requests.Session | None = None,
     clusters = parse_feed(r.content.decode("utf-8", errors="replace"))
     seen = sum(len(c["articles"]) for c in clusters)
     mentions = dedupe([m for c in clusters for m in mentions_from_cluster(c)], known)
-    log.info("Google Actualités : %d cluster(s), %d article(s) lu(s), %d mention(s) retenue(s)",
-             len(clusters), seen, len(mentions))
+    log.info("Google Actualités : %d cluster(s), %d article(s) lu(s), %d nouveau(x), "
+             "%d avec un sujet", len(clusters), seen, len(mentions),
+             sum(1 for m in mentions if m["theme"]))
     return mentions, seen

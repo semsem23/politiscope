@@ -179,10 +179,10 @@ def insert_press_mentions(conn, mentions: Iterable[dict]) -> int:
     """Ajoute les articles absents ; un article déjà en base n'est jamais réécrit."""
     rows = [(m["id"], m["outlet"], m["publisher"], m["via"], m.get("cluster_id"),
              m["published_at"], m["titre"], m.get("resume"),
-             m["article_url"], m["theme"], list(m["entities"])) for m in mentions]
+             m["article_url"], m["theme"], list(m["matched_terms"])) for m in mentions]
     return _executemany(conn, """
         insert into press_mentions (id, outlet, publisher, via, cluster_id, published_at,
-                                    titre, resume, article_url, theme, entities)
+                                    titre, resume, article_url, theme, matched_terms)
         values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         on conflict (id) do nothing
     """, rows)
