@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import psycopg2.extras  # noqa: E402
 
+import politiscope.config  # noqa: E402,F401 — charge .env (SUPABASE_*)
 from politiscope import db  # noqa: E402
 from politiscope.media import tag_cluster  # noqa: E402
 
