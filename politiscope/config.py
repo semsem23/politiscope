@@ -53,6 +53,12 @@ class Settings:
     rss_lang: str = "fr"
     rss_country: str = "FR"
 
+    # Flux live (media.py) : le flux « France » de Google Actualités est
+    # réservé à un usage personnel et non commercial — collecte désactivée
+    # tant que ce n'est pas explicitement activé.
+    google_news_enabled: bool = field(
+        default_factory=lambda: os.getenv("GOOGLE_NEWS_ENABLED", "").strip().lower() in ("1", "true", "yes"))
+
     def require_token(self) -> str:
         if not self.bearer_token:
             raise SystemExit(

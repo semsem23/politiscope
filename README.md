@@ -56,7 +56,7 @@ python -m politiscope.cli status                  # état, volumes, dépense
 python -m politiscope.cli verify-handles          # ⚠ à faire en premier
 python -m politiscope.cli fetch-rss --days 7      # gratuit
 python -m politiscope.cli fetch-x                 # payant, incrémental
-python -m politiscope.cli fetch-media --dry-run   # Flux live : presse RSS, gratuit
+GOOGLE_NEWS_ENABLED=true python -m politiscope.cli fetch-media --dry-run   # Flux live, gratuit
 python -m politiscope.cli candidates              # citations triées
 ```
 
@@ -339,6 +339,20 @@ et n'ajoute que les articles absents ; le Parisien ne datant pas son flux, la
 date est lue sur la page de l'article (jamais inventée). Publique en lecture :
 ce sont des titres déjà publiés, avec leur lien.
 
+**011** fait de Google Actualités (rubrique « France – Dernières infos »)
+l'unique source de `press_mentions`, à la place des trois flux RSS. Chaque
+`<item>` Google est un cluster : chaque article qu'il liste devient une
+mention, avec son éditeur réel (`publisher`), le canal (`via` = « Google
+Actualités ») et l'article principal du cluster (`cluster_id`). Le CHECK sur
+`outlet` est recréé `NOT VALID` pour ne pas buter sur l'historique.
+
+> **Conditions d'usage.** Le flux Google Actualités est destiné à un usage
+> personnel et non commercial. La collecte est donc derrière le flag
+> `GOOGLE_NEWS_ENABLED`, désactivé par défaut : `fetch-media` ne fait rien
+> tant qu'il ne vaut pas `true` (variable d'environnement en local, variable
+> de dépôt `GOOGLE_NEWS_ENABLED` dans la CI). Vérifiez que votre usage s'y
+> conforme avant de l'activer.
+
 Vérifié : `INSERT` renvoie 401. `DELETE` renvoie 204 — trompeur, mais c'est
 PostgREST confirmant une suppression ayant porté sur **zéro ligne**, RLS ayant
 filtré en amont. Décompte inchangé après tentative.
@@ -458,6 +472,7 @@ politiscope/
   store.py     état, JSONL, compteur de dépense
   xapi.py      client X : retries, rate-limit, facturation
   rss.py       Google Actualités, une requête par personnalité
+  media.py     Flux live : flux Google Actualités « France », étiquetage
   quotes.py    extraction, attribution, notation
   publish.py   brouillon, validation, insertion des entrées
   db.py        Postgres/Supabase : migrations, upserts, lectures

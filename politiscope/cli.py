@@ -218,13 +218,18 @@ def cmd_fetch_rss(args) -> int:
 
 
 def cmd_fetch_media(args) -> int:
-    """Flux live : articles du Monde, du Figaro et du Parisien (RSS, gratuit)."""
+    """Flux live : Google Actualités, rubrique France (RSS, gratuit)."""
     from . import media
+
+    if not settings.google_news_enabled:
+        print("GOOGLE_NEWS_ENABLED n'est pas activé : rien collecté. Le flux Google "
+              "Actualités est réservé à un usage personnel et non commercial (voir README).")
+        return 0
 
     if args.dry_run:
         mentions, seen = media.fetch()
         for m in sorted(mentions, key=lambda m: m["published_at"], reverse=True):
-            print(f"  {m['published_at'][:16]}  {m['outlet']:<12} {m['theme']:<28} "
+            print(f"  {m['published_at'][:16]}  {m['publisher'][:18]:<18} {m['theme']:<28} "
                   f"{', '.join(m['entities'])}\n      {m['titre']}")
         print(f"\n[DRY-RUN] {len(mentions)} mention(s) retenue(s) sur {seen} article(s) lu(s) "
               "— rien écrit en base")
@@ -527,7 +532,7 @@ def main(argv: list[str] | None = None) -> int:
     fr.add_argument("--dry-run", action="store_true")
     fr.set_defaults(fn=cmd_fetch_rss)
 
-    fm = sub.add_parser("fetch-media", help="Flux live : articles presse RSS (gratuit)")
+    fm = sub.add_parser("fetch-media", help="Flux live : Google Actualités France (gratuit, GOOGLE_NEWS_ENABLED)")
     fm.add_argument("--dry-run", action="store_true", help="affiche sans écrire en base")
     fm.set_defaults(fn=cmd_fetch_media)
 

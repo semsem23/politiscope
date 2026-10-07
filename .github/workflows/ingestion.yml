@@ -47,6 +47,9 @@ jobs:
       BUDGET_USD_MONTH: ${{ vars.BUDGET_USD_MONTH || '25' }}
       MAX_READS_PER_RUN: ${{ vars.MAX_READS_PER_RUN || '600' }}
       BACKFILL_DAYS: "2"
+      # Flux live : Google Actualités est réservé à un usage personnel et non
+      # commercial. Désactivé tant que la variable du dépôt ne vaut pas true.
+      GOOGLE_NEWS_ENABLED: ${{ vars.GOOGLE_NEWS_ENABLED || 'false' }}
       PYTHONIOENCODING: utf-8
 
     steps:
@@ -83,9 +86,10 @@ jobs:
           python -m politiscope.cli fetch-rss \
             --days "${{ github.event.inputs.rss_days || '2' }}"
 
-      # Gratuit aussi : flux RSS du Monde, du Figaro et du Parisien pour la
-      # vue Flux live. Écrit directement en base (press_mentions), n'ajoute
-      # que les articles absents. Une panne d'un flux ne doit pas bloquer X.
+      # Gratuit aussi : Google Actualités, rubrique France, pour la vue Flux
+      # live (sans effet si GOOGLE_NEWS_ENABLED n'est pas activé). Écrit
+      # directement en base (press_mentions), n'ajoute que les articles
+      # absents. Une panne du flux ne doit pas bloquer X.
       - name: Presse (Flux live)
         continue-on-error: true
         run: python -m politiscope.cli fetch-media

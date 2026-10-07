@@ -617,9 +617,8 @@ def test_toutes_les_dependances_sont_declarees():
 
 
 # --- Flux live : étiquetage des articles presse (media.py) ---------------
-from types import SimpleNamespace
-
-from politiscope.media import canonical_url, mention_from_entry, page_meta, tag
+from politiscope.media import (canonical_url, dedupe, mentions_from_cluster, parse_feed,
+                               strip_publisher, tag)
 
 
 def test_media_etiquette_entites_et_sujet():
@@ -641,40 +640,73 @@ def test_media_frontieres_de_mot():
     assert entities == []
 
 
-def test_media_article_hors_sujet_est_ecarte():
-    entry = SimpleNamespace(link="https://www.lemonde.fr/a.html", title="Macron à un match de rugby",
-                            summary="", published_parsed=(2026, 9, 29, 10, 0, 0, 0, 0, 0))
-    assert mention_from_entry("lemondefr", entry) is None
-
-
-def test_media_mention_garde_le_texte_de_la_redaction():
-    entry = SimpleNamespace(
-        link="https://www.lefigaro.fr/international/x.php?xtor=RSS-1#top",
-        title="Trump menace la Chine de nouveaux droits de douane",
-        summary="<p>Washington &amp; Pékin</p>",
-        published_parsed=(2026, 9, 29, 10, 0, 0, 0, 0, 0))
-    m = mention_from_entry("Le_Figaro", entry)
-    assert m["titre"] == "Trump menace la Chine de nouveaux droits de douane"
-    assert m["resume"] == "Washington & Pékin"
-    assert m["article_url"] == m["id"] == "https://www.lefigaro.fr/international/x.php"
-    assert m["theme"] == "Commerce / droits de douane"
-    assert m["published_at"] == "2026-09-29T10:00:00+00:00"
-
-
-def test_media_sans_date_dans_le_flux_reste_a_completer():
-    """Le Parisien ne date pas son flux : la mention attend la date de la page."""
-    entry = SimpleNamespace(link="https://www.leparisien.fr/a.php",
-                            title="Poutine intensifie l'effort de guerre en Ukraine")
-    m = mention_from_entry("le_Parisien", entry)
-    assert m is not None and m["published_at"] is None
-
-
-def test_media_date_lue_sur_la_page():
-    page = ('<meta property="article:published_time" content="2026-09-29T23:22:00+02:00"/>'
-            '<meta property="og:description" content="Un chap&ocirc;"/>')
-    assert page_meta(page) == ("2026-09-29T21:22:00+00:00", "Un chapô")
-    assert page_meta("<html></html>") == (None, None)
-
-
 def test_media_url_canonique():
-    assert canonical_url(" https://www.lemonde.fr/a/b.html?xtor=RSS#x ") == "https://www.lemonde.fr/a/b.html"
+    assert canonical_url(" https://news.google.com/rss/articles/CBMiX?oc=5 ") == \
+        "https://news.google.com/rss/articles/CBMiX"
+
+
+# Extrait réduit du flux « France » de Google Actualités, structure réelle :
+# description en HTML échappé, article principal en tête de la liste, éditeur
+# dans <font>. Le lien du 2e article contient un « & » non échappé.
+GN = "https://news.google.com/rss/articles/"
+_GN_FEED = f"""<?xml version="1.0" encoding="UTF-8"?><rss><channel>
+<item><title>Trump menace la Chine de nouveaux droits de douane - Le Monde.fr</title>
+<link>{GN}A1?oc=5</link><pubDate>Wed, 07 Oct 2026 17:10:23 GMT</pubDate>
+<description>&lt;ol&gt;&lt;li&gt;&lt;a href="{GN}A1?oc=5" target="_blank"&gt;Trump menace la Chine de nouveaux droits de douane&lt;/a&gt;&amp;nbsp;&amp;nbsp;&lt;font color="#6f6f6f"&gt;Le Monde.fr&lt;/font&gt;&lt;/li&gt;&lt;li&gt;&lt;a href="{GN}A2?oc=5&hl=fr" target="_blank"&gt;Pékin réplique à Washington&lt;/a&gt;&amp;nbsp;&amp;nbsp;&lt;font color="#6f6f6f"&gt;BFM&lt;/font&gt;&lt;/li&gt;&lt;li&gt;&lt;a href="{GN}A3?oc=5" target="_blank"&gt;Ce que l'on sait de l'annonce de Trump&lt;/a&gt;&amp;nbsp;&amp;nbsp;&lt;font color="#6f6f6f"&gt;Le Figaro&lt;/font&gt;&lt;/li&gt;&lt;/ol&gt;</description>
+<source url="https://www.lemonde.fr">Le Monde.fr</source></item>
+<item><title>Rugby - Le XV de France - Ouest-France</title><link>{GN}B1?oc=5</link>
+<pubDate>Wed, 07 Oct 2026 08:00:00 GMT</pubDate><description>sans liste</description>
+<source url="https://www.ouest-france.fr">Ouest-France</source></item>
+</channel></rss>"""
+
+
+def test_media_flux_google_clusters():
+    clusters = parse_feed(_GN_FEED)
+    assert len(clusters) == 2
+    a = clusters[0]["articles"]
+    # Le principal n'est compté qu'une fois ; le « & » brut du lien est conservé.
+    assert [x["publisher"] for x in a] == ["Le Monde.fr", "BFM", "Le Figaro"]
+    assert a[0]["titre"] == "Trump menace la Chine de nouveaux droits de douane"
+    assert a[1]["url"] == f"{GN}A2?oc=5&hl=fr"
+    assert clusters[0]["published_at"] == "2026-10-07T17:10:23+00:00"
+    # Item sans liste : un cluster d'un seul article.
+    assert [x["titre"] for x in clusters[1]["articles"]] == ["Rugby - Le XV de France"]
+
+
+def test_media_suffixe_editeur_retire_seulement_s_il_correspond():
+    assert strip_publisher("Gaza : la trêve tient - Le Monde.fr", "Le Monde.fr") == "Gaza : la trêve tient"
+    assert strip_publisher("Rugby - Le XV de France", "BFM") == "Rugby - Le XV de France"
+
+
+def test_media_cluster_mono_sujet_herite_du_titre_principal():
+    """« Ce que l'on sait de l'annonce de Trump » n'a pas de sujet à lui seul :
+    dans un cluster mono-sujet, il prend celui du titre principal."""
+    ms = mentions_from_cluster(parse_feed(_GN_FEED)[0])
+    by_pub = {m["publisher"]: m for m in ms}
+    assert by_pub["Le Figaro"]["theme"] == "Commerce / droits de douane"
+    assert all(m["cluster_id"] == f"{GN}A1" for m in ms)
+    assert all(m["via"] == "Google Actualités" and m["outlet"] == "google_news" for m in ms)
+    assert by_pub["Le Monde.fr"]["id"] == f"{GN}A1"
+    assert by_pub["Le Monde.fr"]["article_url"] == f"{GN}A1?oc=5"
+
+
+def test_media_cluster_multi_sujets_pas_d_heritage():
+    cluster = {"published_at": "2026-10-07T10:00:00+00:00", "articles": [
+        {"url": f"{GN}C1", "titre": "Trump menace la Chine de droits de douane", "publisher": "A"},
+        {"url": f"{GN}C2", "titre": "Zelensky et l'Ukraine face à l'hiver", "publisher": "B"},
+        {"url": f"{GN}C3", "titre": "Trump, l'annonce du jour", "publisher": "C"},
+    ]}
+    themes = {m["publisher"]: m["theme"] for m in mentions_from_cluster(cluster)}
+    assert themes == {"A": "Commerce / droits de douane", "B": "Guerre en Ukraine"}
+
+
+def test_media_dedoublonnage_url_puis_titre_editeur_jour():
+    base = {"publisher": "BFM", "published_at": "2026-10-07T10:00:00+00:00"}
+    ms = [
+        {**base, "id": f"{GN}X", "titre": "Gaza : la trêve tient"},
+        {**base, "id": f"{GN}X", "titre": "autre titre, même URL"},
+        {**base, "id": f"{GN}Y", "titre": "GAZA — la trêve tient !"},    # autre redirection
+        {**base, "id": f"{GN}Z", "titre": "Gaza : la trêve tient", "publisher": "Le Figaro"},
+        {**base, "id": f"{GN}K", "titre": "déjà en base"},
+    ]
+    assert [m["id"] for m in dedupe(ms, known={f"{GN}K"})] == [f"{GN}X", f"{GN}Z"]
