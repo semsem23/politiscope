@@ -1,99 +1,57 @@
 import type { Topic } from "../types";
+import subjects from "./subjects.json";
 
 /**
- * Périmètre volontairement étroit de la vue « Flux live » : trois médias,
- * quelques figures de l'exécutif et de la scène internationale, leurs pays,
- * six sujets. Le reste de l'appli couvre tout le spectre politique ; cette
- * vue non.
+ * Périmètre de la vue « Flux live » : les articles de la rubrique « France »
+ * de Google Actualités qui relèvent d'un des sept sujets du lexique.
  *
- * Réutilise le vocabulaire existant là où il existe :
- * - les clés de personnalité suivent `figureKeyOf` (handle si connu, sinon
- *   nom) — Macron et Lecornu reprennent leur handle de x_accounts.json ;
- * - les sujets ont la forme `Topic` (thème long -> libellé court), et
- *   « Europe » reprend exactement le thème « Europe & souveraineté » de la
- *   table `topics`.
- * Les autres entrées (médias, Barrot, dirigeants étrangers, pays, cinq
- * sujets) n'existent encore nulle part ailleurs dans le code : elles sont
- * définies ici, et seulement ici.
+ * Les sujets et leurs termes viennent de `subjects.json`, généré depuis
+ * `SUBJECT_LEXICON` (politiscope/media.py) par `scripts/export_subjects.py` :
+ * ils ne peuvent pas diverger de ce que l'ingestion tague. Rien ici ne doit
+ * les recopier en dur.
  */
 
-// --- médias -----------------------------------------------------------------
+// --- éditeurs -----------------------------------------------------------------
 
-export type OutletId = "lemondefr" | "Le_Figaro" | "le_Parisien";
+/** Trois éditeurs nommés, chacun sa couleur ; tous les autres en gris. */
+export type PublisherGroup = "lemonde" | "figaro" | "parisien" | "autres";
 
-export interface Outlet {
-  /** Handle X, sans l'arobase. */
-  id: OutletId;
+export interface PublisherGroupInfo {
+  id: PublisherGroup;
   label: string;
   color: string;
 }
 
-export const OUTLETS: Outlet[] = [
-  { id: "lemondefr", label: "Le Monde", color: "var(--outlet-lemonde)" },
-  { id: "Le_Figaro", label: "Le Figaro", color: "var(--outlet-figaro)" },
-  { id: "le_Parisien", label: "Le Parisien", color: "var(--outlet-parisien)" },
+export const PUBLISHER_GROUPS: PublisherGroupInfo[] = [
+  { id: "lemonde", label: "Le Monde", color: "var(--outlet-lemonde)" },
+  { id: "figaro", label: "Le Figaro", color: "var(--outlet-figaro)" },
+  { id: "parisien", label: "Le Parisien", color: "var(--outlet-parisien)" },
+  { id: "autres", label: "Autres médias", color: "var(--muted)" },
 ];
 
-export const outletOf = (id: OutletId): Outlet => OUTLETS.find((o) => o.id === id) ?? OUTLETS[0];
-
-// --- personnalités et pays -----------------------------------------------------
-
-/** Pays suivis ; « fr » regroupe l'exécutif français au centre de la carte. */
-export type Pole = "fr" | "us" | "ru" | "ua" | "cn" | "il";
-
-export interface ScopeEntity {
-  /** Clé stable : `figureKeyOf` pour une personnalité, `pays:<pole>` pour un pays. */
-  key: string;
-  kind: "figure" | "country";
-  nom: string;
-  /** Fonction (personnalité) — absent pour un pays. */
-  role?: string;
-  pole: Pole;
+/** Google écrit « Le Monde.fr », « Le Figaro », « Le Parisien » : on compare sur le début du nom. */
+export function publisherGroup(publisher: string): PublisherGroup {
+  const p = publisher.toLowerCase();
+  if (p.startsWith("le monde")) return "lemonde";
+  if (p.startsWith("le figaro")) return "figaro";
+  if (p.startsWith("le parisien")) return "parisien";
+  return "autres";
 }
 
-export const ENTITIES: ScopeEntity[] = [
-  // Exécutif français — handles repris de x_accounts.json quand ils y figurent.
-  { key: "EmmanuelMacron", kind: "figure", nom: "Emmanuel Macron", role: "Président de la République", pole: "fr" },
-  { key: "SebLecornu", kind: "figure", nom: "Sébastien Lecornu", role: "Premier ministre", pole: "fr" },
-  {
-    key: "Jean-Noël Barrot",
-    kind: "figure",
-    nom: "Jean-Noël Barrot",
-    role: "Ministre de l'Europe et des Affaires étrangères",
-    pole: "fr",
-  },
-  // Chefs d'État et de gouvernement étrangers, chacun à côté de son pays.
-  { key: "Donald Trump", kind: "figure", nom: "Donald Trump", role: "Président des États-Unis", pole: "us" },
-  { key: "pays:us", kind: "country", nom: "États-Unis", pole: "us" },
-  { key: "Vladimir Poutine", kind: "figure", nom: "Vladimir Poutine", role: "Président de la Russie", pole: "ru" },
-  { key: "pays:ru", kind: "country", nom: "Russie", pole: "ru" },
-  { key: "Volodymyr Zelensky", kind: "figure", nom: "Volodymyr Zelensky", role: "Président de l'Ukraine", pole: "ua" },
-  { key: "pays:ua", kind: "country", nom: "Ukraine", pole: "ua" },
-  { key: "Xi Jinping", kind: "figure", nom: "Xi Jinping", role: "Président de la Chine", pole: "cn" },
-  { key: "pays:cn", kind: "country", nom: "Chine", pole: "cn" },
-  {
-    key: "Benjamin Netanyahu",
-    kind: "figure",
-    nom: "Benjamin Netanyahu",
-    role: "Premier ministre d'Israël",
-    pole: "il",
-  },
-  { key: "pays:il", kind: "country", nom: "Israël", pole: "il" },
-];
+export const groupInfo = (id: PublisherGroup): PublisherGroupInfo =>
+  PUBLISHER_GROUPS.find((g) => g.id === id) ?? PUBLISHER_GROUPS[PUBLISHER_GROUPS.length - 1];
 
-export const entityOf = (key: string): ScopeEntity | undefined => ENTITIES.find((e) => e.key === key);
+export const publisherColor = (publisher: string): string => groupInfo(publisherGroup(publisher)).color;
 
-// --- sujets -------------------------------------------------------------------
+// --- sujets et termes ---------------------------------------------------------------
 
-export const SUBJECTS: Topic[] = [
-  { theme: "Gaza / Proche-Orient", libelle_court: "Gaza / Proche-Orient", ordre: 1 },
-  { theme: "Guerre en Ukraine", libelle_court: "Guerre en Ukraine", ordre: 2 },
-  { theme: "Diplomatie", libelle_court: "Diplomatie", ordre: 3 },
-  { theme: "Commerce / droits de douane", libelle_court: "Commerce / douanes", ordre: 4 },
-  { theme: "Défense / Otan", libelle_court: "Défense / Otan", ordre: 5 },
-  // Thème existant de la table `topics`, repris tel quel.
-  { theme: "Europe & souveraineté", libelle_court: "Europe", ordre: 6 },
-];
+/** Sujets dans l'ordre du lexique (qui départage aussi les égalités au tagging). */
+export const SUBJECTS: Topic[] = subjects.map((s, i) => ({ theme: s.theme, libelle_court: s.theme, ordre: i + 1 }));
+
+/** Terme (libellé du lexique) -> son sujet. */
+export const TERM_SUBJECT: ReadonlyMap<string, string> = new Map(
+  subjects.flatMap((s) => s.terms.map((t) => [t, s.theme] as const))
+);
 
 export const subjectShort = (theme: string): string =>
   SUBJECTS.find((s) => s.theme === theme)?.libelle_court ?? theme;
@@ -101,26 +59,29 @@ export const subjectShort = (theme: string): string =>
 // --- mentions -----------------------------------------------------------------
 
 /**
- * Un article d'un média suivi qui cite au moins une entité du périmètre —
- * une ligne de la table `press_mentions` (migration 009), alimentée chaque
- * nuit depuis les flux RSS des rédactions (politiscope/media.py, dont les
- * clés d'entités et de sujets doivent rester celles de ce fichier).
+ * Un article retenu — une ligne de `press_mentions` où `theme` n'est pas null,
+ * alimentée chaque nuit depuis Google Actualités (politiscope/media.py).
  */
 export interface MediaMention {
-  /** URL canonique de l'article. */
+  /** URL de redirection Google, canonique. */
   id: string;
-  outlet: OutletId;
+  /** Éditeur réel (« Le Monde.fr », « BFM »…). */
+  publisher: string;
+  /** Canal de collecte : « Google Actualités », ou « RSS de la rédaction » pour l'historique. */
+  via: string;
+  /** Article principal du cluster Google ; null pour l'historique. */
+  cluster_id: string | null;
   /** ISO 8601. */
   published_at: string;
-  /** Titre, tel que publié par la rédaction. */
+  /** Titre, tel que publié. */
   titre: string;
-  /** Chapô, tel que publié, s'il y en a un. */
+  /** Chapô, s'il y en a un (historique RSS seulement). */
   resume: string | null;
   article_url: string;
   /** Thème de SUBJECTS. */
   theme: string;
-  /** Clés d'ENTITIES citées. */
-  entities: string[];
+  /** Libellés du lexique trouvés dans le titre ; vide si le sujet vient du cluster. */
+  matched_terms: string[];
 }
 
 export type Period = "24h" | "7j" | "30j";

@@ -70,8 +70,9 @@ anonyme renvoie 401.
 src/
   types.ts                    modèle, familles
   lib/supabase.ts             client public
-  lib/fluxScope.ts            périmètre de la vue Flux live (médias, figures, pays, sujets)
-  hooks/useMediaMentions.ts   lit `press_mentions` (presse RSS, collecte nocturne `fetch-media`)
+  lib/fluxScope.ts            périmètre de la vue Flux live (éditeurs, sujets)
+  lib/subjects.json           sujets et termes, générés depuis le lexique Python (scripts/export_subjects.py)
+  hooks/useMediaMentions.ts   lit `press_mentions` (Google Actualités, collecte nocturne `fetch-media`)
   hooks/usePolitiscope.ts     chargement, filtrage, tri
   components/
     FilterBar.tsx             familles, thème, tri, recherche

@@ -6,7 +6,7 @@ export interface MediaMentionsData {
   /** Tout l'historique accumulé, du plus récent au plus ancien. */
   mentions: MediaMention[];
   loading: boolean;
-  /** Table absente (migration 009 pas appliquée) ou lecture impossible. */
+  /** Table absente (migrations 009 à 012 pas appliquées) ou lecture impossible. */
   error: string | null;
   /** Instant de référence des fenêtres 24h / 7j / 30j. */
   now: number;
@@ -40,7 +40,9 @@ export function useMediaMentions(): MediaMentionsData {
       for (let page = 0; page < MAX_PAGES; page++) {
         const { data, error: err } = await client
           .from("press_mentions")
-          .select("id, outlet, published_at, titre, resume, article_url, theme, entities")
+          .select("id, publisher, via, cluster_id, published_at, titre, resume, article_url, theme, matched_terms")
+          // Les articles sans sujet sont stockés pour un re-tag futur, pas affichés.
+          .not("theme", "is", null)
           .order("published_at", { ascending: false })
           .range(page * PAGE, (page + 1) * PAGE - 1);
         if (cancelled) return;

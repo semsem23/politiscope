@@ -761,3 +761,14 @@ def test_media_dedoublonnage_url_puis_titre_editeur_jour():
         {**base, "id": f"{GN}K", "titre": "déjà en base"},
     ]
     assert [m["id"] for m in dedupe(ms, known={f"{GN}K"})] == [f"{GN}X", f"{GN}Z"]
+
+
+def test_media_front_sans_anciens_sujets_en_dur():
+    """Les sujets du front viennent de subjects.json : aucun ancien nom ne doit
+    traîner dans web/src (il afficherait un sujet que l'ingestion ne produit plus)."""
+    racine = Path(__file__).parent.parent / "web" / "src"
+    anciens = ("Gaza / Proche-Orient", "Guerre en Ukraine", "Commerce / droits de douane",
+               "Défense / Otan", "Diplomatie", "pays:")
+    fautifs = [(f.name, a) for f in racine.rglob("*.ts*")
+               for a in anciens if a in f.read_text(encoding="utf-8")]
+    assert not fautifs, fautifs

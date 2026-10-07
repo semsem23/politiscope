@@ -397,7 +397,6 @@ input.control { min-width: 180px; }
   padding: 2px 7px; border: 1px solid var(--line); color: var(--ink-soft);
 }
 .flux-tag { border-radius: 999px; }
-.flux-tag-country { border-radius: 4px; }
 .flux-tag-subject {
   border-radius: 999px; color: var(--topic-color);
   border-color: color-mix(in srgb, var(--topic-color) 35%, var(--line));
@@ -418,19 +417,11 @@ input.control { min-width: 180px; }
 .flux-shape { stroke-width: 2.25px; transition: stroke 0.15s ease; }
 .flux-node:hover .flux-shape { stroke-width: 3px; }
 .flux-figure .flux-shape { fill: var(--surface-raised); stroke: var(--ink-soft); }
-.flux-figure-fr .flux-shape {
-  stroke: var(--fam-majorite); fill: color-mix(in srgb, var(--fam-majorite) 12%, var(--surface-raised));
-}
-.flux-country .flux-shape { fill: color-mix(in srgb, var(--ink) 9%, var(--surface-raised)); stroke: var(--ink); }
 .flux-subject .flux-shape {
   fill: color-mix(in srgb, var(--topic-color) 10%, var(--surface-raised)); stroke: var(--topic-color); stroke-width: 1.5px;
 }
 .flux-subject text {
   font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11px; font-weight: 600; fill: var(--topic-color);
-}
-.flux-initials {
-  font-family: "Fraunces Variable", Georgia, serif; font-weight: 600; font-size: 11.5px;
-  fill: var(--ink); pointer-events: none;
 }
 .flux-label {
   font-size: 11.5px; font-weight: 600; fill: var(--ink); pointer-events: none;
@@ -457,16 +448,12 @@ input.control { min-width: 180px; }
 
 .flux-swatch { width: 14px; height: 14px; display: inline-block; border: 2px solid; flex: none; }
 .flux-swatch-figure { border-radius: 50%; border-color: var(--ink-soft); background: var(--surface-raised); }
-.flux-swatch-country {
-  border-radius: 4px; border-color: var(--ink); background: color-mix(in srgb, var(--ink) 9%, var(--surface-raised));
-}
 .flux-swatch-subject {
   width: 22px; border-radius: 999px; border-width: 1.5px; border-color: var(--topic-color);
   background: color-mix(in srgb, var(--topic-color) 10%, var(--surface-raised));
 }
 .flux-excerpt { font-size: 16px; }
 .flux-resume { margin: -8px 0 16px; font-size: 13.5px; line-height: 1.55; color: var(--ink-soft); }
-.flux-orb-country { border-radius: 10px; border-color: var(--ink); }
 .flux-orb-subject { border-color: var(--topic-color); color: var(--topic-color); }
 
 /* ---------- Vue Citations (tableau) ---------- */
