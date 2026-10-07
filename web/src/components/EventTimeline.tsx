@@ -102,6 +102,33 @@ const hourLabel = (t: number) =>
 const nodeSub = (n: TimelineNode): string =>
   n.count > 1 ? `${n.lead.subtitle} · +${plural(n.count - 1, "autre")}` : n.lead.subtitle;
 
+// --- étiquettes des points ---------------------------------------------------------
+// Dans la frise, titre et sous-titre sont coupés court : un titre de presse
+// entier déborde sur la journée voisine. Le texte complet reste dans
+// l'infobulle et le panneau de détail.
+
+const TITLE_CHARS = 30;
+const SUB_CHARS = 38;
+/** Largeur moyenne d'un caractère : titre en 11 px gras, sous-titre en 9,5 px. */
+const TITLE_CHAR_W = 6.3;
+const SUB_CHAR_W = 5.2;
+/** Écart minimal entre deux étiquettes d'un même couloir. */
+const LABEL_GAP = 8;
+
+function clip(s: string, max: number): string {
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max - 1);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,;:·—-]+$/, "")}…`;
+}
+
+interface NodeLabel {
+  title: string;
+  sub: string;
+  /** Repliée à gauche du point (près du bord droit). */
+  flip: boolean;
+}
+
 /** Ce que le panneau de détail affichera en tête. */
 const selectionOf = (n: TimelineNode, grouped: boolean): EventSelection => ({
   kind: "event",
@@ -153,24 +180,32 @@ export function EventTimeline({ mentions, period, now, onSelect }: Props) {
   };
 
   /**
-   * Étiquettes posées de gauche à droite, une seule rangée par couloir :
-   * on saute celle qui recouvrirait la précédente (le point reste, avec son
-   * infobulle). Les points eux-mêmes ne se chevauchent pas — une journée
-   * par point sur 7j et 30j.
+   * Étiquettes posées une seule rangée par couloir, les plus gros points
+   * d'abord : on saute celle qui recouvrirait une étiquette déjà posée (le
+   * point reste, avec son infobulle). La largeur est mesurée sur le texte
+   * réellement affiché, dans le sens où il s'étend — vers la gauche quand il
+   * est replié près du bord droit.
    */
   const labelled = useMemo(() => {
-    const keep = new Set<string>();
-    const rightEdge = new Map<string, number>();
-    for (const n of nodes) {
+    const keep = new Map<string, NodeLabel>();
+    const taken = new Map<string, [number, number][]>();
+    const byWeight = [...nodes].sort((a, b) => b.articleCount - a.articleCount || a.t - b.t);
+    for (const n of byWeight) {
+      const title = clip(n.lead.title, TITLE_CHARS);
+      const sub = clip(nodeSub(n), SUB_CHARS);
+      const w = Math.max(title.length * TITLE_CHAR_W, sub.length * SUB_CHAR_W);
       const nx = x(n.t);
-      const w = Math.min(176, Math.max(n.lead.title.length, nodeSub(n).length) * 5.4 + 14);
-      const left = nx - radiusOf(n) - 2;
-      if (left < (rightEdge.get(n.laneId) ?? -Infinity) + 8) continue;
-      keep.add(n.id);
-      rightEdge.set(n.laneId, left + w);
+      const r = radiusOf(n);
+      const flip = nx + r + 6 + w > W - PAD_RIGHT;
+      const span: [number, number] = flip ? [nx - r - 6 - w, nx + r] : [nx - r, nx + r + 6 + w];
+      const lane = taken.get(n.laneId) ?? [];
+      if (lane.some(([a, b]) => span[0] < b + LABEL_GAP && a < span[1] + LABEL_GAP)) continue;
+      lane.push(span);
+      taken.set(n.laneId, lane);
+      keep.set(n.id, { title, sub, flip });
     }
     return keep;
-  }, [nodes, x]);
+  }, [nodes, x, W]);
 
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const shown = showSuggested ? links : links.filter((l) => l.kind === "established");
@@ -332,9 +367,9 @@ export function EventTimeline({ mentions, period, now, onSelect }: Props) {
               const ny = laneY(n.laneId);
               const r = radiusOf(n);
               const dim = connected !== null && !connected.has(n.id);
+              const label = labelled.get(n.id);
               // Étiquette repliée à gauche près du bord droit, sinon elle sort du cadre.
-              const flip = nx > W - PAD_RIGHT - 150;
-              const tx = flip ? nx - r - 6 : nx + r + 6;
+              const tx = label?.flip ? nx - r - 6 : nx + r + 6;
               return (
                 <g
                   key={n.id}
@@ -380,23 +415,23 @@ export function EventTimeline({ mentions, period, now, onSelect }: Props) {
                     />
                   ))}
 
-                  {labelled.has(n.id) && (
+                  {label && (
                     <>
                       <text
                         className="frise-title"
                         x={tx}
                         y={ny - 24}
-                        textAnchor={flip ? "end" : "start"}
+                        textAnchor={label.flip ? "end" : "start"}
                       >
-                        {n.lead.title}
+                        {label.title}
                       </text>
                       <text
                         className="frise-subtitle"
                         x={tx}
                         y={ny - 11}
-                        textAnchor={flip ? "end" : "start"}
+                        textAnchor={label.flip ? "end" : "start"}
                       >
-                        {nodeSub(n)}
+                        {label.sub}
                       </text>
                     </>
                   )}
