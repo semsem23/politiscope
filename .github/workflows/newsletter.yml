@@ -10,7 +10,7 @@ name: Newsletter
 #   - send    : envoie aux abonnés. Irréversible.
 #
 # Pour l'automatiser une fois confiant, décommentez `schedule` : 05h30 UTC,
-# soit après la publication nocturne (ingestion à 04h00 UTC) — et passez
+# soit après la publication nocturne (ingestion à 01h00 UTC) — et passez
 # `mode` par défaut à `send`. Le journal `newsletter_issues` (migration 014)
 # empêche un second envoi le même jour.
 on:

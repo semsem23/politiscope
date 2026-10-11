@@ -161,8 +161,8 @@ demande une vérification humaine (presse).
 
 ## Ingestion automatique
 
-`.github/workflows/ingestion.yml` lance chaque nuit à 04h00 UTC (06h00 à Paris
-l'été, 05h00 l'hiver) : Google Actualités, puis les timelines X, puis le
+`.github/workflows/ingestion.yml` lance chaque nuit à 01h00 UTC (03h00 à Paris
+l'été, 02h00 l'hiver) : Google Actualités, puis les timelines X, puis le
 versement en base. Déclenchable à la main via *Actions -> Nightly Ingestion ->
 Run workflow*, avec une case pour sauter l'ingestion X (la seule payante).
 Une fois terminée avec succès, elle déclenche automatiquement *Draft
