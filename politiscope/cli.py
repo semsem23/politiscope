@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .config import PRICE_POST_READ, PRICE_USER_READ, settings
 from .quotes import candidates_from_rss, candidates_from_tweet, normalise
+from .selection import balance_by_family, is_promo
 from .store import BudgetExceeded, State, append_jsonl, read_json, read_jsonl
 
 
@@ -309,6 +310,9 @@ def cmd_candidates(args) -> int:
         out = [c for c in out if not c.get("protocolaire")]
     if args.require_theme:
         out = [c for c in out if c.get("theme_suggere")]
+    # Autopromo : « retrouvez mon interview… » annonce une prise de position,
+    # ce n'en est pas une.
+    out = [c for c in out if not is_promo(c["citation"])]
 
     if args.since_hours:
         cutoff = datetime.now(timezone.utc) - timedelta(hours=args.since_hours)
@@ -341,7 +345,8 @@ def cmd_candidates(args) -> int:
             kept.append(c)
         out = kept
 
-    out = out[:args.limit]
+    # Spectre équilibré : tourniquet entre familles plutôt que les plus bavards.
+    out = balance_by_family(out, args.limit, family=lambda c: c.get("famille") or "?")
 
     if args.json:
         print(json.dumps(out, ensure_ascii=False, indent=2))

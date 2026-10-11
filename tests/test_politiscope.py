@@ -772,3 +772,84 @@ def test_media_front_sans_anciens_sujets_en_dur():
     fautifs = [(f.name, a) for f in racine.rglob("*.ts*")
                for a in anciens if a in f.read_text(encoding="utf-8")]
     assert not fautifs, fautifs
+
+
+# --- sélection : autopromo et équilibre des familles ---------------------
+@pytest.mark.parametrize("texte", [
+    "📺 Ce soir dès 21h, retrouvez-moi sur LCI pour une soirée spéciale budget.",
+    "Prix des carburants : Manuel Bompard, invité de TF1 ! Retrouvez mon passage.",
+    "J’étais l'invité du Grand Jury RTL ce dimanche 20 septembre.",
+    "Olivier Faure : rendez vous à 20h45 sur France 2 pour le grand débat !",
+    "Le dernier débat de la primaire de la gauche, c’est maintenant ! 👉",
+    "Ce que j'ai dit à Macron sur le prix du carburant👇",
+    "L’avenir technologique européen se joue maintenant. Quelques mots depuis Baden-Baden.",
+])
+def test_autopromo_est_ecartee(texte):
+    from politiscope.selection import is_promo
+    assert is_promo(texte)
+
+
+@pytest.mark.parametrize("texte", [
+    "Quelle honte, Vous rendez-vous compte de ce que vous faites ?",
+    "La corruption se porte bien, avec notre argent, en Ukraine !…🤦🏻‍♂️",
+    "Il faut un budget juste pour les Français, pas une austérité qui étouffe la croissance et l'emploi. 👉 Voilà le fond du sujet.",
+    "Première manifestation pour le climat aujourd’hui à Arras, l'un des 100 rendez-vous de la vague verte.",
+    "C'est à voir, mais le budget ne passera pas sans compromis.",
+    "",
+])
+def test_prise_de_position_n_est_pas_autopromo(texte):
+    from politiscope.selection import is_promo
+    assert not is_promo(texte)
+
+
+def test_equilibre_tourne_entre_familles_et_garde_l_ordre_interne():
+    from politiscope.selection import balance_by_family
+    items = [("ED", 1), ("ED", 2), ("ED", 3), ("GR", 1), ("GR", 2), ("MA", 1)]
+    out = balance_by_family(items, 4, family=lambda x: x[0])
+    assert sorted(f for f, _ in out) == ["ED", "ED", "GR", "MA"]
+    assert [n for f, n in out if f == "ED"] == [1, 2]
+
+
+def test_equilibre_les_familles_sans_candidat_cedent_leurs_places():
+    from politiscope.selection import balance_by_family
+    items = [("ED", 1), ("ED", 2), ("ED", 3), ("MA", 1)]
+    assert len(balance_by_family(items, 4, family=lambda x: x[0])) == 4
+
+
+def test_equilibre_favorise_les_familles_sous_representees():
+    from politiscope.selection import balance_by_family
+    items = [("ED", 1), ("ED", 2), ("LR", 1), ("LR", 2)]
+    out = balance_by_family(items, 3, family=lambda x: x[0], prior={"ED": 110, "LR": 21})
+    assert [f for f, _ in out] == ["LR", "ED", "LR"]
+
+
+def test_build_draft_ecarte_l_autopromo_et_equilibre_les_familles():
+    import unittest.mock as m
+    from datetime import datetime, timezone
+    from politiscope import publish
+
+    d = datetime(2026, 10, 10, tzinfo=timezone.utc)
+    def row(i, nom, fam, texte):
+        return (i, nom, fam, "P", texte, f"k{i}", d, f"https://x.com/{nom}/status/{i}", "Budget & finances publiques", 90 - i)
+    rows = [row(1, "A", "extreme-droite", "Le budget est injuste pour les Français."),
+            row(2, "B", "extreme-droite", "Retrouvez mon passage sur LCI ce soir."),
+            row(3, "C", "extreme-droite", "Il faut baisser les impôts des classes moyennes."),
+            row(4, "D", "gauche-radicale", "Il faut taxer les superprofits sans attendre."),
+            row(5, "E", "droite-rep", "La dette publique menace notre souveraineté.")]
+
+    class Cur:
+        def __init__(self): self.r = []
+        def execute(self, q, *a):
+            self.r = rows if "from candidates" in q else [("extreme-droite", 110), ("droite-rep", 21)]
+        def fetchall(self): return self.r
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+    class Conn:
+        def cursor(self): return Cur()
+
+    with m.patch.object(publish, "_reference_maps", lambda c: ({}, set())), \
+         m.patch.object(publish, "_comptes", lambda: {}):
+        draft = publish.build_draft(Conn(), limit=3, min_score=0, per_person=1,
+                                    since_hours=None, famille=None)
+    assert [e["nom"] for e in draft] == ["D", "E", "A"]   # B écarté ; D, E avant C
+    assert all(e["citation"] != "Retrouvez mon passage sur LCI ce soir." for e in draft)

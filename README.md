@@ -83,6 +83,15 @@ Les quatre filtres composent la définition d'une *prise de position attribuable
 | `--no-ceremonial` | vœux, remerciements, hommages, résultats sportifs |
 | `--require-theme` | ce qui ne relève d'aucun sujet politique identifié |
 
+Deux règles de sélection (`politiscope/selection.py`) s'appliquent à
+`candidates` et à `publish` : l'**autopromo** (« retrouvez mon interview »,
+« invité de TF1 », « rendez-vous à 20h »…) est écartée, et la limite est
+répartie **en tourniquet entre familles politiques** — les moins représentées
+parmi les entrées déjà publiées passent en premier. Sans cela, les comptes les
+plus prolifiques occupaient tout le brouillon (68 % des citations venaient des
+deux extrêmes). `python scripts/audit_promo.py` liste, sans rien modifier, les
+entrées déjà publiées que le filtre aurait écartées.
+
 Les retweets et réponses sont déjà exclus en amont, au niveau de l'API
 (`exclude=retweets,replies`), et les propos rapportés d'un tiers par
 `quotes.py`. Chaque candidate sortie porte `verifie: true` et l'URL directe

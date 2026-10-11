@@ -26,6 +26,7 @@ import psycopg2.extras
 from . import db
 from .config import settings
 from .quotes import normalise
+from .selection import balance_by_family, is_promo
 
 MOIS_FR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
            "août", "septembre", "octobre", "novembre", "décembre"]
@@ -94,13 +95,30 @@ def build_draft(conn, *, limit: int, min_score: int, per_person: int,
         cur.execute(sql, params)
         rows = cur.fetchall()
 
-    draft, vus = [], {}
-    for (cid, nom, famille_, parti, citation, _key, date_iso,
-         source, theme, score) in rows:
+    # Selection only (which candidates reach the draft) — never touches text.
+    # Promo tweets are dropped, then the limit is spread across families so the
+    # most prolific accounts don't fill the draft on their own.
+    retenues, vus = [], {}
+    for row in rows:
+        nom, citation = row[1], row[4]
+        if is_promo(citation):
+            continue
         if per_person and vus.get(nom, 0) >= per_person:
             continue
         vus[nom] = vus.get(nom, 0) + 1
+        retenues.append(row)
 
+    with conn.cursor() as cur:
+        cur.execute("select famille, count(*) from entries group by famille")
+        deja_publiees = {r[0]: r[1] for r in cur.fetchall()}
+    retenues = balance_by_family(
+        retenues, limit,
+        family=lambda r: par_nom.get(r[1], {}).get("famille") or r[2],
+        prior=deja_publiees)
+
+    draft = []
+    for (cid, nom, famille_, parti, citation, _key, date_iso,
+         source, theme, score) in retenues:
         connu = par_nom.get(nom, {})
         compte = comptes.get(nom, {})
         texte, tri = date_fr(date_iso.isoformat() if date_iso else None)
@@ -121,8 +139,6 @@ def build_draft(conn, *, limit: int, min_score: int, per_person: int,
             # --- to validate / fill in ---
             "theme": theme,
         })
-        if len(draft) >= limit:
-            break
     return draft
 
 
