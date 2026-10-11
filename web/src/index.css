@@ -116,13 +116,9 @@ a { color: var(--accent); }
 
 /* ---------- Inscription newsletter ---------- */
 .newsletter { max-width: 66ch; margin-top: 20px; font-size: 14px; color: var(--ink-soft); }
-.newsletter label { display: block; margin-bottom: 8px; line-height: 1.5; }
-.newsletter label strong { color: var(--ink); font-weight: 600; }
-.newsletter-row { display: flex; gap: 8px; flex-wrap: wrap; }
-.newsletter-row input[type="email"] {
-  flex: 1 1 220px; min-width: 0; padding: 9px 12px; font: inherit; color: var(--ink);
-  background: var(--surface-raised); border: 1px solid var(--line); border-radius: 8px;
-}
+.newsletter-lead { margin: 0 0 8px; line-height: 1.5; }
+.newsletter-lead strong { color: var(--ink); font-weight: 600; }
+.newsletter-frame { width: 100%; height: 300px; border: 0; background: transparent; }
 .newsletter-note { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; }
 .newsletter-note a { color: var(--ink-soft); }
 

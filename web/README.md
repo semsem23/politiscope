@@ -70,10 +70,11 @@ pour joindre Supabase (interception TLS).
 
 ## Inscription à la newsletter
 
-`NewsletterForm` poste chez Buttondown (double opt-in et désinscription chez
-eux). Il ne s'affiche que si `VITE_BUTTONDOWN_USERNAME` est défini au build :
-dans `.env.local` en local, dans les variables du projet Vercel (ou
-`.env.production`, le nom d'utilisateur étant public) en production.
+`NewsletterForm` intègre le formulaire hébergé par Brevo (Contacts >
+Formulaires > Partager > lien ; double opt-in et désinscription chez eux).
+Il ne s'affiche que si `VITE_BREVO_FORM_URL` est défini au build, et seulement
+pour une adresse `https://….sibforms.com/…` : dans `.env.local` en local, dans
+les variables du projet Vercel en production.
 
 ## Données
 

@@ -6,8 +6,9 @@ liens : le message d'origine et la page de la citation. Le thème n'est volontai
 pas repris : il est deviné par mots-clés et une erreur y serait bien plus visible
 dans un e-mail que sur le site.
 
-L'envoi, les abonnés, le double opt-in et le lien de désinscription sont ceux
-du service externe (Buttondown) : il ajoute lui-même le pied de page légal.
+L'envoi, les abonnés, le double opt-in et la désinscription sont ceux du service
+externe (Brevo) : la campagne y est créée en brouillon, puis envoyée à la liste
+choisie. Brevo ajoute lui-même l'adresse légale de l'expéditeur au pied du mail.
 """
 from __future__ import annotations
 
@@ -22,7 +23,7 @@ import requests
 from .publish import MOIS_FR
 
 SITE = "https://politiscope.app"
-API = "https://api.buttondown.com/v1/emails"
+API = "https://api.brevo.com/v3/emailCampaigns"
 
 # Même ordre et mêmes libellés que le site (web/src/types.ts) : aucune famille
 # n'ouvre systématiquement le numéro.
@@ -37,10 +38,6 @@ COULEURS = {
     "majorite": "#2a78d6", "droite-rep": "#eb6834", "extreme-droite": "#1baf7a",
     "gauche-radicale": "#eda100", "gauche-social": "#e87ba4",
 }
-
-# Force le mode HTML de Buttondown ; sans lui il devine entre Markdown et HTML.
-_HTML_MODE = "<!-- buttondown-editor-mode: fancy -->"
-
 
 @dataclass
 class Issue:
@@ -95,7 +92,6 @@ def build_issue(entries: list[dict], day: date) -> Issue | None:
     e_ = html.escape
 
     parts = [
-        _HTML_MODE,
         '<div style="max-width:600px;margin:0 auto;font-family:Georgia,serif;color:#0b0b0b;line-height:1.55">',
         '<h1 style="font-size:24px;margin:0 0 4px">Politiscope</h1>',
         f'<p style="color:#52514e;margin:0 0 24px">Ce que les responsables politiques ont dit — {e_(label)}</p>',
@@ -130,13 +126,15 @@ def build_issue(entries: list[dict], day: date) -> Issue | None:
         '<hr style="border:0;border-top:1px solid #e1e0d9;margin:28px 0 14px">'
         '<p style="font-size:13px;color:#898781">Citations sélectionnées et publiées automatiquement, '
         'sans relecture individuelle ; le texte est celui du message, tel que publié. '
-        f'<a href="{SITE}/methodologie">Méthodologie et limites</a>.</p></div>'
+        f'<a href="{SITE}/methodologie">Méthodologie et limites</a>. '
+        # Variable Brevo : remplacée à l'envoi par le lien de désinscription propre à chaque abonné.
+        '<a href="{{ unsubscribe }}">Se désinscrire</a>.</p></div>'
     )
     text += [
         "Citations sélectionnées et publiées automatiquement, sans relecture individuelle ;",
         "le texte est celui du message, tel que publié.",
         f"Méthodologie et limites : {SITE}/methodologie",
-    ]
+    ]  # la version texte ne sert qu'à l'aperçu ; Brevo n'envoie que le HTML
     return Issue(subject, "\n".join(parts), "\n".join(text), n)
 
 
@@ -156,25 +154,43 @@ def record_issue(conn, day: date, issue: Issue, status: str, provider_id: str | 
         )
 
 
-def push_to_provider(issue: Issue, *, send: bool) -> str | None:
-    """Crée l'e-mail chez Buttondown : brouillon par défaut, envoi si `send`.
-
-    Le brouillon laisse relire dans l'interface Buttondown avant d'écrire aux
-    abonnés ; `send` passe le statut à `about_to_send`.
-    """
-    key = os.getenv("BUTTONDOWN_API_KEY", "").strip()
+def _brevo_headers() -> dict[str, str]:
+    key = os.getenv("BREVO_API_KEY", "").strip()
     if not key:
-        raise RuntimeError("BUTTONDOWN_API_KEY absent : renseignez-le dans .env ou en secret CI")
+        raise RuntimeError("BREVO_API_KEY absent : renseignez-le dans .env ou en secret CI")
+    return {"api-key": key, "Content-Type": "application/json", "accept": "application/json"}
+
+
+def create_campaign(issue: Issue, day: date) -> str:
+    """Crée la campagne chez Brevo, en brouillon : rien n'est encore envoyé.
+
+    Brevo laisse une campagne en brouillon tant qu'on ne programme pas d'envoi ;
+    on peut la relire dans leur interface avant d'écrire aux abonnés.
+    """
+    headers = _brevo_headers()
+    email = os.getenv("BREVO_SENDER_EMAIL", "").strip()
+    list_id = os.getenv("BREVO_LIST_ID", "").strip()
+    if not email or not list_id.isdigit():
+        raise RuntimeError("BREVO_SENDER_EMAIL (expéditeur validé chez Brevo) et BREVO_LIST_ID (numéro de liste) sont requis")
     r = requests.post(
         API,
-        headers={"Authorization": f"Token {key}", "Content-Type": "application/json"},
+        headers=headers,
         json={
+            "name": f"Politiscope {day.isoformat()}",
             "subject": issue.subject,
-            "body": issue.html,
-            "status": "about_to_send" if send else "draft",
+            "sender": {"name": os.getenv("BREVO_SENDER_NAME", "Politiscope").strip() or "Politiscope", "email": email},
+            "htmlContent": issue.html,
+            "recipients": {"listIds": [int(list_id)]},
         },
         timeout=30,
     )
     if r.status_code >= 300:
-        raise RuntimeError(f"Buttondown a refusé l'e-mail (HTTP {r.status_code}) : {r.text[:300]}")
-    return (r.json() or {}).get("id")
+        raise RuntimeError(f"Brevo a refusé la campagne (HTTP {r.status_code}) : {r.text[:300]}")
+    return str(r.json()["id"])
+
+
+def send_campaign(campaign_id: str) -> None:
+    """Envoie immédiatement une campagne déjà créée (irréversible)."""
+    r = requests.post(f"{API}/{campaign_id}/sendNow", headers=_brevo_headers(), timeout=30)
+    if r.status_code != 204:
+        raise RuntimeError(f"Brevo n'a pas envoyé la campagne {campaign_id} (HTTP {r.status_code}) : {r.text[:300]}")

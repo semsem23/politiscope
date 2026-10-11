@@ -385,22 +385,29 @@ def cmd_newsletter(args) -> int:
             print(f"Aperçu HTML écrit dans {args.out}\n")
         if not (args.draft or args.send):
             print(issue.text)
-            print("\n[APERÇU] rien n'a été envoyé. --draft crée un brouillon chez Buttondown, --send envoie.")
+            print("\n[APERÇU] rien n'a été envoyé. --draft crée un brouillon chez Brevo, --send envoie.")
             return 0
 
         if newsletter.already_issued(conn, day) and not args.force:
             print(f"Le numéro du {day} existe déjà (newsletter_issues) : rien n'est renvoyé. "
                   "--force pour passer outre.")
             return 1
-        provider_id = newsletter.push_to_provider(issue, send=args.send)
+        campaign_id = newsletter.create_campaign(issue, day)
         if args.force:
             with conn.cursor() as cur:
                 cur.execute("delete from newsletter_issues where issue_date = %s", (day,))
-        newsletter.record_issue(conn, day, issue, "sent" if args.send else "draft", provider_id)
+        # Le brouillon est journalisé avant l'envoi : si `sendNow` échoue, la
+        # campagne existe chez Brevo et un nouveau passage ne doit pas en recréer une.
+        newsletter.record_issue(conn, day, issue, "draft", campaign_id)
+        conn.commit()
+        if args.send:
+            newsletter.send_campaign(campaign_id)
+            with conn.cursor() as cur:
+                cur.execute("update newsletter_issues set status = 'sent' where issue_date = %s", (day,))
     if args.send:
         print("✅ Numéro envoyé aux abonnés.")
     else:
-        print("✅ Brouillon créé chez Buttondown : relisez-le puis envoyez-le depuis leur interface.")
+        print(f"✅ Campagne {campaign_id} créée en brouillon chez Brevo : relisez-la puis envoyez-la depuis leur interface.")
     return 0
 
 
@@ -622,7 +629,7 @@ def main(argv: list[str] | None = None) -> int:
     nl.add_argument("--since-hours", type=float, default=24,
                     help="citations publiées depuis N heures (défaut 24)")
     nl.add_argument("--out", help="écrit l'aperçu HTML dans ce fichier")
-    nl.add_argument("--draft", action="store_true", help="crée un brouillon chez Buttondown")
+    nl.add_argument("--draft", action="store_true", help="crée la campagne en brouillon chez Brevo")
     nl.add_argument("--send", action="store_true", help="envoie aux abonnés (irréversible)")
     nl.add_argument("--force", action="store_true", help="renvoie même si le numéro du jour existe")
     nl.set_defaults(fn=cmd_newsletter)

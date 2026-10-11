@@ -1,12 +1,12 @@
 name: Newsletter
 
 # Numéro quotidien : les citations publiées dans les dernières 24 h, envoyées
-# via Buttondown (abonnés, double opt-in et désinscription y sont gérés).
+# via Brevo (abonnés, double opt-in et désinscription y sont gérés).
 #
 # Manuel uniquement, volontairement : écrire à de vrais abonnés ne se déclenche
 # pas tout seul tant que les premiers numéros n'ont pas été relus.
 #   - preview : construit le numéro et l'affiche dans le résumé du job. N'envoie rien.
-#   - draft   : crée un brouillon chez Buttondown, à relire et envoyer là-bas.
+#   - draft   : crée la campagne en brouillon chez Brevo, à relire et envoyer là-bas.
 #   - send    : envoie aux abonnés. Irréversible.
 #
 # Pour l'automatiser une fois confiant, décommentez `schedule` : 05h30 UTC,
@@ -42,7 +42,10 @@ jobs:
       SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       SUPABASE_REGION: eu-west-2
-      BUTTONDOWN_API_KEY: ${{ secrets.BUTTONDOWN_API_KEY }}
+      BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+      BREVO_LIST_ID: ${{ secrets.BREVO_LIST_ID }}
+      BREVO_SENDER_EMAIL: ${{ secrets.BREVO_SENDER_EMAIL }}
+      BREVO_SENDER_NAME: Politiscope
       PYTHONIOENCODING: utf-8
       MODE: ${{ github.event.inputs.mode || 'preview' }}
 

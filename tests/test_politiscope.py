@@ -890,25 +890,49 @@ def test_newsletter_famille_inconnue_ne_perd_pas_la_citation():
 
 
 def test_newsletter_n_envoie_rien_sans_cle(monkeypatch):
+    from datetime import date
     from politiscope import newsletter
-    monkeypatch.delenv("BUTTONDOWN_API_KEY", raising=False)
-    issue = newsletter.Issue("s", "<p>b</p>", "b", 1)
-    with pytest.raises(RuntimeError, match="BUTTONDOWN_API_KEY"):
-        newsletter.push_to_provider(issue, send=True)
+    monkeypatch.delenv("BREVO_API_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="BREVO_API_KEY"):
+        newsletter.create_campaign(newsletter.Issue("s", "<p>b</p>", "b", 1), date(2026, 10, 11))
 
 
-@pytest.mark.parametrize("send,statut", [(False, "draft"), (True, "about_to_send")])
-def test_newsletter_brouillon_par_defaut_envoi_explicite(monkeypatch, send, statut):
+def test_newsletter_contient_le_lien_de_desinscription_brevo():
+    from datetime import date
+    from politiscope.newsletter import build_issue
+    assert "{{ unsubscribe }}" in build_issue([_entry(1, "majorite")], date(2026, 10, 11)).html
+
+
+def test_newsletter_campagne_creee_en_brouillon_puis_envoyee_a_la_demande(monkeypatch):
+    from datetime import date
     from politiscope import newsletter
-    vus = {}
+    appels = []
     class R:
-        status_code = 201
-        text = ""
-        def json(self): return {"id": "abc"}
-    def faux_post(url, headers, json, timeout):
-        vus.update(url=url, headers=headers, json=json)
-        return R()
-    monkeypatch.setenv("BUTTONDOWN_API_KEY", "k")
+        def __init__(self, code, corps): self.status_code, self._c, self.text = code, corps, ""
+        def json(self): return self._c
+    def faux_post(url, headers=None, json=None, timeout=None):
+        appels.append((url, headers, json))
+        return R(204, None) if url.endswith("/sendNow") else R(201, {"id": 42})
+    for k, v in {"BREVO_API_KEY": "k", "BREVO_SENDER_EMAIL": "ok@exemple.fr", "BREVO_LIST_ID": "7"}.items():
+        monkeypatch.setenv(k, v)
     monkeypatch.setattr(newsletter.requests, "post", faux_post)
-    assert newsletter.push_to_provider(newsletter.Issue("s", "<p>b</p>", "b", 1), send=send) == "abc"
-    assert vus["json"]["status"] == statut and vus["headers"]["Authorization"] == "Token k"
+
+    cid = newsletter.create_campaign(newsletter.Issue("Sujet", "<p>corps</p>", "corps", 1), date(2026, 10, 11))
+    assert cid == "42" and len(appels) == 1                      # création seule : rien n'est envoyé
+    url, headers, corps = appels[0]
+    assert url == newsletter.API and headers["api-key"] == "k"
+    assert corps["recipients"] == {"listIds": [7]} and corps["sender"]["email"] == "ok@exemple.fr"
+    assert "scheduledAt" not in corps and corps["htmlContent"] == "<p>corps</p>"   # brouillon
+
+    newsletter.send_campaign(cid)
+    assert appels[1][0] == f"{newsletter.API}/42/sendNow"
+
+
+def test_newsletter_refuse_sans_expediteur_ni_liste(monkeypatch):
+    from datetime import date
+    from politiscope import newsletter
+    monkeypatch.setenv("BREVO_API_KEY", "k")
+    monkeypatch.delenv("BREVO_SENDER_EMAIL", raising=False)
+    monkeypatch.delenv("BREVO_LIST_ID", raising=False)
+    with pytest.raises(RuntimeError, match="BREVO_LIST_ID"):
+        newsletter.create_campaign(newsletter.Issue("s", "<p>b</p>", "b", 1), date(2026, 10, 11))

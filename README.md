@@ -303,21 +303,27 @@ Les citations publiées dans les dernières 24 h, groupées par famille (ordre
 fixe), avec pour chacune le message d'origine et la page Politiscope. Le texte
 n'est jamais réécrit ; le thème n'est volontairement pas repris (deviné par
 mots-clés, une erreur serait trop visible dans un e-mail). Abonnés, double
-opt-in et désinscription sont gérés par **Buttondown** : aucune adresse n'est
+opt-in et désinscription sont gérés par **Brevo** : aucune adresse n'est
 stockée ici.
 
 ```bash
 python -m politiscope.cli newsletter --out apercu.html   # aperçu, n'envoie rien
-python -m politiscope.cli newsletter --draft             # brouillon chez Buttondown
-python -m politiscope.cli newsletter --send              # envoi aux abonnés (irréversible)
+python -m politiscope.cli newsletter --draft             # campagne en brouillon chez Brevo
+python -m politiscope.cli newsletter --send              # création + envoi (irréversible)
 ```
 
-À faire une fois : créer le compte Buttondown, mettre `BUTTONDOWN_API_KEY` dans
-`.env` (et en secret du dépôt pour le workflow *Newsletter*), définir
-`VITE_BUTTONDOWN_USERNAME` pour que le formulaire apparaisse sur le site (voir
-`web/README.md`), et appliquer la migration 014 (`db-migrate`) — le journal
+À faire une fois, côté Brevo : valider une adresse d'expéditeur, créer une
+liste de contacts (noter son numéro) et une clé API v3. Puis dans `.env` (et en
+secrets du dépôt pour le workflow *Newsletter*) : `BREVO_API_KEY`,
+`BREVO_LIST_ID`, `BREVO_SENDER_EMAIL` (et `BREVO_SENDER_NAME`, défaut
+« Politiscope »). Créer le formulaire d'inscription dans Brevo (avec double
+opt-in), et définir `VITE_BREVO_FORM_URL` pour qu'il apparaisse sur le site
+(voir `web/README.md`). Appliquer la migration 014 (`db-migrate`) : le journal
 `newsletter_issues` empêche un second envoi le même jour. Le workflow
 *Newsletter* est manuel (preview / draft / send) ; le `schedule` est commenté.
+
+Le HTML du numéro contient `{{ unsubscribe }}`, que Brevo remplace par le lien
+de désinscription de chaque abonné.
 
 ## Base de données (Supabase)
 

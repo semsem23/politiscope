@@ -1,39 +1,37 @@
 /**
- * Inscription à la newsletter quotidienne (Buttondown).
+ * Inscription à la newsletter quotidienne (Brevo).
  *
- * Le formulaire poste directement chez Buttondown, qui gère le double opt-in,
- * la désinscription et le consentement : aucune adresse ne transite par ce
- * site. Rien ne s'affiche tant que VITE_BUTTONDOWN_USERNAME n'est pas défini,
- * pour ne jamais montrer un formulaire qui ne mène nulle part.
+ * Le formulaire est celui que Brevo héberge (Contacts > Formulaires > Partager
+ * > lien) : il gère lui-même le consentement, l'e-mail de confirmation
+ * (double opt-in) et la désinscription, et aucune adresse ne transite par ce
+ * site. Rien ne s'affiche tant que VITE_BREVO_FORM_URL n'est pas défini, pour
+ * ne jamais montrer un formulaire qui ne mène nulle part.
  */
-const USERNAME = (import.meta.env.VITE_BUTTONDOWN_USERNAME as string | undefined)?.trim();
+const FORM_URL = (import.meta.env.VITE_BREVO_FORM_URL as string | undefined)?.trim();
+
+// N'accepte que les formulaires hébergés par Brevo : une variable mal remplie
+// ne doit pas pouvoir faire intégrer un autre site.
+const isBrevoForm = (url: string) => {
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" && u.hostname.endsWith(".sibforms.com");
+  } catch {
+    return false;
+  }
+};
 
 export function NewsletterForm() {
-  if (!USERNAME) return null;
+  if (!FORM_URL || !isBrevoForm(FORM_URL)) return null;
   return (
-    <form
-      className="newsletter"
-      action={`https://buttondown.com/api/emails/embed-subscribe/${encodeURIComponent(USERNAME)}`}
-      method="post"
-      target="popupwindow"
-      onSubmit={() => {
-        window.open(`https://buttondown.com/${encodeURIComponent(USERNAME)}`, "popupwindow");
-      }}
-    >
-      <label htmlFor="newsletter-email">
+    <section className="newsletter" aria-label="Newsletter">
+      <p className="newsletter-lead">
         <strong>Une fois par jour</strong>, les citations de la veille dans votre boîte mail.
-      </label>
-      <div className="newsletter-row">
-        <input id="newsletter-email" type="email" name="email" placeholder="votre@email.fr" required />
-        <input type="hidden" value="1" name="embed" />
-        <button type="submit" className="toggle-btn">
-          Je m'abonne
-        </button>
-      </div>
+      </p>
+      <iframe className="newsletter-frame" src={FORM_URL} title="Inscription à la newsletter" loading="lazy" />
       <p className="newsletter-note">
         Un e-mail de confirmation vous sera envoyé. Désinscription en un clic.{" "}
         <a href="/methodologie">Comment les citations sont choisies</a>.
       </p>
-    </form>
+    </section>
   );
 }
