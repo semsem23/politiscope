@@ -11,6 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import politiscope.config  # noqa: E402,F401 — charge .env (SUPABASE_*)
 from politiscope import db  # noqa: E402
 from politiscope.selection import is_promo  # noqa: E402
 
