@@ -17,6 +17,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { shareImage } from "./shareImage.mjs";
 
 const SITE = "https://politiscope.app";
 const WEB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -76,7 +77,7 @@ function setMeta(html, attr, name, content) {
   return html.replace(re, (_, a, b) => a + esc(content) + b);
 }
 
-function render(template, { title, description, url, body }) {
+function render(template, { title, description, url, body, twitterImage }) {
   let html = template;
   html = html.replace(/<title>[^<]*<\/title>/, `<title>${esc(title)}</title>`);
   html = setMeta(html, "name", "description", description);
@@ -85,6 +86,8 @@ function render(template, { title, description, url, body }) {
   html = setMeta(html, "property", "og:url", url);
   html = setMeta(html, "name", "twitter:title", title);
   html = setMeta(html, "name", "twitter:description", description);
+  // X seulement : og:image reste l'image générique (lue par Bluesky et les autres).
+  if (twitterImage) html = setMeta(html, "name", "twitter:image", twitterImage);
   html = html.replace("</head>", `    <link rel="canonical" href="${esc(url)}" />\n  </head>`);
   if (body !== undefined) {
     if (!html.includes('<div id="root"></div>')) throw new Error("#root vide absent du gabarit");
@@ -198,8 +201,26 @@ async function main() {
     for (const e of f.entries) idOfEntry.set(e.id, f.id);
   }
 
+  let nImages = 0;
   for (const e of entries) {
     const fid = idOfEntry.get(e.id);
+    // Une image qui échoue ne doit pas coûter la page : elle garde l'image générique.
+    let twitterImage;
+    try {
+      const png = await shareImage({
+        citation: e.citation,
+        nom: e.nom,
+        parti: e.parti,
+        dateTexte: e.date_texte,
+        famille: e.famille,
+      });
+      await mkdir(path.join(DIST, "og"), { recursive: true });
+      await writeFile(path.join(DIST, "og", `${e.id}.png`), png);
+      twitterImage = `${SITE}/og/${e.id}.png`;
+      nImages++;
+    } catch (err) {
+      console.warn(`image de partage ignorée pour la citation ${e.id} : ${err.message}`);
+    }
     await write(
       `c/${e.id}`,
       render(template, {
@@ -207,6 +228,7 @@ async function main() {
         description: truncate(`${e.nom}, ${e.date_texte} : « ${e.citation} » Thème : ${e.theme}. Source citée.`, 160),
         url: citationUrl(e.id),
         body: citationBody(e, fid),
+        twitterImage,
       })
     );
     urls.push({ loc: citationUrl(e.id), lastmod: e.date_tri });
@@ -241,7 +263,7 @@ async function main() {
     `\n</urlset>\n`;
   await writeFile(path.join(DIST, "sitemap.xml"), sitemap, "utf8");
 
-  console.log(`prerender : ${nPeople} fiches, ${nCitations} citations, sitemap de ${urls.length} URL`);
+  console.log(`prerender : ${nPeople} fiches, ${nCitations} citations, ${nImages} images X, sitemap de ${urls.length} URL`);
 }
 
 main().catch((err) => {

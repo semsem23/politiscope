@@ -53,6 +53,13 @@ servi, plus `sitemap.xml`. React remplace ce contenu au chargement : l'interface
 est inchangée. Si Supabase est injoignable, le script prévient et sort en 0 :
 le site reste une SPA classique.
 
+Chaque page de citation reçoit aussi une image de partage 1200×630
+(`dist/og/:id.png`, générée par `scripts/shareImage.mjs` avec satori + resvg),
+branchée sur `twitter:image` **seulement** : `og:image` reste l'image générique,
+donc Bluesky et les autres réseaux ne voient pas l'image par citation. Le texte
+n'est jamais réécrit ; les emoji sont retirés de l'image (la police n'en a pas)
+et un texte de plus de 330 caractères est coupé par « … ».
+
 Les données changent chaque nuit, mais les pages ne sont refaites qu'à chaque
 déploiement : c'est le commit « Retire le brouillon publié » qui pousse sur
 `main` après la publication, et qui relance donc le build Vercel. Un
