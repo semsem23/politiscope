@@ -114,6 +114,18 @@ a { color: var(--accent); }
 .methodo a { color: var(--ink-soft); text-decoration: underline; text-underline-offset: 2px; }
 .methodo a:hover { color: var(--ink); }
 
+/* ---------- Inscription newsletter ---------- */
+.newsletter { max-width: 66ch; margin-top: 20px; font-size: 14px; color: var(--ink-soft); }
+.newsletter label { display: block; margin-bottom: 8px; line-height: 1.5; }
+.newsletter label strong { color: var(--ink); font-weight: 600; }
+.newsletter-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.newsletter-row input[type="email"] {
+  flex: 1 1 220px; min-width: 0; padding: 9px 12px; font: inherit; color: var(--ink);
+  background: var(--surface-raised); border: 1px solid var(--line); border-radius: 8px;
+}
+.newsletter-note { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; }
+.newsletter-note a { color: var(--ink-soft); }
+
 /* ---------- Page méthodologie ---------- */
 .doc-back { color: inherit; text-decoration: none; }
 .doc-back:hover { color: var(--ink); text-decoration: underline; }

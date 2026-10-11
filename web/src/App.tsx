@@ -3,6 +3,7 @@ import { CitationsTable } from "./components/CitationsTable";
 import { FilterBar, type View } from "./components/FilterBar";
 import { PersonGrid } from "./components/PersonGrid";
 import { FluxLive } from "./components/FluxLive";
+import { NewsletterForm } from "./components/NewsletterForm";
 import { PersonModal } from "./components/PersonModal";
 import { parseLocation, useUrlSync, type ParsedRoute } from "./hooks/useUrl";
 import {
@@ -166,6 +167,7 @@ export default function App() {
           d'origine. Le thème est détecté automatiquement.{" "}
           <a href="/methodologie">Lire la méthodologie et les limites →</a>
         </p>
+        <NewsletterForm />
       </header>
 
       <div className="view-toggle graph-toggle" role="tablist" aria-label="Vue">

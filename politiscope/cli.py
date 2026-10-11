@@ -367,6 +367,43 @@ def cmd_candidates(args) -> int:
     return 0
 
 
+def cmd_newsletter(args) -> int:
+    """Construit le numéro du jour ; ne l'envoie que si on le demande."""
+    from datetime import date as _date
+    from . import db, newsletter
+
+    day = _date.today()
+    with db.connect() as conn:
+        issue = newsletter.build_issue(newsletter.fetch_entries(conn, args.since_hours), day)
+        if issue is None:
+            print("Aucune citation publiée sur la période : pas de numéro.")
+            return 0
+
+        print(f"{issue.subject}\n")
+        if args.out:
+            Path(args.out).write_text(issue.html, encoding="utf-8")
+            print(f"Aperçu HTML écrit dans {args.out}\n")
+        if not (args.draft or args.send):
+            print(issue.text)
+            print("\n[APERÇU] rien n'a été envoyé. --draft crée un brouillon chez Buttondown, --send envoie.")
+            return 0
+
+        if newsletter.already_issued(conn, day) and not args.force:
+            print(f"Le numéro du {day} existe déjà (newsletter_issues) : rien n'est renvoyé. "
+                  "--force pour passer outre.")
+            return 1
+        provider_id = newsletter.push_to_provider(issue, send=args.send)
+        if args.force:
+            with conn.cursor() as cur:
+                cur.execute("delete from newsletter_issues where issue_date = %s", (day,))
+        newsletter.record_issue(conn, day, issue, "sent" if args.send else "draft", provider_id)
+    if args.send:
+        print("✅ Numéro envoyé aux abonnés.")
+    else:
+        print("✅ Brouillon créé chez Buttondown : relisez-le puis envoyez-le depuis leur interface.")
+    return 0
+
+
 def cmd_budget(args) -> int:
     state = State(settings.state_file)
     if args.set is not None:
@@ -580,6 +617,15 @@ def main(argv: list[str] | None = None) -> int:
     pb.add_argument("--since-hours", type=float, default=24)
     pb.add_argument("--famille")
     pb.set_defaults(fn=cmd_publish)
+
+    nl = sub.add_parser("newsletter", help="numéro quotidien (aperçu par défaut)")
+    nl.add_argument("--since-hours", type=float, default=24,
+                    help="citations publiées depuis N heures (défaut 24)")
+    nl.add_argument("--out", help="écrit l'aperçu HTML dans ce fichier")
+    nl.add_argument("--draft", action="store_true", help="crée un brouillon chez Buttondown")
+    nl.add_argument("--send", action="store_true", help="envoie aux abonnés (irréversible)")
+    nl.add_argument("--force", action="store_true", help="renvoie même si le numéro du jour existe")
+    nl.set_defaults(fn=cmd_newsletter)
 
     sub.add_parser("db-migrate", help="applique les migrations SQL").set_defaults(fn=cmd_db_migrate)
     sub.add_parser("db-sync", help="pousse les données locales vers Supabase").set_defaults(fn=cmd_db_sync)

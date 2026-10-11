@@ -297,6 +297,28 @@ Nothing stops publishing several citations from the same person — that's
 even the point of a barometer tracked over time. The site then shows several
 bubbles for them, and counts "N citations · M personalities".
 
+## Newsletter quotidienne
+
+Les citations publiées dans les dernières 24 h, groupées par famille (ordre
+fixe), avec pour chacune le message d'origine et la page Politiscope. Le texte
+n'est jamais réécrit ; le thème n'est volontairement pas repris (deviné par
+mots-clés, une erreur serait trop visible dans un e-mail). Abonnés, double
+opt-in et désinscription sont gérés par **Buttondown** : aucune adresse n'est
+stockée ici.
+
+```bash
+python -m politiscope.cli newsletter --out apercu.html   # aperçu, n'envoie rien
+python -m politiscope.cli newsletter --draft             # brouillon chez Buttondown
+python -m politiscope.cli newsletter --send              # envoi aux abonnés (irréversible)
+```
+
+À faire une fois : créer le compte Buttondown, mettre `BUTTONDOWN_API_KEY` dans
+`.env` (et en secret du dépôt pour le workflow *Newsletter*), définir
+`VITE_BUTTONDOWN_USERNAME` pour que le formulaire apparaisse sur le site (voir
+`web/README.md`), et appliquer la migration 014 (`db-migrate`) — le journal
+`newsletter_issues` empêche un second envoi le même jour. Le workflow
+*Newsletter* est manuel (preview / draft / send) ; le `schedule` est commenté.
+
 ## Base de données (Supabase)
 
 Le projet `politiscope` (région eu-west-2) stocke durablement comptes, tweets,

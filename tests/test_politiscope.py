@@ -853,3 +853,62 @@ def test_build_draft_ecarte_l_autopromo_et_equilibre_les_familles():
                                     since_hours=None, famille=None)
     assert [e["nom"] for e in draft] == ["D", "E", "A"]   # B écarté ; D, E avant C
     assert all(e["citation"] != "Retrouvez mon passage sur LCI ce soir." for e in draft)
+
+
+# --- newsletter ---------------------------------------------------------
+def _entry(i, famille, citation="Il faut un budget juste.", **over):
+    e = {"id": i, "nom": "Ada <Lovelace>", "parti": "P", "famille": famille, "theme": "Budget",
+         "citation": citation, "date_texte": "10 octobre 2026", "source": "https://x.com/a/status/1"}
+    e.update(over)
+    return e
+
+
+def test_newsletter_sans_citation_pas_de_numero():
+    from datetime import date
+    from politiscope.newsletter import build_issue
+    assert build_issue([], date(2026, 10, 11)) is None
+
+
+def test_newsletter_ordre_des_familles_fixe_et_texte_intact():
+    from datetime import date
+    from politiscope.newsletter import build_issue
+    texte = "Tout n'est pas « simple » & il faut <agir>."
+    issue = build_issue([_entry(2, "gauche-radicale", texte), _entry(1, "majorite")], date(2026, 10, 11))
+    assert issue.n_entries == 2 and "2 citations" in issue.subject and "11 octobre 2026" in issue.subject
+    assert issue.html.index("Majorité présidentielle") < issue.html.index("Gauche radicale")
+    assert f"« {texte} »" in issue.text                      # texte inchangé
+    assert "&lt;agir&gt;" in issue.html and "<agir>" not in issue.html   # échappé en HTML
+    assert "Ada &lt;Lovelace&gt;" in issue.html
+    assert "https://politiscope.app/c/2" in issue.html and "https://x.com/a/status/1" in issue.html
+
+
+def test_newsletter_famille_inconnue_ne_perd_pas_la_citation():
+    from datetime import date
+    from politiscope.newsletter import build_issue
+    issue = build_issue([_entry(7, "nouvelle-famille", "Une citation bien présente.")], date(2026, 10, 11))
+    assert "Une citation bien présente." in issue.html and "Autres" in issue.html
+
+
+def test_newsletter_n_envoie_rien_sans_cle(monkeypatch):
+    from politiscope import newsletter
+    monkeypatch.delenv("BUTTONDOWN_API_KEY", raising=False)
+    issue = newsletter.Issue("s", "<p>b</p>", "b", 1)
+    with pytest.raises(RuntimeError, match="BUTTONDOWN_API_KEY"):
+        newsletter.push_to_provider(issue, send=True)
+
+
+@pytest.mark.parametrize("send,statut", [(False, "draft"), (True, "about_to_send")])
+def test_newsletter_brouillon_par_defaut_envoi_explicite(monkeypatch, send, statut):
+    from politiscope import newsletter
+    vus = {}
+    class R:
+        status_code = 201
+        text = ""
+        def json(self): return {"id": "abc"}
+    def faux_post(url, headers, json, timeout):
+        vus.update(url=url, headers=headers, json=json)
+        return R()
+    monkeypatch.setenv("BUTTONDOWN_API_KEY", "k")
+    monkeypatch.setattr(newsletter.requests, "post", faux_post)
+    assert newsletter.push_to_provider(newsletter.Issue("s", "<p>b</p>", "b", 1), send=send) == "abc"
+    assert vus["json"]["status"] == statut and vus["headers"]["Authorization"] == "Token k"

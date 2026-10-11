@@ -68,6 +68,13 @@ identifiant qui demanderait un encodage d'URL n'est pas pré-généré.
 Local : sur ce poste, le build a besoin de `NODE_TLS_REJECT_UNAUTHORIZED=0`
 pour joindre Supabase (interception TLS).
 
+## Inscription à la newsletter
+
+`NewsletterForm` poste chez Buttondown (double opt-in et désinscription chez
+eux). Il ne s'affiche que si `VITE_BUTTONDOWN_USERNAME` est défini au build :
+dans `.env.local` en local, dans les variables du projet Vercel (ou
+`.env.production`, le nom d'utilisateur étant public) en production.
+
 ## Données
 
 The site reads three tables/views, all read-only via RLS:
