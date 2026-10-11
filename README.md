@@ -83,6 +83,15 @@ Les quatre filtres composent la définition d'une *prise de position attribuable
 | `--no-ceremonial` | vœux, remerciements, hommages, résultats sportifs |
 | `--require-theme` | ce qui ne relève d'aucun sujet politique identifié |
 
+Deux règles de sélection (`politiscope/selection.py`) s'appliquent à
+`candidates` et à `publish` : l'**autopromo** (« retrouvez mon interview »,
+« invité de TF1 », « rendez-vous à 20h »…) est écartée, et la limite est
+répartie **en tourniquet entre familles politiques** — les moins représentées
+parmi les entrées déjà publiées passent en premier. Sans cela, les comptes les
+plus prolifiques occupaient tout le brouillon (68 % des citations venaient des
+deux extrêmes). `python scripts/audit_promo.py` liste, sans rien modifier, les
+entrées déjà publiées que le filtre aurait écartées.
+
 Les retweets et réponses sont déjà exclus en amont, au niveau de l'API
 (`exclude=retweets,replies`), et les propos rapportés d'un tiers par
 `quotes.py`. Chaque candidate sortie porte `verifie: true` et l'URL directe
@@ -152,8 +161,8 @@ demande une vérification humaine (presse).
 
 ## Ingestion automatique
 
-`.github/workflows/ingestion.yml` lance chaque nuit à 04h00 UTC (06h00 à Paris
-l'été, 05h00 l'hiver) : Google Actualités, puis les timelines X, puis le
+`.github/workflows/ingestion.yml` lance chaque nuit à 01h00 UTC (03h00 à Paris
+l'été, 02h00 l'hiver) : Google Actualités, puis les timelines X, puis le
 versement en base. Déclenchable à la main via *Actions -> Nightly Ingestion ->
 Run workflow*, avec une case pour sauter l'ingestion X (la seule payante).
 Une fois terminée avec succès, elle déclenche automatiquement *Draft
@@ -287,6 +296,34 @@ again, even if it's later removed from the site.
 Nothing stops publishing several citations from the same person — that's
 even the point of a barometer tracked over time. The site then shows several
 bubbles for them, and counts "N citations · M personalities".
+
+## Newsletter quotidienne
+
+Les citations publiées dans les dernières 24 h, groupées par famille (ordre
+fixe), avec pour chacune le message d'origine et la page Politiscope. Le texte
+n'est jamais réécrit ; le thème n'est volontairement pas repris (deviné par
+mots-clés, une erreur serait trop visible dans un e-mail). Abonnés, double
+opt-in et désinscription sont gérés par **Brevo** : aucune adresse n'est
+stockée ici.
+
+```bash
+python -m politiscope.cli newsletter --out apercu.html   # aperçu, n'envoie rien
+python -m politiscope.cli newsletter --draft             # campagne en brouillon chez Brevo
+python -m politiscope.cli newsletter --send              # création + envoi (irréversible)
+```
+
+À faire une fois, côté Brevo : valider une adresse d'expéditeur, créer une
+liste de contacts (noter son numéro) et une clé API v3. Puis dans `.env` (et en
+secrets du dépôt pour le workflow *Newsletter*) : `BREVO_API_KEY`,
+`BREVO_LIST_ID`, `BREVO_SENDER_EMAIL` (et `BREVO_SENDER_NAME`, défaut
+« Politiscope »). Créer le formulaire d'inscription dans Brevo (avec double
+opt-in), et définir `VITE_BREVO_FORM_URL` pour qu'il apparaisse sur le site
+(voir `web/README.md`). Appliquer la migration 014 (`db-migrate`) : le journal
+`newsletter_issues` empêche un second envoi le même jour. Le workflow
+*Newsletter* est manuel (preview / draft / send) ; le `schedule` est commenté.
+
+Le HTML du numéro contient `{{ unsubscribe }}`, que Brevo remplace par le lien
+de désinscription de chaque abonné.
 
 ## Base de données (Supabase)
 

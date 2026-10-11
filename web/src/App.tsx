@@ -3,6 +3,7 @@ import { CitationsTable } from "./components/CitationsTable";
 import { FilterBar, type View } from "./components/FilterBar";
 import { PersonGrid } from "./components/PersonGrid";
 import { FluxLive } from "./components/FluxLive";
+import { NewsletterForm } from "./components/NewsletterForm";
 import { PersonModal } from "./components/PersonModal";
 import { parseLocation, useUrlSync, type ParsedRoute } from "./hooks/useUrl";
 import {
@@ -160,11 +161,13 @@ export default function App() {
         <p className="dek">{contexte}</p>
         {lastUpdate && <p className="last-update">Dernière mise à jour : {lastUpdate}</p>}
         <p className="methodo">
-          <strong>Méthode.</strong> Citations publiques réellement prononcées — discours,
-          déclarations à la presse, publications sur X — collectées par un pipeline d'ingestion et
-          relues à la main. Chaque fiche renvoie vers sa source d'origine et résume{" "}
-          <em>ce que la citation avance</em>, non un jugement sur son auteur.
+          <strong>Méthode.</strong> Citations tirées des comptes officiels des responsables
+          politiques sur X, sélectionnées chaque nuit par des règles automatiques puis publiées
+          telles quelles : le texte n'est jamais réécrit et chaque fiche renvoie vers son message
+          d'origine. Le thème est détecté automatiquement.{" "}
+          <a href="/methodologie">Lire la méthodologie et les limites →</a>
         </p>
+        <NewsletterForm />
       </header>
 
       <div className="view-toggle graph-toggle" role="tablist" aria-label="Vue">

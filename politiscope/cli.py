@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .config import PRICE_POST_READ, PRICE_USER_READ, settings
 from .quotes import candidates_from_rss, candidates_from_tweet, normalise
+from .selection import balance_by_family, is_promo
 from .store import BudgetExceeded, State, append_jsonl, read_json, read_jsonl
 
 
@@ -309,6 +310,9 @@ def cmd_candidates(args) -> int:
         out = [c for c in out if not c.get("protocolaire")]
     if args.require_theme:
         out = [c for c in out if c.get("theme_suggere")]
+    # Autopromo : « retrouvez mon interview… » annonce une prise de position,
+    # ce n'en est pas une.
+    out = [c for c in out if not is_promo(c["citation"])]
 
     if args.since_hours:
         cutoff = datetime.now(timezone.utc) - timedelta(hours=args.since_hours)
@@ -341,7 +345,8 @@ def cmd_candidates(args) -> int:
             kept.append(c)
         out = kept
 
-    out = out[:args.limit]
+    # Spectre équilibré : tourniquet entre familles plutôt que les plus bavards.
+    out = balance_by_family(out, args.limit, family=lambda c: c.get("famille") or "?")
 
     if args.json:
         print(json.dumps(out, ensure_ascii=False, indent=2))
@@ -359,6 +364,50 @@ def cmd_candidates(args) -> int:
         print(f"      « {c['citation'][:170]} »")
         print(f"      {c.get('source') or c.get('media') or ''}")
         print()
+    return 0
+
+
+def cmd_newsletter(args) -> int:
+    """Construit le numéro du jour ; ne l'envoie que si on le demande."""
+    from datetime import date as _date
+    from . import db, newsletter
+
+    day = _date.today()
+    with db.connect() as conn:
+        issue = newsletter.build_issue(newsletter.fetch_entries(conn, args.since_hours), day)
+        if issue is None:
+            print("Aucune citation publiée sur la période : pas de numéro.")
+            return 0
+
+        print(f"{issue.subject}\n")
+        if args.out:
+            Path(args.out).write_text(issue.html, encoding="utf-8")
+            print(f"Aperçu HTML écrit dans {args.out}\n")
+        if not (args.draft or args.send):
+            print(issue.text)
+            print("\n[APERÇU] rien n'a été envoyé. --draft crée un brouillon chez Brevo, --send envoie.")
+            return 0
+
+        if newsletter.already_issued(conn, day) and not args.force:
+            print(f"Le numéro du {day} existe déjà (newsletter_issues) : rien n'est renvoyé. "
+                  "--force pour passer outre.")
+            return 1
+        campaign_id = newsletter.create_campaign(issue, day)
+        if args.force:
+            with conn.cursor() as cur:
+                cur.execute("delete from newsletter_issues where issue_date = %s", (day,))
+        # Le brouillon est journalisé avant l'envoi : si `sendNow` échoue, la
+        # campagne existe chez Brevo et un nouveau passage ne doit pas en recréer une.
+        newsletter.record_issue(conn, day, issue, "draft", campaign_id)
+        conn.commit()
+        if args.send:
+            newsletter.send_campaign(campaign_id)
+            with conn.cursor() as cur:
+                cur.execute("update newsletter_issues set status = 'sent' where issue_date = %s", (day,))
+    if args.send:
+        print("✅ Numéro envoyé aux abonnés.")
+    else:
+        print(f"✅ Campagne {campaign_id} créée en brouillon chez Brevo : relisez-la puis envoyez-la depuis leur interface.")
     return 0
 
 
@@ -575,6 +624,15 @@ def main(argv: list[str] | None = None) -> int:
     pb.add_argument("--since-hours", type=float, default=24)
     pb.add_argument("--famille")
     pb.set_defaults(fn=cmd_publish)
+
+    nl = sub.add_parser("newsletter", help="numéro quotidien (aperçu par défaut)")
+    nl.add_argument("--since-hours", type=float, default=24,
+                    help="citations publiées depuis N heures (défaut 24)")
+    nl.add_argument("--out", help="écrit l'aperçu HTML dans ce fichier")
+    nl.add_argument("--draft", action="store_true", help="crée la campagne en brouillon chez Brevo")
+    nl.add_argument("--send", action="store_true", help="envoie aux abonnés (irréversible)")
+    nl.add_argument("--force", action="store_true", help="renvoie même si le numéro du jour existe")
+    nl.set_defaults(fn=cmd_newsletter)
 
     sub.add_parser("db-migrate", help="applique les migrations SQL").set_defaults(fn=cmd_db_migrate)
     sub.add_parser("db-sync", help="pousse les données locales vers Supabase").set_defaults(fn=cmd_db_sync)

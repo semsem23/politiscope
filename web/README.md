@@ -43,6 +43,39 @@ visiteur. La commiter n'ajoute aucune exposition et rend le build autonome —
 sans elle, un build depuis Git produirait un bundle sans configuration Supabase,
 donc une page blanche.
 
+## Pages pré-générées (référencement)
+
+`npm run build` enchaîne `vite build` puis `scripts/prerender.mjs`, qui lit
+`entries` dans Supabase (clé publishable) et écrit dans `dist/` une page HTML
+par personnalité (`/p/:id`) et par citation (`/c/:id`), avec `<title>`,
+description, Open Graph, URL canonique et le texte de la citation dans le HTML
+servi, plus `sitemap.xml`. React remplace ce contenu au chargement : l'interface
+est inchangée. Si Supabase est injoignable, le script prévient et sort en 0 :
+le site reste une SPA classique.
+
+Chaque page de citation reçoit aussi une image de partage 1200×630
+(`dist/og/:id.png`, générée par `scripts/shareImage.mjs` avec satori + resvg),
+branchée sur `twitter:image` **seulement** : `og:image` reste l'image générique,
+donc Bluesky et les autres réseaux ne voient pas l'image par citation. Le texte
+n'est jamais réécrit ; les emoji sont retirés de l'image (la police n'en a pas)
+et un texte de plus de 330 caractères est coupé par « … ».
+
+Les données changent chaque nuit, mais les pages ne sont refaites qu'à chaque
+déploiement : c'est le commit « Retire le brouillon publié » qui pousse sur
+`main` après la publication, et qui relance donc le build Vercel. Un
+identifiant qui demanderait un encodage d'URL n'est pas pré-généré.
+
+Local : sur ce poste, le build a besoin de `NODE_TLS_REJECT_UNAUTHORIZED=0`
+pour joindre Supabase (interception TLS).
+
+## Inscription à la newsletter
+
+`NewsletterForm` intègre le formulaire hébergé par Brevo (Contacts >
+Formulaires > Partager > lien ; double opt-in et désinscription chez eux).
+Il ne s'affiche que si `VITE_BREVO_FORM_URL` est défini au build, et seulement
+pour une adresse `https://….sibforms.com/…` : dans `.env.local` en local, dans
+les variables du projet Vercel en production.
+
 ## Données
 
 The site reads three tables/views, all read-only via RLS:

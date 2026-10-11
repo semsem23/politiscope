@@ -111,6 +111,35 @@ a { color: var(--accent); }
   border-left: 2px solid var(--line); padding-left: 14px;
 }
 .methodo strong { color: var(--ink-soft); font-weight: 600; }
+.methodo a { color: var(--ink-soft); text-decoration: underline; text-underline-offset: 2px; }
+.methodo a:hover { color: var(--ink); }
+
+/* ---------- Inscription newsletter ---------- */
+.newsletter { max-width: 66ch; margin-top: 20px; font-size: 14px; color: var(--ink-soft); }
+.newsletter-lead { margin: 0 0 8px; line-height: 1.5; }
+.newsletter-lead strong { color: var(--ink); font-weight: 600; }
+.newsletter-frame { width: 100%; height: 300px; border: 0; background: transparent; }
+.newsletter-note { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; }
+.newsletter-note a { color: var(--ink-soft); }
+
+/* ---------- Page méthodologie ---------- */
+.doc-back { color: inherit; text-decoration: none; }
+.doc-back:hover { color: var(--ink); text-decoration: underline; }
+.doc-page { max-width: 66ch; }
+.doc-page section { margin-bottom: 32px; }
+.doc-page h2 {
+  font-family: "Fraunces Variable", Georgia, serif; font-weight: 620;
+  font-size: 1.35rem; line-height: 1.2; margin: 0 0 10px;
+}
+.doc-page p, .doc-page li { font-size: 15.5px; line-height: 1.7; color: var(--ink-soft); }
+.doc-page p { margin: 0 0 12px; }
+.doc-page ul { margin: 0 0 12px; padding-left: 20px; }
+.doc-page li { margin-bottom: 6px; }
+.doc-page strong { color: var(--ink); font-weight: 600; }
+.doc-page a { color: var(--accent); }
+.doc-families { list-style: none; padding-left: 0; }
+.doc-families li { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.doc-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
 
 /* ---------- Barre de filtres ---------- */
 .filterbar {

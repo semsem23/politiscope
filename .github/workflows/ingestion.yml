@@ -11,9 +11,9 @@ name: Nightly Ingestion
 
 on:
   schedule:
-    # 04:00 UTC — cron ignore les fuseaux, donc l'heure de Paris dérive avec
-    # l'heure d'été : 06:00 l'été (CEST, UTC+2), 05:00 l'hiver (CET, UTC+1).
-    - cron: "0 4 * * *"
+    # 01:00 UTC — cron ignore les fuseaux, donc l'heure de Paris dérive avec
+    # l'heure d'été : 03:00 l'été (CEST, UTC+2), 02:00 l'hiver (CET, UTC+1).
+    - cron: "0 1 * * *"
   workflow_dispatch:
     inputs:
       rss_days:

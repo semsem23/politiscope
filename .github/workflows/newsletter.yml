@@ -1,0 +1,77 @@
+name: Newsletter
+
+# Numéro quotidien : les citations publiées dans les dernières 24 h, envoyées
+# via Brevo (abonnés, double opt-in et désinscription y sont gérés).
+#
+# Manuel uniquement, volontairement : écrire à de vrais abonnés ne se déclenche
+# pas tout seul tant que les premiers numéros n'ont pas été relus.
+#   - preview : construit le numéro et l'affiche dans le résumé du job. N'envoie rien.
+#   - draft   : crée la campagne en brouillon chez Brevo, à relire et envoyer là-bas.
+#   - send    : envoie aux abonnés. Irréversible.
+#
+# Pour l'automatiser une fois confiant, décommentez `schedule` : 05h30 UTC,
+# soit après la publication nocturne (ingestion à 01h00 UTC) — et passez
+# `mode` par défaut à `send`. Le journal `newsletter_issues` (migration 014)
+# empêche un second envoi le même jour.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "preview | draft | send"
+        type: choice
+        options: [preview, draft, send]
+        default: preview
+  # schedule:
+  #   - cron: "30 5 * * *"
+
+# Même groupe que l'ingestion : ne pas lire `entries` pendant qu'on y écrit.
+concurrency:
+  group: ingestion
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  newsletter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_POOLER_URL }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_REGION: eu-west-2
+      BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+      BREVO_LIST_ID: ${{ secrets.BREVO_LIST_ID }}
+      BREVO_SENDER_EMAIL: ${{ secrets.BREVO_SENDER_EMAIL }}
+      BREVO_SENDER_NAME: Politiscope
+      PYTHONIOENCODING: utf-8
+      MODE: ${{ github.event.inputs.mode || 'preview' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      - name: Construire le numéro
+        run: |
+          case "$MODE" in
+            send)  flag="--send" ;;
+            draft) flag="--draft" ;;
+            *)     flag="" ;;
+          esac
+          python -m politiscope.cli newsletter $flag 2>&1 | tee "$RUNNER_TEMP/newsletter.txt"
+          {
+            echo "### Newsletter — mode \`$MODE\`"
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/newsletter.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
