@@ -43,6 +43,24 @@ visiteur. La commiter n'ajoute aucune exposition et rend le build autonome —
 sans elle, un build depuis Git produirait un bundle sans configuration Supabase,
 donc une page blanche.
 
+## Pages pré-générées (référencement)
+
+`npm run build` enchaîne `vite build` puis `scripts/prerender.mjs`, qui lit
+`entries` dans Supabase (clé publishable) et écrit dans `dist/` une page HTML
+par personnalité (`/p/:id`) et par citation (`/c/:id`), avec `<title>`,
+description, Open Graph, URL canonique et le texte de la citation dans le HTML
+servi, plus `sitemap.xml`. React remplace ce contenu au chargement : l'interface
+est inchangée. Si Supabase est injoignable, le script prévient et sort en 0 :
+le site reste une SPA classique.
+
+Les données changent chaque nuit, mais les pages ne sont refaites qu'à chaque
+déploiement : c'est le commit « Retire le brouillon publié » qui pousse sur
+`main` après la publication, et qui relance donc le build Vercel. Un
+identifiant qui demanderait un encodage d'URL n'est pas pré-généré.
+
+Local : sur ce poste, le build a besoin de `NODE_TLS_REJECT_UNAUTHORIZED=0`
+pour joindre Supabase (interception TLS).
+
 ## Données
 
 The site reads three tables/views, all read-only via RLS:
