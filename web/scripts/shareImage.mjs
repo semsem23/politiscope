@@ -34,7 +34,7 @@ async function loadFonts() {
 /** Les polices embarquées n'ont pas d'emoji : on les retire du rendu de l'image. */
 function sansEmoji(s) {
   return String(s)
-    .replace(/[\p{Extended_Pictographic}️‍\u{1F3FB}-\u{1F3FF}\u{1F1E6}-\u{1F1FF}]/gu, "")
+    .replace(/\p{Extended_Pictographic}|️|‍|[\u{1F3FB}-\u{1F3FF}]|[\u{1F1E6}-\u{1F1FF}]/gu, "")
     .replace(/\s+/g, " ")
     .trim();
 }
