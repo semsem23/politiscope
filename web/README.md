@@ -76,6 +76,19 @@ Il ne s'affiche que si `VITE_BREVO_FORM_URL` est défini au build, et seulement
 pour une adresse `https://….sibforms.com/…` : dans `.env.local` en local, dans
 les variables du projet Vercel en production.
 
+## Page /flux (Flux Macron)
+
+`src/flux/` : tableau de bord des activités publiques d'Emmanuel Macron, porté de
+`reference/flux-macron` (lecture seule). `shared/` (types, pipeline, temps) est une
+copie verbatim du prototype, tests compris ; `components/` et `lib/` aussi, sauf les
+noms de classes en collision avec `index.css` (`chip`, `dot`, `count-badge`, `title`,
+préfixés `f`). `flux.css` est la feuille du prototype préfixée `.flux`, branchée sur
+les jetons de `index.css` (clair/sombre).
+
+**Étape 1 : données de démonstration fictives uniquement** (`data.ts`), étiquetées
+DEMO, URL `example.org` ; aucune collecte. `noindex`. Tests : `npm test` (vitest,
+pipeline et filtres, sans DOM ni réseau).
+
 ## Données
 
 The site reads three tables/views, all read-only via RLS:
