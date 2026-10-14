@@ -18,7 +18,7 @@ on:
     inputs:
       rss_days:
         description: "Fenêtre Google Actualités (jours)"
-        default: "2"
+        default: "1"
       skip_x:
         description: "Sauter l'ingestion X (payante)"
         type: boolean
@@ -84,7 +84,7 @@ jobs:
       - name: Google Actualités
         run: |
           python -m politiscope.cli fetch-rss \
-            --days "${{ github.event.inputs.rss_days || '2' }}"
+            --days "${{ github.event.inputs.rss_days || '1' }}"
 
       # Gratuit aussi : Google Actualités, rubrique France, pour la vue Flux
       # live (sans effet si GOOGLE_NEWS_ENABLED n'est pas activé). Écrit
