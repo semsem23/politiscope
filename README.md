@@ -323,7 +323,7 @@ python -m politiscope.cli fetch-flux             # écrit dans flux_articles et 
   (`web/src/flux/shared`), pas ici.
 - Migration `015` (`flux_articles`, `flux_source_runs`, `flux_personalities`) à appliquer avec
   `db-migrate` ; le workflow *Flux Macron* tourne une fois par jour après *Nightly Ingestion*.
-- Filtre « Personnalités » : `flux_personalities.json` (47 noms tirés de `x_accounts.json`, à compléter
+- Filtre « Personnalités » : `flux_personalities.json` (41 noms tirés de `x_accounts.json`, à compléter
   avec des alias ou d'autres personnes), synchronisé par `fetch-flux`.
 
 ### Connecter les sources de la page /flux (de manière autorisée)
