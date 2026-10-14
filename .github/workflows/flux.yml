@@ -1,0 +1,80 @@
+name: Flux Macron
+
+# Collecte de la page /flux : une fois par jour, juste après Nightly Ingestion.
+#   - X : les publications de @EmmanuelMacron sont lues dans la table `tweets`, que
+#     Nightly Ingestion vient d'alimenter — aucune lecture X de plus, donc aucun coût.
+#   - Google Actualités : flux RSS public, lu seulement si la variable de dépôt
+#     GOOGLE_NEWS_ENABLED vaut `true` (ce flux est destiné à un usage personnel et
+#     non commercial : vérifiez ses conditions avant de l'activer).
+#
+# Une seule figure pour le moment : Emmanuel Macron. Chaque passage écrit un état
+# par source dans `flux_source_runs` (ok / error / disabled / not_configured).
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Fenêtre de lecture (jours)"
+        default: "30"
+      dry_run:
+        description: "Simulation : aucune écriture, aucune requête réseau"
+        type: boolean
+        default: false
+  workflow_run:
+    workflows: ["Nightly Ingestion"]
+    types: [completed]
+    branches: [main]
+
+# Même groupe que l'ingestion : ne pas lire `tweets` pendant que db-sync y écrit.
+concurrency:
+  group: ingestion
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  flux:
+    # Manuel : toujours. Automatique : seulement si l'ingestion a réussi.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_POOLER_URL }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_REGION: eu-west-2
+      GOOGLE_NEWS_ENABLED: ${{ vars.GOOGLE_NEWS_ENABLED || 'false' }}
+      PYTHONIOENCODING: utf-8
+      DAYS: ${{ github.event.inputs.days || '30' }}
+      DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      - name: Collecter le flux
+        run: |
+          flag=""
+          if [ "$DRY_RUN" = "true" ]; then flag="--dry-run"; fi
+          set +e
+          python -m politiscope.cli fetch-flux --days "$DAYS" $flag 2>&1 | tee "$RUNNER_TEMP/flux.txt"
+          code=${PIPESTATUS[0]}
+          set -e
+          {
+            echo "### Flux Macron"
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/flux.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$code"

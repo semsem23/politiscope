@@ -1,0 +1,244 @@
+{
+  "_comment": [
+    "Personnalités du filtre de la page /flux (miroir de la table flux_personalities, synchronisé par `fetch-flux`).",
+    "Un événement est rattaché à une personne quand son nom ou un alias apparaît, en mot entier (sans accents ni casse), dans un titre ou un extrait collecté : libellé « citée », jamais « impliquée ».",
+    "Générée à partir de x_accounts.json : ajoutez ici d'autres personnes (ministres, dirigeants étrangers) et des alias (écriture alternative, ≥ 4 caractères)."
+  ],
+  "personalities": [
+    {
+      "name": "Sébastien Lecornu",
+      "aliases": [],
+      "role": "Renaissance — Premier ministre"
+    },
+    {
+      "name": "Gabriel Attal",
+      "aliases": [],
+      "role": "Renaissance"
+    },
+    {
+      "name": "Édouard Philippe",
+      "aliases": [],
+      "role": "Horizons"
+    },
+    {
+      "name": "Gérald Darmanin",
+      "aliases": [],
+      "role": "Renaissance — Ministre de la Justice"
+    },
+    {
+      "name": "François Bayrou",
+      "aliases": [],
+      "role": "MoDem"
+    },
+    {
+      "name": "Bruno Le Maire",
+      "aliases": [],
+      "role": "Renaissance"
+    },
+    {
+      "name": "Aurore Bergé",
+      "aliases": [],
+      "role": "Renaissance"
+    },
+    {
+      "name": "Yaël Braun-Pivet",
+      "aliases": [],
+      "role": "Renaissance"
+    },
+    {
+      "name": "Bruno Retailleau",
+      "aliases": [],
+      "role": "Les Républicains"
+    },
+    {
+      "name": "Laurent Wauquiez",
+      "aliases": [],
+      "role": "Les Républicains"
+    },
+    {
+      "name": "David Lisnard",
+      "aliases": [],
+      "role": "Les Républicains (DVD) — président de l'AMF"
+    },
+    {
+      "name": "Xavier Bertrand",
+      "aliases": [],
+      "role": "Les Républicains — président des Hauts-de-France"
+    },
+    {
+      "name": "Jean-Noël Barrot",
+      "aliases": [],
+      "role": "MoDem — Ministre de l'Europe et des Affaires étrangères"
+    },
+    {
+      "name": "Valérie Pécresse",
+      "aliases": [],
+      "role": "Les Républicains"
+    },
+    {
+      "name": "Rachida Dati",
+      "aliases": [],
+      "role": "Les Républicains"
+    },
+    {
+      "name": "Gérard Larcher",
+      "aliases": [],
+      "role": "Les Républicains"
+    },
+    {
+      "name": "Michel Barnier",
+      "aliases": [],
+      "role": "Les Républicains"
+    },
+    {
+      "name": "François-Xavier Bellamy",
+      "aliases": [],
+      "role": "Les Républicains"
+    },
+    {
+      "name": "Jordan Bardella",
+      "aliases": [],
+      "role": "Rassemblement National"
+    },
+    {
+      "name": "Marine Le Pen",
+      "aliases": [],
+      "role": "Rassemblement National"
+    },
+    {
+      "name": "Éric Ciotti",
+      "aliases": [],
+      "role": "UDR"
+    },
+    {
+      "name": "Éric Zemmour",
+      "aliases": [],
+      "role": "Reconquête"
+    },
+    {
+      "name": "Sarah Knafo",
+      "aliases": [],
+      "role": "Reconquête — députée européenne"
+    },
+    {
+      "name": "Nicolas Dupont-Aignan",
+      "aliases": [],
+      "role": "Debout la France"
+    },
+    {
+      "name": "Marion Maréchal",
+      "aliases": [],
+      "role": "Identité-Libertés"
+    },
+    {
+      "name": "Sébastien Chenu",
+      "aliases": [],
+      "role": "Rassemblement National"
+    },
+    {
+      "name": "Louis Aliot",
+      "aliases": [],
+      "role": "Rassemblement National"
+    },
+    {
+      "name": "Florian Philippot",
+      "aliases": [],
+      "role": "Les Patriotes"
+    },
+    {
+      "name": "Jean-Luc Mélenchon",
+      "aliases": [],
+      "role": "La France Insoumise"
+    },
+    {
+      "name": "Manuel Bompard",
+      "aliases": [],
+      "role": "La France Insoumise"
+    },
+    {
+      "name": "Mathilde Panot",
+      "aliases": [],
+      "role": "La France Insoumise — présidente du groupe à l'Assemblée nationale"
+    },
+    {
+      "name": "François Ruffin",
+      "aliases": [],
+      "role": "Debout!"
+    },
+    {
+      "name": "Fabien Roussel",
+      "aliases": [],
+      "role": "Parti Communiste Français"
+    },
+    {
+      "name": "Éric Coquerel",
+      "aliases": [],
+      "role": "La France Insoumise"
+    },
+    {
+      "name": "Manon Aubry",
+      "aliases": [],
+      "role": "La France Insoumise"
+    },
+    {
+      "name": "Sophia Chikirou",
+      "aliases": [],
+      "role": "La France Insoumise"
+    },
+    {
+      "name": "Clémentine Autain",
+      "aliases": [],
+      "role": "L'Après"
+    },
+    {
+      "name": "Ian Brossat",
+      "aliases": [],
+      "role": "Parti Communiste Français"
+    },
+    {
+      "name": "Olivier Faure",
+      "aliases": [],
+      "role": "Parti Socialiste"
+    },
+    {
+      "name": "Raphaël Glucksmann",
+      "aliases": [],
+      "role": "Place Publique"
+    },
+    {
+      "name": "Marine Tondelier",
+      "aliases": [],
+      "role": "Les Écologistes"
+    },
+    {
+      "name": "Sandrine Rousseau",
+      "aliases": [],
+      "role": "Les Écologistes"
+    },
+    {
+      "name": "François Hollande",
+      "aliases": [],
+      "role": "Parti Socialiste — ancien président de la République"
+    },
+    {
+      "name": "Boris Vallaud",
+      "aliases": [],
+      "role": "Parti Socialiste"
+    },
+    {
+      "name": "Carole Delga",
+      "aliases": [],
+      "role": "Parti Socialiste"
+    },
+    {
+      "name": "Anne Hidalgo",
+      "aliases": [],
+      "role": "Parti Socialiste"
+    },
+    {
+      "name": "Yannick Jadot",
+      "aliases": [],
+      "role": "Les Écologistes"
+    }
+  ]
+}

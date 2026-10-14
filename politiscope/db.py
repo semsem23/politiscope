@@ -272,3 +272,68 @@ def stats(conn) -> dict[str, Any]:
             cur.execute(sql)
             out[k] = cur.fetchone()[0]
     return out
+
+
+# --- page /flux ------------------------------------------------------------
+def account_exists(conn, handle: str) -> bool:
+    with conn.cursor() as cur:
+        cur.execute("select 1 from accounts where handle = %s", (handle,))
+        return cur.fetchone() is not None
+
+
+def has_ingest_run(conn, kind: str) -> bool:
+    with conn.cursor() as cur:
+        cur.execute("select 1 from ingest_runs where kind = %s limit 1", (kind,))
+        return cur.fetchone() is not None
+
+
+def fetch_figure_tweets(conn, handle: str, since) -> list[tuple]:
+    """(id, created_at, texte, source) des posts d'un compte depuis `since`, déjà ingérés par fetch-x."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            select id, created_at, texte, source
+              from tweets
+             where handle = %s and created_at >= %s
+             order by created_at
+        """, (handle, since))
+        return cur.fetchall()
+
+
+def insert_flux_articles(conn, articles: Iterable[dict]) -> int:
+    """Ajoute les articles absents ; un article déjà en base n'est jamais réécrit. Renvoie le nombre de nouveaux."""
+    new = 0
+    with conn.cursor() as cur:
+        for a in articles:
+            cur.execute("""
+                insert into flux_articles (id, figure, source_kind, publisher_name, title, excerpt, url,
+                                           published_at, author_or_account, original_source_url)
+                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                on conflict (id) do nothing
+            """, (a["id"], a["figure"], a["source_kind"], a["publisher_name"], a["title"], a.get("excerpt"),
+                  a["url"], a["published_at"], a.get("author_or_account"), a.get("original_source_url")))
+            new += cur.rowcount
+    return new
+
+
+def record_flux_run(conn, source_kind: str, started, status: str, seen: int, kept: int, new: int,
+                    error: str | None) -> None:
+    with conn.cursor() as cur:
+        cur.execute("""
+            insert into flux_source_runs (source_kind, started_at, finished_at, status,
+                                          items_seen, items_kept, items_new, error)
+            values (%s, %s, now(), %s, %s, %s, %s, %s)
+        """, (source_kind, started, status, seen, kept, new, error))
+
+
+def sync_flux_personalities(conn, personalities: list[dict]) -> int:
+    """Aligne la table sur flux_personalities.json : ajoute, met à jour, supprime ce qui n'y est plus."""
+    with conn.cursor() as cur:
+        for p in personalities:
+            cur.execute("""
+                insert into flux_personalities (id, name, aliases, role)
+                values (%s, %s, %s, %s)
+                on conflict (id) do update
+                  set name = excluded.name, aliases = excluded.aliases, role = excluded.role
+            """, (p["id"], p["name"], p["aliases"], p["role"]))
+        cur.execute("delete from flux_personalities where id <> all(%s)", ([p["id"] for p in personalities],))
+    return len(personalities)

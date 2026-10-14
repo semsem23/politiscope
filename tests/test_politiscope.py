@@ -769,7 +769,9 @@ def test_media_front_sans_anciens_sujets_en_dur():
     racine = Path(__file__).parent.parent / "web" / "src"
     anciens = ("Gaza / Proche-Orient", "Guerre en Ukraine", "Commerce / droits de douane",
                "Défense / Otan", "Diplomatie", "pays:")
-    fautifs = [(f.name, a) for f in racine.rglob("*.ts*")
+    # web/src/flux : page /flux (Flux Macron), qui a ses propres catégories (« Diplomatie »…),
+    # sans rapport avec les sujets de press_mentions que ce test protège.
+    fautifs = [(f.name, a) for f in racine.rglob("*.ts*") if "flux" not in f.relative_to(racine).parts
                for a in anciens if a in f.read_text(encoding="utf-8")]
     assert not fautifs, fautifs
 

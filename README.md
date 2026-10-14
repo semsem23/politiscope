@@ -297,6 +297,35 @@ Nothing stops publishing several citations from the same person — that's
 even the point of a barometer tracked over time. The site then shows several
 bubbles for them, and counts "N citations · M personalities".
 
+## Page /flux : collecte (Emmanuel Macron)
+
+Deux sources, pour **une seule figure** (Emmanuel Macron) :
+
+| Source | D'où ça vient | Coût |
+|---|---|---|
+| **X** | les posts de `@EmmanuelMacron` déjà lus chaque nuit par `fetch-x` (table `tweets`) | aucun en plus |
+| **Google Actualités** | flux RSS public de recherche (« Emmanuel Macron »), via `rss.py` | gratuit, **usage personnel et non commercial** |
+
+```bash
+python -m politiscope.cli fetch-flux --dry-run   # aucune écriture, aucune requête réseau
+python -m politiscope.cli fetch-flux             # écrit dans flux_articles et flux_source_runs
+```
+
+- Ne sont gardés que les éléments qui **mentionnent Macron** (mot entier, sans accents ni casse) ;
+  la date conservée est celle de la **publication**, jamais celle de la collecte ; le texte n'est
+  jamais reformulé (balises, entités et caractères de contrôle retirés, extrait ≤ 280 caractères,
+  URL http(s) sans identifiants ni pistage).
+- **Google Actualités est désactivé par défaut** : `GOOGLE_NEWS_ENABLED=true` (variable de dépôt en CI).
+  Lisez d'abord ses conditions d'usage ; sans l'activation, le passage est journalisé `disabled` et
+  aucune requête n'est faite. Les liens du flux sont des redirections Google vers l'article.
+- Le regroupement en événements, les statuts et l'indice de recoupement
+  (`reference/flux-macron/docs/CONFIDENCE.md`) sont calculés **à la lecture par le site**
+  (`web/src/flux/shared`), pas ici.
+- Migration `015` (`flux_articles`, `flux_source_runs`, `flux_personalities`) à appliquer avec
+  `db-migrate` ; le workflow *Flux Macron* tourne une fois par jour après *Nightly Ingestion*.
+- Filtre « Personnalités » : `flux_personalities.json` (47 noms tirés de `x_accounts.json`, à compléter
+  avec des alias ou d'autres personnes), synchronisé par `fetch-flux`.
+
 ## Newsletter quotidienne
 
 Les citations publiées dans les dernières 24 h, groupées par famille (ordre
