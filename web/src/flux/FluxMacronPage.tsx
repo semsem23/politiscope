@@ -127,7 +127,7 @@ export default function FluxMacronPage() {
                 <a href="/">← Politiscope</a>
               </p>
               <h1 className="ftitle">Flux</h1>
-              <p className="sub">Activités publiques d'Emmanuel Macron · fenêtre glissante de {PERIOD_LABEL[windowKey]}</p>
+              <p className="sub">Activités publiques · fenêtre glissante de {PERIOD_LABEL[windowKey]}</p>
             </div>
           </div>
           <div className="who" aria-label="Personnalité suivie">
