@@ -411,6 +411,22 @@ def cmd_newsletter(args) -> int:
     return 0
 
 
+def cmd_fetch_flux(args) -> int:
+    """Collecte de la page /flux (X + Google Actualités, Emmanuel Macron seulement)."""
+    from . import db, flux
+
+    with db.connect() as conn:
+        if not args.dry_run:
+            n = db.sync_flux_personalities(conn, flux.load_personalities(flux.PERSONALITIES_FILE))
+            print(f"{n} personnalité(s) du filtre synchronisée(s)")
+        report = flux.run(conn, days=args.days, dry_run=args.dry_run)
+    for line in report.lines:
+        print(line)
+    if args.dry_run:
+        print("\n[DRY-RUN] rien n'a été écrit en base et aucune requête réseau n'a été faite.")
+    return 0 if report.ok else 1
+
+
 def cmd_budget(args) -> int:
     state = State(settings.state_file)
     if args.set is not None:
@@ -633,6 +649,11 @@ def main(argv: list[str] | None = None) -> int:
     nl.add_argument("--send", action="store_true", help="envoie aux abonnés (irréversible)")
     nl.add_argument("--force", action="store_true", help="renvoie même si le numéro du jour existe")
     nl.set_defaults(fn=cmd_newsletter)
+
+    fx = sub.add_parser("fetch-flux", help="collecte la page /flux (X + Google Actualités, Macron)")
+    fx.add_argument("--days", type=int, default=30, help="fenêtre de lecture en jours (défaut 30)")
+    fx.add_argument("--dry-run", action="store_true", help="aucune écriture, aucune requête réseau")
+    fx.set_defaults(fn=cmd_fetch_flux)
 
     sub.add_parser("db-migrate", help="applique les migrations SQL").set_defaults(fn=cmd_db_migrate)
     sub.add_parser("db-sync", help="pousse les données locales vers Supabase").set_defaults(fn=cmd_db_sync)

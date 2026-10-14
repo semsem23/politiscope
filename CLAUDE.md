@@ -22,6 +22,7 @@ Claude Code session working in this repo — read it first.
 |---|---|
 | Anything under `web/` | `npm --prefix web run typecheck && npm --prefix web run lint && npm --prefix web run build` |
 | Anything under `politiscope/` or `tests/` | `python -m pytest tests/ -q` |
+| Anything under `web/src/flux/` | `npm --prefix web test` (in addition to the `web/` checks above) |
 
 Fix failures before reporting the work as finished.
 

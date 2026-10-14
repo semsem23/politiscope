@@ -160,6 +160,12 @@ export default function App() {
         <h1 className="title">Politiscope</h1>
         <p className="dek">{contexte}</p>
         {lastUpdate && <p className="last-update">Dernière mise à jour : {lastUpdate}</p>}
+        <nav className="site-nav" aria-label="Autres pages">
+          <a className="nav-pill" href="/flux">
+            Flux <span aria-hidden="true">→</span>
+          </a>
+          <span className="nav-hint">Les activités publiques de figures politiques, X et presse</span>
+        </nav>
         <p className="methodo">
           <strong>Méthode.</strong> Citations tirées des comptes officiels des responsables
           politiques sur X, sélectionnées chaque nuit par des règles automatiques puis publiées
