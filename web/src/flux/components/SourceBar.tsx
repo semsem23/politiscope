@@ -51,7 +51,7 @@ export default function SourceBar({ filters: f, setFilters, windowKey, setWindow
             </button>
           ))}
         </div>
-        <button type="button" className="icon-btn" onClick={onRefresh} disabled={busy} aria-label={isDemo ? "Actualiser (aucune collecte en démonstration)" : "Rafraîchir les sources"} title={isDemo ? "Actualiser (démo : aucune collecte)" : "Rafraîchir les sources"}>
+        <button type="button" className="icon-btn" onClick={onRefresh} disabled={busy} aria-label={isDemo ? "Actualiser (aucune collecte en démonstration)" : "Relire les données (la collecte tourne une fois par jour)"} title={isDemo ? "Actualiser (démo : aucune collecte)" : "Relire les données (la collecte tourne une fois par jour)"}>
           <span className={busy ? "spin" : ""} aria-hidden="true">↻</span>
         </button>
       </div>

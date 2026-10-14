@@ -85,9 +85,21 @@ noms de classes en collision avec `index.css` (`chip`, `dot`, `count-badge`, `ti
 préfixés `f`). `flux.css` est la feuille du prototype préfixée `.flux`, branchée sur
 les jetons de `index.css` (clair/sombre).
 
-**Étape 1 : données de démonstration fictives uniquement** (`data.ts`), étiquetées
-DEMO, URL `example.org` ; aucune collecte. `noindex`. Tests : `npm test` (vitest,
-pipeline et filtres, sans DOM ni réseau).
+**Données réelles** (`data.ts`, `live.ts`) : le navigateur lit `flux_articles`, `flux_source_runs`
+et `flux_personalities` (clé publishable, lecture seule par RLS) pour la fenêtre choisie, puis le
+pipeline du prototype (`shared/`) regroupe les articles en événements, attribue statuts et indice
+de recoupement. Rien n'est calculé côté serveur.
+
+- **Aucune donnée inventée** : sans article, état vide explicite ; sans passage de collecte
+  enregistré, une source est « en attente » (jamais « opérationnelle »). Si Supabase est
+  injoignable, la page affiche l'erreur (après les nouvelles tentatives de supabase-js, une dizaine
+  de secondes) et **ne bascule pas d'elle-même sur la démonstration**.
+- **Démonstration** : uniquement sur demande, `/flux?demo=1` (données fictives étiquetées DEMO,
+  URL `example.org`), ou via le bouton de la bannière d'erreur.
+- **Panneau « État des sources »** : d'après `flux_source_runs` (opérationnelle / limitée si la
+  dernière réussite a plus de 48 h / indisponible avec l'erreur / non configurée / en attente).
+- Page `noindex`. Tests : `npm test` (vitest, sans DOM ni réseau) : pipeline, filtres et assemblage
+  de l'état réel (`live.test.ts`).
 
 ## Données
 

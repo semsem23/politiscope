@@ -326,6 +326,25 @@ python -m politiscope.cli fetch-flux             # écrit dans flux_articles et 
 - Filtre « Personnalités » : `flux_personalities.json` (47 noms tirés de `x_accounts.json`, à compléter
   avec des alias ou d'autres personnes), synchronisé par `fetch-flux`.
 
+### Connecter les sources de la page /flux (de manière autorisée)
+
+1. **Base** : appliquer la migration `015` (`python -m politiscope.cli db-migrate`).
+2. **X** : poser `X_BEARER_TOKEN` dans `.env` (et en secret du dépôt). `fetch-x` lit déjà les posts
+   de `@EmmanuelMacron` chaque nuit (API officielle v2, `exclude=retweets,replies`, plafond mensuel
+   `BUDGET_USD_MONTH`) ; `fetch-flux` les reprend depuis la base, sans coût de plus. Vérifier votre
+   formule d'accès et ses tarifs sur la documentation officielle de X avant d'augmenter le volume.
+3. **Google Actualités** : pas d'API officielle, seulement le flux RSS public de recherche. Lisez ses
+   conditions d'utilisation (usage personnel et non commercial) et décidez en connaissance de cause ;
+   pour l'activer : variable de dépôt GitHub `GOOGLE_NEWS_ENABLED=true` (ou dans `.env` en local).
+   Désactivé, le passage est journalisé `disabled` et aucune requête n'est faite.
+4. **Premier remplissage** : `python -m politiscope.cli fetch-flux` (ou le workflow *Flux Macron*).
+   X ne remonte qu'aussi loin que `fetch-x` : une lecture ponctuelle de plus d'historique est payante.
+5. **Vérifier** : sur `/flux`, déplier « État des sources » ; une source n'est « opérationnelle »
+   qu'après un passage réellement réussi, « limitée » si le dernier a plus de 48 h.
+
+Ce qui n'est **pas** testé contre le service réel : l'envoi par le workflow GitHub, la collecte
+Google avec `GOOGLE_NEWS_ENABLED` activé en production, et X au-delà de ce que `fetch-x` ingère.
+
 ## Newsletter quotidienne
 
 Les citations publiées dans les dernières 24 h, groupées par famille (ordre
