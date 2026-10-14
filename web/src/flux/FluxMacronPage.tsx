@@ -17,7 +17,7 @@ import Timeline from "./components/Timeline";
 import "./flux.css";
 
 const PERIOD_LABEL: Record<TimeWindow, string> = { "24h": "24 h", "7d": "7 jours", "30d": "30 jours" };
-const TITLE = "Flux Macron — Politiscope";
+const TITLE = "Flux — Politiscope";
 
 /**
  * Page /flux : activités publiques d'Emmanuel Macron sur une fenêtre glissante, d'après les articles et
@@ -126,7 +126,7 @@ export default function FluxMacronPage() {
               <p className="flux-back">
                 <a href="/">← Politiscope</a>
               </p>
-              <h1 className="ftitle">Flux Macron</h1>
+              <h1 className="ftitle">Flux</h1>
               <p className="sub">Activités publiques d'Emmanuel Macron · fenêtre glissante de {PERIOD_LABEL[windowKey]}</p>
             </div>
           </div>

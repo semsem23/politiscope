@@ -162,7 +162,7 @@ export default function App() {
         {lastUpdate && <p className="last-update">Dernière mise à jour : {lastUpdate}</p>}
         <nav className="site-nav" aria-label="Autres pages">
           <a className="nav-pill" href="/flux">
-            Flux Macron <span aria-hidden="true">→</span>
+            Flux <span aria-hidden="true">→</span>
           </a>
           <span className="nav-hint">Les activités publiques d'Emmanuel Macron, X et presse</span>
         </nav>
