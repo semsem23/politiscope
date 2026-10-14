@@ -1,0 +1,22 @@
+{
+  "name": "flux-macron",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Tableau de bord de veille sur les activités publiques d'Emmanuel Macron (X, Google Actualités).",
+  "engines": { "node": ">=22.13" },
+  "workspaces": ["server", "web"],
+  "scripts": {
+    "dev": "concurrently -n server,web -c blue,green \"npm run dev -w server\" \"npm run dev -w web\"",
+    "dev:demo": "concurrently -n server,web -c blue,green \"DEMO_MODE=true npm run dev -w server\" \"npm run dev -w web\"",
+    "build": "npm run build -w web",
+    "start": "npm run start -w server",
+    "test": "vitest run",
+    "typecheck": "tsc -p server --noEmit && tsc -p web --noEmit"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.4"
+  }
+}
