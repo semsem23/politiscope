@@ -151,22 +151,6 @@ def test_identifiant_stable_d_un_passage_a_l_autre():
     assert a1[0]["id"] == a2[0]["id"]
 
 
-# --- personnalités ---------------------------------------------------------------
-def test_personnalites_alias_courts_et_doublons_ignores(tmp_path):
-    f = tmp_path / "p.json"
-    f.write_text('{"personalities": [{"name": "Gabriel Attal", "aliases": ["Gab", "Attal Gabriel"], "role": "Renaissance"},'
-                 '{"name": "Gabriel  Attal"}, {"name": "Al"}]}', encoding="utf-8")
-    out = flux.load_personalities(f)
-    assert [p["id"] for p in out] == ["gabriel-attal"]
-    assert out[0]["aliases"] == ["Attal Gabriel"] and out[0]["role"] == "Renaissance"
-
-
-def test_fichier_de_personnalites_du_depot_est_valide():
-    out = flux.load_personalities(flux.PERSONALITIES_FILE)
-    ids = [p["id"] for p in out]
-    assert len(ids) > 10 and len(ids) == len(set(ids)) and "emmanuel-macron" not in ids
-
-
 # --- passage complet (base et réseau simulés) --------------------------------------
 class FakeDB:
     """Remplace politiscope.db pour `run` : enregistre ce qui serait écrit."""

@@ -30,11 +30,25 @@ def _log(verbose: bool) -> None:
     )
 
 
-def load_accounts() -> list[dict]:
-    cfg = read_json(settings.accounts_file, None)
-    if not cfg:
-        raise SystemExit(f"Fichier introuvable : {settings.accounts_file}")
-    return cfg["accounts"]
+def load_accounts(conn=None) -> list[dict]:
+    """Comptes suivis actifs, lus dans la table `accounts` de Supabase (plus de fichier JSON).
+
+    Ajout, retrait et corrections se font dans la base : voir README, « Gérer les comptes suivis ».
+    """
+    from . import db
+
+    try:
+        if conn is not None:
+            accounts = db.fetch_accounts(conn)
+        else:
+            with db.connect() as c:
+                accounts = db.fetch_accounts(c)
+    except Exception as e:  # noqa: BLE001 — message unique, lisible, sans trace
+        raise SystemExit("Les comptes suivis sont dans Supabase et la base est injoignable : "
+                         + str(e).strip().splitlines()[0][:140])
+    if not accounts:
+        raise SystemExit("Aucun compte actif dans la table accounts : rien à ingérer.")
+    return accounts
 
 
 # --- commandes -----------------------------------------------------------
@@ -87,8 +101,8 @@ def cmd_verify(args) -> int:
     for a in missing:
         print(f"❌ {a['nom']:<26} @{a['handle']} introuvable")
     if missing:
-        print("\nCorrigez x_accounts.json avant d'ingérer : un handle erroné "
-              "attribuerait une citation à la mauvaise personne.")
+        print("\nCorrigez la table accounts avant d'ingérer (update accounts set handle = … where handle = …) : "
+              "un handle erroné attribuerait une citation à la mauvaise personne.")
         return 1
     return 0
 
@@ -278,12 +292,10 @@ def cmd_candidates(args) -> int:
             # les candidates au passage suivant.
             existing |= db.fetch_published_keys(conn)
     except Exception as e:
+        # Plus de repli hors ligne : sans la base, on ne sait pas ce qui est déjà publié.
         logging.getLogger("politiscope").warning(
-            "base injoignable (%s) — repli sur l'artifact archivé", str(e).splitlines()[0][:60])
-        if settings.artifact_file.exists():
-            html = settings.artifact_file.read_text(encoding="utf-8", errors="replace")
-            for m in __import__("re").finditer(r'citation:"((?:[^"\\]|\\.)*)"', html):
-                existing.add(normalise(m.group(1)))
+            "base injoignable (%s) — les citations déjà publiées ne sont pas exclues",
+            str(e).splitlines()[0][:60])
 
     cands: list[dict] = []
     for row in read_jsonl(settings.tweets_file):
@@ -416,9 +428,6 @@ def cmd_fetch_flux(args) -> int:
     from . import db, flux
 
     with db.connect() as conn:
-        if not args.dry_run:
-            n = db.sync_flux_personalities(conn, flux.load_personalities(flux.PERSONALITIES_FILE))
-            print(f"{n} personnalité(s) du filtre synchronisée(s)")
         report = flux.run(conn, days=args.days, dry_run=args.dry_run)
     for line in report.lines:
         print(line)
@@ -459,24 +468,29 @@ def cmd_db_sync(args) -> int:
     from . import db
     from .quotes import normalise as _norm
 
-    accounts = load_accounts()
     state = State(settings.state_file)
 
     tweets = list(read_jsonl(settings.tweets_file))
     rss = list(read_jsonl(settings.rss_file))
-
-    cands: list[dict] = []
-    for row in tweets:
-        cands.extend(candidates_from_tweet(row))
-    for row in rss:
-        cands.extend(candidates_from_rss(row))
 
     TABLES = ("tweets", "rss_items", "candidates")
     with db.connect() as conn:
         db.migrate(conn)
         avant = db.table_counts(conn, TABLES)
 
-        n_acc = db.upsert_accounts(conn, accounts)
+        # La table `accounts` fait foi : on n'envoie que ce qui concerne un compte qui y figure
+        # (un compte supprimé en base ne doit pas revenir par un fichier local périmé).
+        comptes = db.fetch_accounts(conn, active_only=False)
+        handles, noms = {a["handle"] for a in comptes}, {a["nom"] for a in comptes}
+        tweets = [t for t in tweets if t["handle"] in handles]
+        rss = [r for r in rss if r["nom"] in noms]
+
+        cands: list[dict] = []
+        for row in tweets:
+            cands.extend(candidates_from_tweet(row))
+        for row in rss:
+            cands.extend(candidates_from_rss(row))
+
         if state.user_ids:
             db.set_user_ids(conn, state.user_ids)
         n_tw = db.upsert_tweets(conn, tweets)
@@ -497,7 +511,6 @@ def cmd_db_sync(args) -> int:
         suffixe = f"  ({rejoues} déjà en base)" if rejoues > 0 else ""
         return f"  {label:<12} {neufs:>5} nouveau(x) sur {envoyes} envoyé(s){suffixe}"
 
-    print(f"  {'comptes':<12} {n_acc:>5} synchronisé(s)")
     print(ligne("tweets", "tweets", n_tw))
     print(ligne("items RSS", "rss_items", n_rss))
     print(ligne("candidates", "candidates", n_cd))
@@ -516,11 +529,6 @@ def cmd_db_stats(args) -> int:
     for k, v in st.items():
         print(f"  {k:<20} {v}")
     return 0
-
-
-def cmd_preview(args) -> int:
-    from .preview import serve
-    return serve(port=args.port, open_browser=not args.no_open)
 
 
 def cmd_selftest(args) -> int:
@@ -619,11 +627,6 @@ def main(argv: list[str] | None = None) -> int:
                    help="exige un sujet politique identifié (prise de position)")
     c.add_argument("--json", action="store_true")
     c.set_defaults(fn=cmd_candidates)
-
-    pv = sub.add_parser("preview", help="sert l'artifact en local et l'ouvre")
-    pv.add_argument("--port", type=int, default=8000)
-    pv.add_argument("--no-open", action="store_true", help="ne pas ouvrir le navigateur")
-    pv.set_defaults(fn=cmd_preview)
 
     t = sub.add_parser("selftest", help="auto-diagnostic de l'installation")
     t.add_argument("--network", action="store_true", help="teste RSS et Supabase (gratuit)")
