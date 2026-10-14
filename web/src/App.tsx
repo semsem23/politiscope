@@ -164,7 +164,7 @@ export default function App() {
           <a className="nav-pill" href="/flux">
             Flux <span aria-hidden="true">→</span>
           </a>
-          <span className="nav-hint">Les activités publiques d'Emmanuel Macron, X et presse</span>
+          <span className="nav-hint">Les activités publiques de figures politiques, X et presse</span>
         </nav>
         <p className="methodo">
           <strong>Méthode.</strong> Citations tirées des comptes officiels des responsables
