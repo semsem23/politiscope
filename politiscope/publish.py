@@ -59,16 +59,16 @@ def _reference_maps(conn) -> tuple[dict[str, dict], set[str]]:
     return par_nom, themes
 
 
-def _comptes() -> dict[str, dict]:
-    cfg = json.loads(settings.accounts_file.read_text(encoding="utf-8"))
-    return {a["nom"]: a for a in cfg["accounts"]}
+def _comptes(conn) -> dict[str, dict]:
+    """Comptes suivis par nom, d'après la table `accounts` (source de vérité)."""
+    return {a["nom"]: a for a in db.fetch_accounts(conn, active_only=False)}
 
 
 def build_draft(conn, *, limit: int, min_score: int, per_person: int,
                 since_hours: float | None, famille: str | None) -> list[dict]:
     """Selects publishable candidates and pre-fills what can be deduced."""
     par_nom, _ = _reference_maps(conn)
-    comptes = _comptes()
+    comptes = _comptes(conn)
 
     clauses = ["c.verifie", "not c.protocolaire", "c.theme_suggere is not null",
                "c.source is not null", "c.score >= %s"]

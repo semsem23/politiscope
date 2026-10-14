@@ -10,7 +10,6 @@ Aucun niveau n'écrit en base ni ne consomme de quota d'ingestion.
 """
 from __future__ import annotations
 
-import json
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -64,19 +63,6 @@ def check_offline(rep: Report) -> None:
     rep.add(".env exclu de git", ignored or not env.exists(),
             "protégé" if ignored else "⚠ .env RISQUE D'ÊTRE COMMITÉ")
 
-    try:
-        cfg = json.loads(settings.accounts_file.read_text(encoding="utf-8"))
-        accounts = cfg["accounts"]
-        familles = {"majorite", "droite-rep", "extreme-droite",
-                    "gauche-radicale", "gauche-social"}
-        bad = [a["nom"] for a in accounts if a["famille"] not in familles]
-        handles = [a["handle"] for a in accounts]
-        dup = len(handles) != len(set(handles))
-        rep.add("x_accounts.json", not bad and not dup,
-                f"{len(accounts)} comptes, {len(set(handles))} handles uniques")
-    except Exception as e:
-        rep.add("x_accounts.json", False, str(e)[:60])
-
     # caractères de contrôle : la classe de bug qui a cassé la regex protocolaire
     stray = []
     for f in (settings.root / "politiscope").glob("*.py"):
@@ -91,12 +77,6 @@ def check_offline(rep: Report) -> None:
     last = [l for l in r.stdout.strip().splitlines() if l.strip()]
     rep.add("suite de tests", r.returncode == 0, last[-1] if last else "")
 
-    for cmd in (["fetch-x", "--dry-run"], ["fetch-rss", "--dry-run"],
-                ["verify-handles", "--dry-run"], ["status"]):
-        r = subprocess.run([sys.executable, "-m", "politiscope.cli", *cmd],
-                           cwd=settings.root, capture_output=True, text=True)
-        rep.add(f"commande `{' '.join(cmd)}`", r.returncode == 0,
-                (r.stderr or r.stdout).strip().splitlines()[-1][:60] if r.returncode else "ok")
 
 
 # --- niveau 2 : réseau gratuit -------------------------------------------
@@ -124,6 +104,15 @@ def check_network(rep: Report) -> None:
                 f"{migs} migration(s), {st['tweets']} tweets, {st['candidates']} candidates")
     except Exception as e:
         rep.add("Supabase (lecture)", False, str(e).strip().splitlines()[0][:70])
+        return
+
+    # Les comptes suivis sont dans la base : ces commandes en ont besoin (dry-run, aucune dépense).
+    for cmd in (["fetch-x", "--dry-run"], ["fetch-rss", "--dry-run"],
+                ["verify-handles", "--dry-run"], ["status"]):
+        r = subprocess.run([sys.executable, "-m", "politiscope.cli", *cmd],
+                           cwd=settings.root, capture_output=True, text=True)
+        rep.add(f"commande `{' '.join(cmd)}`", r.returncode == 0,
+                (r.stderr or r.stdout).strip().splitlines()[-1][:60] if r.returncode else "ok")
 
 
 # --- niveau 3 : payant ----------------------------------------------------

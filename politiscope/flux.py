@@ -38,7 +38,6 @@ log = logging.getLogger("politiscope.flux")
 FIGURE = "emmanuel-macron"
 FIGURE_NAME = "Emmanuel Macron"
 FIGURE_HANDLE = "EmmanuelMacron"
-PERSONALITIES_FILE = settings.root / "flux_personalities.json"
 
 MAX_TITLE = 300
 MAX_EXCERPT = 280          # extrait court : pas de reproduction d'articles protégés
@@ -238,32 +237,6 @@ def fetch_google(days: int, session: requests.Session | None = None) -> list[dic
     r = s.get(feed_url(FIGURE_NAME, days, settings.rss_lang, settings.rss_country), timeout=30)
     r.raise_for_status()
     return parse_google_feed(r.content)
-
-
-# --- personnalités (miroir de flux_personalities.json) -----------------------------
-def slug(s: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", fold(s)).strip("-")
-
-
-def load_personalities(path) -> list[dict[str, Any]]:
-    """Lit flux_personalities.json ; aliases trop courts ignorés (faux positifs), doublons écartés."""
-    import json
-
-    raw = json.loads(path.read_text(encoding="utf-8")).get("personalities", [])
-    out, seen = [], set()
-    for p in raw:
-        name = (p.get("name") or "").strip()
-        pid = slug(name)
-        if len(name) < 4 or not pid or pid in seen:
-            continue
-        seen.add(pid)
-        out.append({
-            "id": pid,
-            "name": name,
-            "aliases": [a.strip() for a in p.get("aliases", []) if len(a.strip()) >= 4],
-            "role": (p.get("role") or None),
-        })
-    return out
 
 
 # --- passage -------------------------------------------------------------------------

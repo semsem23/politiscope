@@ -31,7 +31,6 @@ class Settings:
     """Réglages résolus une fois au démarrage."""
 
     root: Path = ROOT
-    accounts_file: Path = ROOT / "x_accounts.json"
     state_file: Path = ROOT / "x_state.json"
     tweets_file: Path = ROOT / "x_tweets.jsonl"
     rss_file: Path = ROOT / "rss_items.jsonl"

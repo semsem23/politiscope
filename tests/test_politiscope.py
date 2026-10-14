@@ -215,19 +215,36 @@ def test_lecture_jsonl_absent_ne_leve_pas(tmp_path: Path):
 
 
 # --- configuration des comptes ------------------------------------------
-def test_fichier_comptes_est_coherent():
-    cfg = json.loads((Path(__file__).parent.parent / "x_accounts.json")
-                     .read_text(encoding="utf-8"))
-    familles = {"majorite", "droite-rep", "extreme-droite", "gauche-radicale", "gauche-social"}
-    handles, noms = set(), set()
-    for a in cfg["accounts"]:
-        assert a["famille"] in familles, f"famille inconnue pour {a['nom']}"
-        assert not a["handle"].startswith("@"), f"handle avec @ : {a['handle']}"
-        assert a["handle"] not in handles, f"handle en double : {a['handle']}"
-        assert a["nom"] not in noms, f"nom en double : {a['nom']}"
-        handles.add(a["handle"])
-        noms.add(a["nom"])
-    assert len(cfg["accounts"]) >= 20
+class _CompteCursor:
+    """Rejoue la requête de db.fetch_accounts sans base."""
+    def __init__(self, rows): self.rows, self.sql = rows, ""
+    def execute(self, sql, *a): self.sql = sql
+    def fetchall(self):
+        return [r[:4] for r in self.rows if ("where active" not in self.sql) or r[4]]
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+
+
+class _CompteConn:
+    def __init__(self, rows): self.rows = rows
+    def cursor(self): return _CompteCursor(self.rows)
+
+
+def test_les_comptes_viennent_de_la_base_et_seuls_les_actifs_sont_ingeres():
+    from politiscope import db
+    rows = [("a", "Alice A", "majorite", "P1", True), ("b", "Bob B", "gauche-social", "P2", False)]
+    assert db.fetch_accounts(_CompteConn(rows)) == [
+        {"handle": "a", "nom": "Alice A", "famille": "majorite", "parti": "P1"}]
+    assert [c["handle"] for c in db.fetch_accounts(_CompteConn(rows), active_only=False)] == ["a", "b"]
+
+
+def test_plus_de_fichier_de_comptes_ni_de_personnalites_dans_le_code():
+    """Les comptes suivis et les personnalités du filtre Flux vivent dans Supabase."""
+    racine = Path(__file__).parent.parent
+    assert not (racine / "x_accounts.json").exists() and not (racine / "flux_personalities.json").exists()
+    for f in (racine / "politiscope").glob("*.py"):
+        assert "x_accounts.json" not in f.read_text(encoding="utf-8"), f.name
+
 
 
 # --- correctifs de notation et d'attribution (2e passe) ------------------
@@ -850,7 +867,7 @@ def test_build_draft_ecarte_l_autopromo_et_equilibre_les_familles():
         def cursor(self): return Cur()
 
     with m.patch.object(publish, "_reference_maps", lambda c: ({}, set())), \
-         m.patch.object(publish, "_comptes", lambda: {}):
+         m.patch.object(publish, "_comptes", lambda conn: {}):
         draft = publish.build_draft(Conn(), limit=3, min_score=0, per_person=1,
                                     since_hours=None, famille=None)
     assert [e["nom"] for e in draft] == ["D", "E", "A"]   # B écarté ; D, E avant C

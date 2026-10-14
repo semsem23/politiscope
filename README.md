@@ -100,8 +100,44 @@ du tweet.
 ### Toujours commencer par `verify-handles`
 
 Un handle erroné attribuerait une citation à la mauvaise personne. Sur les
-26 comptes d'origine, un seul était faux (`@SarahKnafo` au lieu de
+26 comptes d'origine (alors dans `x_accounts.json`, aujourd'hui dans la table `accounts`), un seul était faux (`@SarahKnafo` au lieu de
 `@knafo_sarah`) — un taux d'erreur de 4 % suffit à discréditer le baromètre.
+
+## Gérer les comptes suivis et les personnalités (Supabase)
+
+Les deux listes vivent **dans la base**, plus dans des fichiers : la table `accounts` (comptes
+suivis par l'ingestion) et la table `flux_personalities` (filtre de la page Flux). Elles se
+modifient dans l'éditeur SQL de Supabase ou son éditeur de tables ; aucun déploiement n'est
+nécessaire, le prochain passage les lit. Il n'y a plus de `x_accounts.json` ni de
+`flux_personalities.json` (l'historique git garde leur dernière version).
+
+```sql
+-- Ajouter un compte (famille : majorite, droite-rep, extreme-droite, gauche-radicale, gauche-social)
+insert into accounts (handle, nom, famille, parti)
+values ('jnbarrot', 'Jean-Noël Barrot', 'majorite', 'MoDem — Ministre de l''Europe et des Affaires étrangères');
+
+-- Arrêter de suivre un compte SANS rien supprimer (plus d'ingestion, l'existant reste)
+update accounts set active = false where handle = 'jnbarrot';
+
+-- Retirer complètement une figure (comptes, tweets, candidates, citations) : dans cet ordre
+begin;
+delete from entries    where handle = 'jnbarrot';
+delete from candidates where nom    = 'Jean-Noël Barrot';
+delete from rss_items  where nom    = 'Jean-Noël Barrot';
+delete from accounts   where handle = 'jnbarrot';   -- efface aussi ses tweets et son état d'ingestion
+commit;
+
+-- Filtre « Personnalités » de la page Flux (id = nom sans accents, en minuscules, séparé par des tirets)
+insert into flux_personalities (id, name, aliases, role)
+values ('jean-noel-barrot', 'Jean-Noël Barrot', '{}', 'MoDem');
+delete from flux_personalities where id = 'jean-noel-barrot';
+```
+
+Après l'ajout d'un compte, lancez `verify-handles` (voir ci-dessus) : il résout les nouveaux
+handles et refuse un compte introuvable. Les alias d'une personnalité (≥ 4 caractères, mot entier)
+sont à mettre dans la colonne `aliases` ; la page Flux affiche « citée », jamais « impliquée ».
+Le nombre de comptes de la page méthodologie est écrit à la main dans
+`web/src/components/MethodologyPage.tsx` : pensez à le mettre à jour.
 
 ## Maîtrise des coûts
 
@@ -323,8 +359,8 @@ python -m politiscope.cli fetch-flux             # écrit dans flux_articles et 
   (`web/src/flux/shared`), pas ici.
 - Migration `015` (`flux_articles`, `flux_source_runs`, `flux_personalities`) à appliquer avec
   `db-migrate` ; le workflow *Flux Macron* tourne une fois par jour après *Nightly Ingestion*.
-- Filtre « Personnalités » : `flux_personalities.json` (41 noms tirés de `x_accounts.json`, à compléter
-  avec des alias ou d'autres personnes), synchronisé par `fetch-flux`.
+- Filtre « Personnalités » : la table `flux_personalities` (voir « Gérer les comptes suivis et les
+  personnalités » ci-dessous).
 
 ### Connecter les sources de la page /flux (de manière autorisée)
 
@@ -578,5 +614,4 @@ politiscope/
 migrations/       schéma SQL versionné
 web/              site React/Vite — voir web/README.md
 archive/          politiscope.html, la version d'origine, conservée pour référence
-x_accounts.json   les 26 comptes suivis
 ```

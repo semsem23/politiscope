@@ -107,16 +107,17 @@ def _executemany(conn, sql: str, rows: Sequence[tuple]) -> int:
     return len(rows)
 
 
-def upsert_accounts(conn, accounts: Iterable[dict]) -> int:
-    rows = [(a["handle"], a["nom"], a["famille"], a["parti"]) for a in accounts]
-    return _executemany(conn, """
-        insert into accounts (handle, nom, famille, parti)
-        values (%s, %s, %s, %s)
-        on conflict (handle) do update
-          set nom = excluded.nom,
-              famille = excluded.famille,
-              parti = excluded.parti
-    """, rows)
+def fetch_accounts(conn, active_only: bool = True) -> list[dict]:
+    """Comptes suivis : la table `accounts` est la source de vérité (plus de fichier JSON).
+
+    `active = false` retire un compte de l'ingestion sans rien supprimer.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            "select handle, nom, famille, parti from accounts"
+            + (" where active" if active_only else "")
+            + " order by famille, nom")
+        return [{"handle": h, "nom": n, "famille": f, "parti": p} for h, n, f, p in cur.fetchall()]
 
 
 def set_user_ids(conn, mapping: dict[str, str]) -> int:
@@ -323,17 +324,3 @@ def record_flux_run(conn, source_kind: str, started, status: str, seen: int, kep
                                           items_seen, items_kept, items_new, error)
             values (%s, %s, now(), %s, %s, %s, %s, %s)
         """, (source_kind, started, status, seen, kept, new, error))
-
-
-def sync_flux_personalities(conn, personalities: list[dict]) -> int:
-    """Aligne la table sur flux_personalities.json : ajoute, met à jour, supprime ce qui n'y est plus."""
-    with conn.cursor() as cur:
-        for p in personalities:
-            cur.execute("""
-                insert into flux_personalities (id, name, aliases, role)
-                values (%s, %s, %s, %s)
-                on conflict (id) do update
-                  set name = excluded.name, aliases = excluded.aliases, role = excluded.role
-            """, (p["id"], p["name"], p["aliases"], p["role"]))
-        cur.execute("delete from flux_personalities where id <> all(%s)", ([p["id"] for p in personalities],))
-    return len(personalities)
