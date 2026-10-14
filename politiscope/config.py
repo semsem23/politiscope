@@ -34,9 +34,6 @@ class Settings:
     state_file: Path = ROOT / "x_state.json"
     tweets_file: Path = ROOT / "x_tweets.jsonl"
     rss_file: Path = ROOT / "rss_items.jsonl"
-    # Archivé : le site vivant est `web/`, qui lit Supabase. Ce fichier ne sert
-    # plus qu'à consulter la version diffusée initialement.
-    artifact_file: Path = ROOT / "archive" / "politiscope.html"
 
     bearer_token: str | None = field(default_factory=lambda: os.getenv("X_BEARER_TOKEN"))
     anthropic_api_key: str | None = field(default_factory=lambda: os.getenv("ANTHROPIC_API_KEY"))

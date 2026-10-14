@@ -292,12 +292,10 @@ def cmd_candidates(args) -> int:
             # les candidates au passage suivant.
             existing |= db.fetch_published_keys(conn)
     except Exception as e:
+        # Plus de repli hors ligne : sans la base, on ne sait pas ce qui est déjà publié.
         logging.getLogger("politiscope").warning(
-            "base injoignable (%s) — repli sur l'artifact archivé", str(e).splitlines()[0][:60])
-        if settings.artifact_file.exists():
-            html = settings.artifact_file.read_text(encoding="utf-8", errors="replace")
-            for m in __import__("re").finditer(r'citation:"((?:[^"\\]|\\.)*)"', html):
-                existing.add(normalise(m.group(1)))
+            "base injoignable (%s) — les citations déjà publiées ne sont pas exclues",
+            str(e).splitlines()[0][:60])
 
     cands: list[dict] = []
     for row in read_jsonl(settings.tweets_file):
@@ -533,11 +531,6 @@ def cmd_db_stats(args) -> int:
     return 0
 
 
-def cmd_preview(args) -> int:
-    from .preview import serve
-    return serve(port=args.port, open_browser=not args.no_open)
-
-
 def cmd_selftest(args) -> int:
     from .selftest import run
     return run(network=args.network, api=args.api)
@@ -634,11 +627,6 @@ def main(argv: list[str] | None = None) -> int:
                    help="exige un sujet politique identifié (prise de position)")
     c.add_argument("--json", action="store_true")
     c.set_defaults(fn=cmd_candidates)
-
-    pv = sub.add_parser("preview", help="sert l'artifact en local et l'ouvre")
-    pv.add_argument("--port", type=int, default=8000)
-    pv.add_argument("--no-open", action="store_true", help="ne pas ouvrir le navigateur")
-    pv.set_defaults(fn=cmd_preview)
 
     t = sub.add_parser("selftest", help="auto-diagnostic de l'installation")
     t.add_argument("--network", action="store_true", help="teste RSS et Supabase (gratuit)")

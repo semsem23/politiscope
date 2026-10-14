@@ -55,7 +55,7 @@ export function MethodologyPage() {
         <section>
           <h2>D'où viennent les citations</h2>
           <p>
-            Les citations proviennent des <strong>comptes officiels sur X</strong> d'un panel de 42
+            Les citations proviennent des <strong>comptes officiels sur X</strong> d'un panel de 41
             responsables politiques, réparti en cinq familles (de 7 à 10 comptes
             chacune) :
           </p>

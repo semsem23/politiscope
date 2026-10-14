@@ -44,11 +44,6 @@ cd web && npm install && npm run dev   # http://localhost:5173
 Le site (`web/`) lit directement Supabase — voir `web/README.md` pour la
 configuration (`.env.local`) et le déploiement.
 
-`python -m politiscope.cli preview` existe encore mais ne sert que
-`archive/politiscope.html`, la version d'origine (données codées en dur,
-remplacée par le site React) conservée pour référence — voir
-`archive/README.md`.
-
 ## Utilisation
 
 ```bash
@@ -613,5 +608,4 @@ politiscope/
   cli.py       commandes
 migrations/       schéma SQL versionné
 web/              site React/Vite — voir web/README.md
-archive/          politiscope.html, la version d'origine, conservée pour référence
 ```
