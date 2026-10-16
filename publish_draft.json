@@ -1,0 +1,68 @@
+{
+  "_mode_emploi": [
+    "`theme` is pre-filled by automatic detection: check it against",
+    "  the citation, correct it, or leave it if it's right.",
+    "  If it's empty, fill it in: it must exist in the `topics` table.",
+    "Don't modify `citation` or `source`: applying re-checks them.",
+    "Just remove an entry from the array to skip publishing it.",
+    "Then: python -m politiscope.cli publish --apply publish_draft.json"
+  ],
+  "entries": [
+    {
+      "candidate_id": 9511,
+      "_score": 75,
+      "nom": "David Lisnard",
+      "parti": "Les Républicains (DVD) — président de l'AMF",
+      "code_parti": "LR",
+      "famille": "droite-rep",
+      "handle": "davidlisnard",
+      "citation": "Nous continuons de faire baisser la dette de la commune. Et plus vite que dans l’échéancier présenté l’année dernière. C’est la bonne nouvelle du jour. Elle ne tombe pas du ciel, mais bel et bien de la méthode déterminée que nous appliquons depuis 2014. Je viens en effet de",
+      "date_texte": "15 octobre 2026",
+      "date_tri": "2026-10-15",
+      "source": "https://x.com/davidlisnard/status/2110722392490131623",
+      "theme": "Budget & finances publiques"
+    },
+    {
+      "candidate_id": 9537,
+      "_score": 90,
+      "nom": "Marine Le Pen",
+      "parti": "Rassemblement National",
+      "code_parti": "RN",
+      "famille": "extreme-droite",
+      "handle": "MLP_officiel",
+      "citation": "J'ai placé cette campagne présidentielle à l'aune de la Renaissance. Il est nécessaire de défendre à nouveau le beau, le grand, la création, le progrès. Je le décrirai lors de mon premier grand meeting, le week-end prochain à Orléans.",
+      "date_texte": "15 octobre 2026",
+      "date_tri": "2026-10-15",
+      "source": "https://x.com/MLP_officiel/status/2110841299406651472",
+      "theme": "Stratégie 2027 & recomposition"
+    },
+    {
+      "candidate_id": 9526,
+      "_score": 90,
+      "nom": "Florian Philippot",
+      "parti": "Les Patriotes",
+      "code_parti": null,
+      "famille": "extreme-droite",
+      "handle": "f_philippot",
+      "citation": "Eh oui ! Preuve qu’on NE PEUT PAS réduire substantiellement l’aide à l’Ukraine si on reste dans l’UE ! ⤵️",
+      "date_texte": "15 octobre 2026",
+      "date_tri": "2026-10-15",
+      "source": "https://x.com/f_philippot/status/2110754268630151244",
+      "theme": "Europe & souveraineté"
+    },
+    {
+      "candidate_id": 9514,
+      "_score": 75,
+      "nom": "Éric Ciotti",
+      "parti": "UDR",
+      "code_parti": "UDR",
+      "famille": "extreme-droite",
+      "handle": "ECiotti",
+      "citation": "Nice doit retrouver toute sa place parmi les grandes villes culturelles ! Nous rouvrirons le MAMAC avant la fin de l’année, nous recréerons un véritable théâtre et nous engagerons la rénovation de notre Opéra. La culture sera l’une des grandes priorités de mon mandat.",
+      "date_texte": "15 octobre 2026",
+      "date_tri": "2026-10-15",
+      "source": "https://x.com/ECiotti/status/2110804337857327524",
+      "theme": "Institutions & calendrier électoral"
+    }
+  ]
+}
